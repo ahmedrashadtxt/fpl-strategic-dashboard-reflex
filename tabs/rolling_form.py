@@ -1,6 +1,8 @@
 from data import get_manager_squad_ids
 import pandas as pd
 import plotly.express as px
+from rapidfuzz import fuzz, process
+from st_keyup import st_keyup
 import streamlit as st
 from theme import SILHOUETTE_BASE64, fmt_num, render_list_card, render_sortable_table, section_header
 
@@ -20,92 +22,9 @@ def get_player_img_url(photo, code=None):
     return f"https://resources.premierleague.com/premierleague/photos/players/110x140/{base_name}.png"
 
 
-def render_rolling_form_tab(conn, current_gw, teams_fdr_map):
-    col_t2_hdr, col_t2_pop = st.columns([6, 1])
-    with col_t2_hdr:
-        section_header(
-            "Rolling Form & Trends",
-            "Analyze form trajectory vs upcoming fixture schedule",
-        )
-    with col_t2_pop:
-        st.markdown("<div style='margin-top: 1.2rem;'></div>", unsafe_allow_html=True)
-        with st.popover("📖 Guide"):
-            st.markdown(
-                """
-                **Form vs. Fixtures Scatter Matrix**
-                
-                * **Y-Axis (Rolling Sum xGI):** Total attacking threat accumulated across the selected match window.
-                * **X-Axis (Upcoming 5-GW FDR):** Total fixture difficulty rating over the next 5 games (lower score = easier schedule).
-                * **Min Matches Filter:** Filters out rotational cameos so you only evaluate regular starters.
-                """
-            )
-
-    table_exists = pd.read_sql(
-        "SELECT name FROM sqlite_master WHERE type='table' AND name='player_match_history'",
-        conn,
-    )
-
-    if table_exists.empty:
-        st.warning("⚠️ Match history table `player_match_history` was not found in `fpl.db`.")
-        return
-
-    col_search2, col_w, col_pos2, col_min_matches, col_min_mins2, col_sort2 = (
-        st.columns([1.4, 0.9, 0.8, 0.9, 0.9, 1.2])
-    )
-    with col_search2:
-        search_query2 = st.text_input(
-            "🔍 Search Player / Club",
-            placeholder="e.g. Cherki, Saka, Chelsea, ARS...",
-            key="tab2_search",
-        )
-
-    with col_w:
-        window_size = st.slider(
-            "Match Window",
-            min_value=3,
-            max_value=10,
-            value=5,
-            step=1,
-            key="tab2_window",
-        )
-    with col_pos2:
-        pos_filter2 = st.selectbox(
-            "Position", ["All", "GKP", "DEF", "MID", "FWD"], key="tab2_pos"
-        )
-    with col_min_matches:
-        min_matches = st.slider(
-            "Min Matches",
-            min_value=1,
-            max_value=window_size,
-            value=min(3, window_size),
-            step=1,
-            key="tab2_matches",
-        )
-    with col_min_mins2:
-        min_avg_mins = st.slider(
-            "Min Avg Mins", 0, 90, 45, step=15, key="tab2_mins"
-        )
-    with col_sort2:
-        rolling_sort = st.selectbox(
-            "Rank By",
-            [
-                "Rolling Sum xGI",
-                "Rolling xGI / 90",
-                "Rolling Avg Points",
-                "Upcoming Fixture Ease",
-                "Rolling Avg Minutes",
-                "Price",
-            ],
-            key="tab2_sort",
-        )
-
-    only_my_squad = st.toggle("🎯 Only My Squad Players", key="tab2_only_squad")
-    pos_clause2 = (
-        f"AND p.element_type = {pos_map[pos_filter2]}"
-        if pos_filter2 != "All"
-        else ""
-    )
-
+@st.cache_data(ttl=600, show_spinner=False)
+def fetch_rolling_base_data(_conn, window_size: int):
+    """Caches rolling window computations per window size."""
     rolling_query = f"""
     WITH ranked_matches AS (
         SELECT
@@ -123,6 +42,7 @@ def render_rolling_form_tab(conn, current_gw, teams_fdr_map):
                 WHEN 3 THEN 'MID'
                 WHEN 4 THEN 'FWD'
             END AS Pos,
+            p.element_type AS element_type,
             p.now_cost / 10.0 AS Price,
             h.round AS GW,
             h.total_points,
@@ -160,7 +80,6 @@ def render_rolling_form_tab(conn, current_gw, teams_fdr_map):
         FROM player_match_history h
         INNER JOIN players p ON h.element_id = p.id
         INNER JOIN teams t ON p.team = t.id
-        WHERE 1=1 {pos_clause2}
     )
     SELECT
         element_id,
@@ -172,6 +91,7 @@ def render_rolling_form_tab(conn, current_gw, teams_fdr_map):
         Club_Name,
         Team_ID,
         Pos,
+        element_type,
         Price,
         GW AS Latest_GW,
         ROUND(Rolling_Avg_Pts, 2) AS Rolling_Avg_Pts,
@@ -186,70 +106,221 @@ def render_rolling_form_tab(conn, current_gw, teams_fdr_map):
             END, 2
         ) AS Rolling_xGI_per_90
     FROM ranked_matches
-    WHERE rn = 1 
-      AND Rolling_Avg_Mins >= {min_avg_mins}
-      AND Rolling_Matches_Played >= {min_matches}
+    WHERE rn = 1
     """
-    df_rolling = pd.read_sql(rolling_query, conn)
+    df = pd.read_sql(rolling_query, _conn)
+    if not df.empty:
+        for col in [
+            "Price", "Rolling_Avg_Pts", "Rolling_Sum_xGI", "Rolling_Avg_Mins",
+            "Rolling_xGI_per_90", "Rolling_Matches_Played", "element_type"
+        ]:
+            if col in df.columns:
+                df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
 
-    if not df_rolling.empty:
-        df_rolling = df_rolling.dropna(subset=["Player"])
-        df_rolling = df_rolling[df_rolling["Player"].astype(str).str.strip() != ""]
+        df = df.dropna(subset=["Player"])
+        df = df[df["Player"].astype(str).str.strip() != ""]
+        df["_search_target"] = (
+            df["Player"].fillna("")
+            + " "
+            + df["Full_Name"].fillna("")
+            + " "
+            + df["Team"].fillna("")
+            + " "
+            + df["Club_Name"].fillna("")
+        ).str.strip()
+    return df
 
-        df_rolling["Upcoming_FDR"] = (
-            df_rolling["Team_ID"].map(teams_fdr_map).fillna(15).astype(int)
+
+@st.fragment
+def render_rolling_form_tab(conn, current_gw, teams_fdr_map):
+    col_t2_hdr, col_t2_pop = st.columns([6, 1])
+    with col_t2_hdr:
+        section_header(
+            "Rolling Form & Projected xP Trends",
+            "Analyze rolling points output and expected points trajectory vs fixture schedule",
+        )
+    with col_t2_pop:
+        st.markdown("<div style='margin-top: 1.2rem;'></div>", unsafe_allow_html=True)
+        with st.popover("📖 Guide"):
+            st.markdown(
+                """
+                **Form vs. Fixtures Scatter Matrix**
+                
+                * **Proj Form xP:** Blended expected points per match combining underlying rolling $xGI/90$, actual rolling points form, appearance security, and upcoming 5-GW fixture difficulty.
+                * **Upcoming 5-GW FDR:** Cumulative fixture rating over the next 5 games (lower score = greener schedule).
+                * **Price Filter:** Isolate players within your budget constraints.
+                * **Min Matches Filter:** Filters out rotation risks so you only evaluate regular starters.
+                """
+            )
+
+    table_exists = pd.read_sql(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='player_match_history'",
+        conn,
+    )
+
+    if table_exists.empty:
+        st.warning("⚠️ Match history table `player_match_history` was not found in `fpl.db`.")
+        return
+
+    effective_gw = max(1, current_gw)
+    col_search2, col_w, col_pos2, col_min_matches, col_min_mins2, col_sort2 = (
+        st.columns([1.4, 0.9, 0.8, 0.9, 0.9, 1.2])
+    )
+    with col_search2:
+        search_query2 = st_keyup(
+            "🔍 Search Player / Club",
+            placeholder="e.g. Cherki, Saka, Chelsea, ARS...",
+            debounce=250,
+            key="tab2_search_keyup",
         )
 
-        active_manager_id = st.session_state.get("manager_id", "").strip()
-        if only_my_squad:
-            if not active_manager_id:
-                st.info("💡 Enter your FPL Team ID in the top bar to filter by your squad.")
-                squad_ids = []
-            else:
-                squad_ids = get_manager_squad_ids(active_manager_id, current_gw)
-            df_rolling = df_rolling[df_rolling["element_id"].isin(squad_ids)]
+    with col_w:
+        window_size = st.slider(
+            "Match Window",
+            min_value=1,
+            max_value=10,
+            value=min(10, max(effective_gw, 5)),
+            step=1,
+            key="tab2_window",
+        )
+    with col_pos2:
+        pos_filter2 = st.selectbox(
+            "Position", ["All", "GKP", "DEF", "MID", "FWD"], key="tab2_pos"
+        )
+    with col_min_matches:
+        min_matches = st.slider(
+            "Min Matches",
+            min_value=1,
+            max_value=max(1, window_size),
+            value=1,
+            step=1,
+            key="tab2_matches",
+        )
+    with col_min_mins2:
+        min_avg_mins = st.slider(
+            "Min Avg Mins", 0, 90, 45, step=15, key="tab2_mins"
+        )
+    with col_sort2:
+        rolling_sort = st.selectbox(
+            "Rank By",
+            [
+                "Projected Form xP / Match",
+                "Rolling Avg Points",
+                "Rolling Sum xGI",
+                "Rolling xGI / 90",
+                "Upcoming Fixture Ease",
+                "Rolling Avg Minutes",
+                "Price",
+            ],
+            key="tab2_sort",
+        )
 
-        if search_query2.strip():
-            q2 = search_query2.strip()
-            df_rolling = df_rolling[
-                df_rolling["Player"].str.contains(q2, case=False, na=False)
-                | df_rolling["Full_Name"].str.contains(q2, case=False, na=False)
-                | df_rolling["Team"].str.contains(q2, case=False, na=False)
-                | df_rolling["Club_Name"].str.contains(q2, case=False, na=False)
-            ]
+    col_price3, col_toggle_squad = st.columns([1.5, 1])
+    with col_price3:
+        max_price_filter_roll = st.slider(
+            "Filter Max Price (£M)", 4.0, 15.5, 15.5, step=0.5, key="roll_max_price"
+        )
+    with col_toggle_squad:
+        only_my_squad = st.toggle("🎯 Only My Squad Players", key="tab2_only_squad")
 
+    raw_rolling_df = fetch_rolling_base_data(conn, window_size)
+    if raw_rolling_df.empty:
+        st.info("No rolling match history found.")
+        return
+
+    filtered_df = raw_rolling_df.copy()
+
+    if pos_filter2 != "All":
+        filtered_df = filtered_df[filtered_df["Pos"] == pos_filter2]
+
+    filtered_df = filtered_df[
+        (filtered_df["Price"] <= max_price_filter_roll)
+        & (filtered_df["Rolling_Avg_Mins"] >= min_avg_mins)
+        & (filtered_df["Rolling_Matches_Played"] >= min_matches)
+    ]
+
+    filtered_df["Upcoming_FDR"] = (
+        filtered_df["Team_ID"].map(teams_fdr_map).fillna(15).astype(int)
+    )
+
+    def calc_rolling_proj_xp(row):
+        etype = int(row.get("element_type", 3))
+        xgi90 = float(row.get("Rolling_xGI_per_90", 0))
+        avg_mins = float(row.get("Rolling_Avg_Mins", 60))
+        avg_pts = float(row.get("Rolling_Avg_Pts", 3.0))
+        fdr = int(row.get("Upcoming_FDR", 15))
+
+        app_pts = 2.0 * min(1.0, max(0.2, avg_mins / 75.0))
+        att_weight = 4.2 if etype == 4 else (4.6 if etype == 3 else 3.5)
+        underlying_xp = (xgi90 * att_weight) * (avg_mins / 90.0)
+        schedule_mult = max(0.75, min(1.25, 1.0 + ((15 - fdr) / 30.0)))
+        blended_raw = (0.55 * (app_pts + underlying_xp)) + (0.45 * avg_pts)
+        return round(blended_raw * schedule_mult, 2)
+
+    filtered_df["Proj_Form_xP"] = filtered_df.apply(calc_rolling_proj_xp, axis=1)
+
+    active_manager_id = st.session_state.get("manager_id", "").strip()
+    if only_my_squad and not filtered_df.empty:
+        if not active_manager_id:
+            st.info("💡 Enter your FPL Team ID in the top bar to filter by your squad.")
+            filtered_df = filtered_df.iloc[0:0]
+        else:
+            squad_ids = get_manager_squad_ids(active_manager_id, current_gw)
+            filtered_df = filtered_df[filtered_df["element_id"].isin(squad_ids)]
+
+    has_search = bool(search_query2 and search_query2.strip())
+    if has_search and not filtered_df.empty:
+        q = search_query2.strip()
+        search_targets = filtered_df["_search_target"].to_dict()
+
+        matches = process.extract(
+            query=q,
+            choices=search_targets,
+            scorer=fuzz.WRatio,
+            score_cutoff=60,
+            limit=40,
+        )
+
+        if matches:
+            matched_indices = [m[2] for m in matches]
+            filtered_df = filtered_df.loc[matched_indices]
+        else:
+            filtered_df = filtered_df.iloc[0:0]
+
+    elif not filtered_df.empty:
         sort_rolling_map = {
+            "Projected Form xP / Match": ("Proj_Form_xP", False),
+            "Rolling Avg Points": ("Rolling_Avg_Pts", False),
             "Rolling Sum xGI": ("Rolling_Sum_xGI", False),
             "Rolling xGI / 90": ("Rolling_xGI_per_90", False),
-            "Rolling Avg Points": ("Rolling_Avg_Pts", False),
             "Upcoming Fixture Ease": ("Upcoming_FDR", True),
             "Rolling Avg Minutes": ("Rolling_Avg_Mins", False),
             "Price": ("Price", False),
         }
         r_col, r_asc = sort_rolling_map[rolling_sort]
-        df_rolling = df_rolling.sort_values(by=r_col, ascending=r_asc)
+        filtered_df = filtered_df.sort_values(by=r_col, ascending=r_asc)
 
-    if df_rolling.empty:
+    if filtered_df.empty:
         st.info("No players found matching the current rolling filter criteria.")
         return
 
-    if len(df_rolling) >= 2:
-        x_mid = float(df_rolling["Upcoming_FDR"].median())
-        y_mid = float(df_rolling["Rolling_Sum_xGI"].median())
+    if len(filtered_df) >= 2:
+        x_mid = float(filtered_df["Upcoming_FDR"].median())
+        y_mid = float(filtered_df["Proj_Form_xP"].median())
 
         fig = px.scatter(
-            df_rolling,
+            filtered_df,
             x="Upcoming_FDR",
-            y="Rolling_Sum_xGI",
+            y="Proj_Form_xP",
             color="Pos",
             size="Price",
             hover_name="Player",
             hover_data={
                 "Team": True,
                 "Price": ":.1f",
-                "Rolling_Sum_xGI": ":.2f",
-                "Rolling_xGI_per_90": ":.2f",
+                "Proj_Form_xP": ":.2f",
                 "Rolling_Avg_Pts": ":.2f",
+                "Rolling_Sum_xGI": ":.2f",
                 "Upcoming_FDR": True,
                 "Rolling_Avg_Mins": ":.0f",
                 "Rolling_Matches_Played": True,
@@ -257,10 +328,10 @@ def render_rolling_form_tab(conn, current_gw, teams_fdr_map):
             },
             labels={
                 "Upcoming_FDR": "Upcoming 5-GW Fixture Difficulty Rating (Lower = Easier)",
-                "Rolling_Sum_xGI": f"Rolling {window_size}-Match xGI",
+                "Proj_Form_xP": "Projected Form xP / Match",
                 "Pos": "Position",
             },
-            title=f"Underlying Form vs Schedule (L{window_size} xGI vs Next 5 FDR)",
+            title="Projected Form vs Fixture Run (Proj Form xP vs Next 5 FDR)",
             color_discrete_map={
                 "GKP": "#f59e0b",
                 "DEF": "#3b82f6",
@@ -281,19 +352,19 @@ def render_rolling_form_tab(conn, current_gw, teams_fdr_map):
         )
         st.plotly_chart(fig, use_container_width=True)
 
-    top_rolling = df_rolling.head(min(5, len(df_rolling)))
+    top_rolling = filtered_df.head(min(5, len(filtered_df)))
     cols_r = st.columns(len(top_rolling))
     for i, (_, row) in enumerate(top_rolling.iterrows()):
         card_img = get_player_img_url(row.get("photo"), row.get("code"))
+        proj_xp = float(row["Proj_Form_xP"])
         with cols_r[i]:
             render_list_card(
                 f"{row['Player']} ({row['Team']})",
-                [(row["Pos"], "blue"), (f"L{window_size} Form", "green")],
-                f'<span>Price</span> £{fmt_num(row["Price"], ".1f")} · <span>xGI</span>'
-                f' {fmt_num(row["Rolling_Sum_xGI"])} · <span>xGI/90</span>'
-                f' {fmt_num(row["Rolling_xGI_per_90"])} · <span>Next 5 FDR</span>'
-                f' {int(row["Upcoming_FDR"])} · <span>Avg Pts</span>'
-                f' {fmt_num(row["Rolling_Avg_Pts"], ".1f")}',
+                [(row["Pos"], "blue"), (f"Proj {proj_xp:.1f} xP", "green")],
+                f'<span>Price</span> £{fmt_num(row["Price"], ".1f")} · <span>Form xP</span>'
+                f' <strong>{fmt_num(proj_xp, ".2f")}</strong> · <span>Avg Pts</span>'
+                f' {fmt_num(row["Rolling_Avg_Pts"], ".1f")} · <span>Next 5 FDR</span>'
+                f' {int(row["Upcoming_FDR"])}',
                 img_url=card_img,
             )
 
@@ -374,6 +445,15 @@ def render_rolling_form_tab(conn, current_gw, teams_fdr_map):
     .pos-MID {{ background: rgba(16, 185, 129, 0.18); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); }}
     .pos-FWD {{ background: rgba(239, 68, 68, 0.18); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); }}
 
+    .xp-pill {{
+        display: inline-block;
+        padding: 0.15rem 0.45rem;
+        border-radius: 4px;
+        font-weight: 700;
+        font-size: 0.8rem;
+        background: rgba(34, 197, 94, 0.2);
+        color: {"#4ade80" if is_dark else "#15803d"};
+    }}
     .fdr-pill {{
         display: inline-block;
         padding: 0.15rem 0.55rem;
@@ -387,11 +467,12 @@ def render_rolling_form_tab(conn, current_gw, teams_fdr_map):
     </style>
     """
 
-    display_df = df_rolling.head(35)
+    display_df = filtered_df.head(35)
     html_out = [theme_styles, '<div class="unified-table-wrapper"><table class="unified-table"><thead><tr>']
     html_out.append('<th style="text-align: left; padding-left: 1rem;">Player</th>')
     html_out.append('<th>Club</th><th>Pos</th><th>Price</th><th>GW</th>')
-    html_out.append(f'<th>xGI (L{window_size})</th><th>xGI/90 (L{window_size})</th><th>Pts (L{window_size})</th>')
+    html_out.append('<th>Proj Form xP</th>')
+    html_out.append(f'<th>Avg Pts (L{window_size})</th><th>xGI (L{window_size})</th><th>xGI/90 (L{window_size})</th>')
     html_out.append(f'<th>Next 5 FDR</th><th>Mins (L{window_size})</th><th>Apps</th>')
     html_out.append('</tr></thead><tbody>')
 
@@ -399,6 +480,7 @@ def render_rolling_form_tab(conn, current_gw, teams_fdr_map):
         p_img = get_player_img_url(row.get("photo"), row.get("code"))
         fdr_val = int(row["Upcoming_FDR"])
         fdr_cls = "fdr-green" if fdr_val <= 11 else ("fdr-yellow" if fdr_val <= 14 else "fdr-red")
+        proj_xp = float(row["Proj_Form_xP"])
 
         html_out.append("<tr>")
         html_out.append(
@@ -412,9 +494,10 @@ def render_rolling_form_tab(conn, current_gw, teams_fdr_map):
         html_out.append(f'<td><span class="pos-pill pos-{row["Pos"]}">{row["Pos"]}</span></td>')
         html_out.append(f'<td>£{row["Price"]:.1f}</td>')
         html_out.append(f'<td>{int(row["Latest_GW"])}</td>')
-        html_out.append(f'<td style="font-weight: 700;">{row["Rolling_Sum_xGI"]:.2f}</td>')
-        html_out.append(f'<td>{row["Rolling_xGI_per_90"]:.2f}</td>')
+        html_out.append(f'<td><span class="xp-pill">{proj_xp:.2f}</span></td>')
         html_out.append(f'<td style="font-weight: 700;">{row["Rolling_Avg_Pts"]:.2f}</td>')
+        html_out.append(f'<td>{row["Rolling_Sum_xGI"]:.2f}</td>')
+        html_out.append(f'<td>{row["Rolling_xGI_per_90"]:.2f}</td>')
         html_out.append(f'<td><span class="fdr-pill {fdr_cls}">{fdr_val}</span></td>')
         html_out.append(f'<td>{row["Rolling_Avg_Mins"]:.1f}</td>')
         html_out.append(f'<td>{int(row["Rolling_Matches_Played"])}</td>')
@@ -422,6 +505,5 @@ def render_rolling_form_tab(conn, current_gw, teams_fdr_map):
 
     html_out.append("</tbody></table></div>")
 
-    # Spans full length on main page without internal scrollbars
     full_table_height = (len(display_df) * 45) + 60
     render_sortable_table("".join(html_out), is_dark=is_dark, height=full_table_height)

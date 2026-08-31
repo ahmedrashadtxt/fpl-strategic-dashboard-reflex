@@ -90,7 +90,7 @@ html, body, [class*="css"] {{
 }}
 
 .block-container {{
-    padding-top: 1.25rem !important;
+    padding-top: 1rem !important;
     padding-bottom: 2rem !important;
     max-width: 1240px !important;
     margin: 0 auto !important;
@@ -111,7 +111,7 @@ h1, h2, h3, h4, h5, h6, .stSubheader, [data-testid="stHeading"] * {{
     color: {text_sub} !important;
     -webkit-text-fill-color: {text_sub} !important;
     font-weight: 600 !important;
-    font-size: 0.88rem !important;
+    font-size: 0.82rem !important;
 }}
 
 /* Radio options text */
@@ -122,6 +122,7 @@ h1, h2, h3, h4, h5, h6, .stSubheader, [data-testid="stHeading"] * {{
     color: {text_main} !important;
     -webkit-text-fill-color: {text_main} !important;
     font-weight: 500 !important;
+    font-size: 0.82rem !important;
 }}
 
 /* Toggles & Checkboxes */
@@ -133,6 +134,7 @@ h1, h2, h3, h4, h5, h6, .stSubheader, [data-testid="stHeading"] * {{
     color: {text_main} !important;
     -webkit-text-fill-color: {text_main} !important;
     font-weight: 600 !important;
+    font-size: 0.82rem !important;
 }}
 
 .stApp div[data-testid="stToggle"] label > div:first-of-type {{
@@ -146,13 +148,13 @@ h1, h2, h3, h4, h5, h6, .stSubheader, [data-testid="stHeading"] * {{
     font-weight: 600 !important;
 }}
 
-/* ── METRIC CARDS ── */
+/* ── COMPACT SINGLE-ROW METRIC CARDS ── */
 .stApp [data-testid="stMetric"] {{
     background: {bg_card} !important;
     border: 1px solid {border_color} !important;
-    border-radius: 10px !important;
-    padding: 0.75rem 0.85rem !important;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.03) !important;
+    border-radius: 8px !important;
+    padding: 0.45rem 0.65rem !important;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.03) !important;
 }}
 
 .stApp [data-testid="stMetricLabel"],
@@ -162,9 +164,10 @@ h1, h2, h3, h4, h5, h6, .stSubheader, [data-testid="stHeading"] * {{
     font-family: 'Outfit', sans-serif !important;
     color: {text_sub} !important;
     -webkit-text-fill-color: {text_sub} !important;
-    font-size: 0.82rem !important;
+    font-size: 0.72rem !important;
     font-weight: 600 !important;
     letter-spacing: 0.02em !important;
+    margin-bottom: 2px !important;
 }}
 
 .stApp [data-testid="stMetricValue"], 
@@ -175,20 +178,21 @@ h1, h2, h3, h4, h5, h6, .stSubheader, [data-testid="stHeading"] * {{
     color: {text_main} !important;
     -webkit-text-fill-color: {text_main} !important;
     font-weight: 800 !important;
-    font-size: 1.35rem !important;
+    font-size: 1.05rem !important;
+    line-height: 1.2 !important;
 }}
 
 /* ── TOP ACTION BAR ── */
 .top-nav-brand {{
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
     flex-wrap: wrap;
 }}
 
 .top-nav-title {{
     font-family: 'Outfit', sans-serif !important;
-    font-size: 2.2rem !important;
+    font-size: 1.85rem !important;
     font-weight: 700 !important;
     letter-spacing: -0.02em !important;
     color: {text_main} !important;
@@ -198,11 +202,11 @@ h1, h2, h3, h4, h5, h6, .stSubheader, [data-testid="stHeading"] * {{
 
 .top-nav-sub {{
     font-family: 'Inter', sans-serif;
-    font-size: 0.85rem;
+    font-size: 0.8rem;
     color: {text_sub};
     -webkit-text-fill-color: {text_sub};
     font-weight: 500;
-    margin-top: 4px;
+    margin-top: 2px;
 }}
 
 div[data-testid="stHorizontalBlock"] {{
@@ -223,8 +227,8 @@ div[data-testid="column"] div[data-testid="stButton"] button {{
     align-items: center !important;
     justify-content: center !important;
     border-radius: 8px !important;
-    height: 42px !important;
-    width: 42px !important;
+    height: 40px !important;
+    width: 40px !important;
     padding: 0 !important;
     margin: 0 !important;
     box-shadow: 0 1px 2px rgba(0,0,0,0.05) !important;
@@ -236,13 +240,14 @@ div[data-testid="column"] div[data-testid="stButton"] button:hover {{
     transform: translateY(-1px);
 }}
 
-/* ── ALL OTHER BUTTONS (Guide, Refresh, Update Market) ── */
+/* ── ALL OTHER BUTTONS ── */
 .stApp .stButton > button:not([aria-label="Toggle Theme"]) {{
     background-color: {button_bg} !important;
     color: {button_txt} !important;
     border: 1px solid {button_border} !important;
     border-radius: 8px !important;
     font-weight: 600 !important;
+    font-size: 0.82rem !important;
     background-image: none !important;
 }}
 
@@ -258,6 +263,8 @@ div[data-testid="column"] div[data-testid="stButton"] button:hover {{
     color: {text_main} !important;
     border: 1px solid {input_border} !important;
     border-radius: 8px !important;
+    font-size: 0.8rem !important;
+    padding: 0.35rem 0.75rem !important;
     background-image: none !important;
 }}
 
@@ -265,11 +272,12 @@ div[data-testid="column"] div[data-testid="stButton"] button:hover {{
     color: {text_main} !important;
     -webkit-text-fill-color: {text_main} !important;
     font-weight: 600 !important;
+    font-size: 0.8rem !important;
     display: inline-block !important;
     visibility: visible !important;
 }}
 
-/* ── STICKY TABS BAR (High-Contrast Inactive Text) ── */
+/* ── COMPACT STICKY TABS BAR ── */
 .stApp [data-baseweb="tab-list"],
 .stApp [data-testid="stTabs"] [role="tablist"] {{
     position: sticky !important;
@@ -277,37 +285,28 @@ div[data-testid="column"] div[data-testid="stButton"] button:hover {{
     z-index: 990 !important;
     background-color: {bg_app} !important;
     border-bottom: 1px solid {border_color} !important;
-    padding-top: 0.5rem !important;
-    padding-bottom: 0.5rem !important;
-    margin-bottom: 1.25rem !important;
-    box-shadow: 0 6px 16px rgba(0, 0, 0, {shadow_opacity}) !important;
+    padding-top: 0.35rem !important;
+    padding-bottom: 0.35rem !important;
+    margin-bottom: 1rem !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, {shadow_opacity}) !important;
     display: flex !important;
     flex-wrap: nowrap !important;
     overflow-x: auto !important;
     scrollbar-width: none !important;
-    gap: 12px !important;
+    gap: 8px !important;
 }}
 
-.stApp [data-baseweb="tab-list"]::-webkit-scrollbar,
-.stApp [data-testid="stTabs"] [role="tablist"]::-webkit-scrollbar {{
-    display: none !important;
+.stApp [data-baseweb="tab-list"] button,
+.stApp [data-testid="stTabs"] button {{
+    padding: 0.35rem 0.65rem !important;
 }}
 
-/* Force dark grey readable text on all inactive tabs */
-.stApp [data-baseweb="tab-list"] button[aria-selected="false"] p,
-.stApp [data-baseweb="tab-list"] button[aria-selected="false"] span,
-.stApp [data-baseweb="tab-list"] button[aria-selected="false"] div,
 .stApp [data-baseweb="tab-list"] button[aria-selected="false"] *,
-.stApp [data-testid="stTabs"] button[aria-selected="false"] p,
-.stApp [data-testid="stTabs"] button[aria-selected="false"] span,
-.stApp [data-testid="stTabs"] button[aria-selected="false"] div,
 .stApp [data-testid="stTabs"] button[aria-selected="false"] * {{
-    color: #555555 !important;
-    -webkit-text-fill-color: #555555 !important;
+    color: #64748b !important;
+    -webkit-text-fill-color: #64748b !important;
     font-weight: 600 !important;
-    font-size: 0.9rem !important;
-    opacity: 1 !important;
-    visibility: visible !important;
+    font-size: 0.80rem !important;
 }}
 
 .stApp [data-baseweb="tab-list"] button[aria-selected="false"]:hover *,
@@ -316,26 +315,17 @@ div[data-testid="column"] div[data-testid="stButton"] button:hover {{
     -webkit-text-fill-color: var(--text-color) !important;
 }}
 
-/* Active Tab */
-.stApp [data-baseweb="tab-list"] button[aria-selected="true"] p,
-.stApp [data-baseweb="tab-list"] button[aria-selected="true"] span,
-.stApp [data-baseweb="tab-list"] button[aria-selected="true"] div,
 .stApp [data-baseweb="tab-list"] button[aria-selected="true"] *,
-.stApp [data-testid="stTabs"] button[aria-selected="true"] p,
-.stApp [data-testid="stTabs"] button[aria-selected="true"] span,
-.stApp [data-testid="stTabs"] button[aria-selected="true"] div,
 .stApp [data-testid="stTabs"] button[aria-selected="true"] * {{
     color: #10B981 !important;
     -webkit-text-fill-color: #10B981 !important;
     font-weight: 700 !important;
-    font-size: 0.9rem !important;
-    opacity: 1 !important;
-    visibility: visible !important;
+    font-size: 0.80rem !important;
 }}
 
 .stApp [data-baseweb="tab-highlight"] {{
     background-color: #10B981 !important;
-    height: 2.5px !important;
+    height: 2px !important;
 }}
 
 .stApp [data-baseweb="tab-border"] {{
@@ -362,7 +352,7 @@ div[data-testid="column"] div[data-testid="stButton"] button:hover {{
     color: {text_main} !important;
     -webkit-text-fill-color: {text_main} !important;
     border: none !important;
-    font-size: 0.9rem !important;
+    font-size: 0.85rem !important;
     font-weight: 500 !important;
 }}
 
@@ -373,20 +363,48 @@ div[data-testid="column"] div[data-testid="stButton"] button:hover {{
     opacity: 0.85 !important;
 }}
 
+/* ── COMPACT SECTION HEADER (REDUCED BANNER) ── */
+.section-card {{
+    background: transparent !important;
+    border: none !important;
+    border-left: 3px solid #2563eb !important;
+    padding: 0.05rem 0 0.05rem 0.65rem !important;
+    margin-top: 0.15rem !important;
+    margin-bottom: 0.75rem !important;
+}}
+
+.section-card h3 {{
+    margin: 0 !important;
+    font-size: 1.1rem !important;
+    font-weight: 700 !important;
+    color: {text_main} !important;
+    -webkit-text-fill-color: {text_main} !important;
+    letter-spacing: -0.01em !important;
+    line-height: 1.2 !important;
+}}
+
+.section-card .section-desc {{
+    color: {text_sub} !important;
+    -webkit-text-fill-color: {text_sub} !important;
+    font-size: 0.78rem !important;
+    font-weight: 500 !important;
+    margin-top: 2px !important;
+}}
+
 /* ── LIST CARDS & FAIL-SAFE AVATARS ── */
 .list-card {{
     background: {bg_list_card} !important;
     border: 1px solid {border_color} !important;
-    border-radius: 10px !important;
-    padding: 0.85rem 1rem !important;
-    margin-bottom: 0.5rem !important;
+    border-radius: 8px !important;
+    padding: 0.75rem 0.85rem !important;
+    margin-bottom: 0.45rem !important;
     box-shadow: 0 1px 2px rgba(0,0,0,0.02) !important;
 }}
 
 .list-card-content {{
     display: flex !important;
     align-items: center !important;
-    gap: 12px !important;
+    gap: 10px !important;
 }}
 
 .list-card-body {{
@@ -395,10 +413,10 @@ div[data-testid="column"] div[data-testid="stButton"] button:hover {{
 }}
 
 .card-avatar {{
-    width: 44px !important;
-    height: 44px !important;
-    min-width: 44px !important;
-    min-height: 44px !important;
+    width: 40px !important;
+    height: 40px !important;
+    min-width: 40px !important;
+    min-height: 40px !important;
     border-radius: 50% !important;
     background-size: cover, cover !important;
     background-position: top center, center !important;
@@ -410,7 +428,7 @@ div[data-testid="column"] div[data-testid="stButton"] button:hover {{
 
 .list-card-title {{
     font-family: 'Outfit', sans-serif !important;
-    font-size: 1.02rem !important;
+    font-size: 0.95rem !important;
     font-weight: 600 !important;
     color: {text_main} !important;
     -webkit-text-fill-color: {text_main} !important;
@@ -419,14 +437,14 @@ div[data-testid="column"] div[data-testid="stButton"] button:hover {{
 .list-card-tags {{
     display: flex !important;
     flex-wrap: wrap !important;
-    gap: 0.4rem !important;
+    gap: 0.35rem !important;
 }}
 
 .tag {{
     display: inline-block !important;
-    padding: 0.15rem 0.55rem !important;
+    padding: 0.12rem 0.45rem !important;
     border-radius: 999px !important;
-    font-size: 0.7rem !important;
+    font-size: 0.68rem !important;
     font-weight: 700 !important;
     letter-spacing: 0.02em !important;
 }}
@@ -438,9 +456,9 @@ div[data-testid="column"] div[data-testid="stButton"] button:hover {{
 .tag-gray {{ background: {tag_gray_bg} !important; color: {tag_gray_txt} !important; border: 1px solid {tag_gray_border} !important; }}
 
 .list-card-meta {{
-    font-size: 0.8rem !important;
+    font-size: 0.76rem !important;
     color: {text_sub} !important;
-    line-height: 1.5 !important;
+    line-height: 1.4 !important;
 }}
 
 .list-card-meta span {{ color: {text_meta} !important; font-weight: 600 !important; }}
@@ -449,7 +467,7 @@ div[data-testid="column"] div[data-testid="stButton"] button:hover {{
     height: 4px !important;
     background: rgba(255, 255, 255, 0.08) !important;
     border-radius: 2px !important;
-    margin-top: 8px !important;
+    margin-top: 6px !important;
     overflow: hidden !important;
 }}
 
@@ -463,31 +481,93 @@ div[data-testid="column"] div[data-testid="stButton"] button:hover {{
     background-color: #ef4444 !important;
 }}
 
-/* ── HEADERS & BADGES ── */
-.section-card {{
-    background: transparent !important;
-    border: none !important;
-    border-left: 4px solid #2563eb !important;
-    padding: 0.25rem 0 0.25rem 1rem !important;
-    margin-top: 0.5rem !important;
-    margin-bottom: 1.5rem !important;
+/* ── ANIMATIONS & LOADING STATES ── */
+@keyframes spin {{
+    0% {{ transform: rotate(0deg); }}
+    100% {{ transform: rotate(360deg); }}
 }}
 
-.section-card h3 {{
-    margin: 0 0 0.35rem 0 !important;
-    font-size: 1.45rem !important;
+@keyframes shimmer {{
+    0% {{ background-position: -200% 0; }}
+    100% {{ background-position: 200% 0; }}
+}}
+
+.optimizer-loader {{
+    display: flex !important;
+    align-items: center !important;
+    gap: 12px !important;
+    background: {bg_card} !important;
+    border: 1px solid {border_color} !important;
+    border-left: 3px solid #2563eb !important;
+    border-radius: 8px !important;
+    padding: 0.65rem 0.95rem !important;
+    margin: 0.5rem 0 0.85rem 0 !important;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, {shadow_opacity}) !important;
+}}
+
+.optimizer-spinner {{
+    width: 20px !important;
+    height: 20px !important;
+    border: 2px solid rgba(37, 99, 235, 0.2) !important;
+    border-top: 2px solid #2563eb !important;
+    border-radius: 50% !important;
+    animation: spin 0.8s linear infinite !important;
+    flex-shrink: 0 !important;
+}}
+
+.optimizer-loader-content {{
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 1px !important;
+}}
+
+.optimizer-loader-title {{
+    font-family: 'Outfit', sans-serif !important;
+    font-size: 0.88rem !important;
     font-weight: 700 !important;
     color: {text_main} !important;
     -webkit-text-fill-color: {text_main} !important;
-    letter-spacing: -0.01em !important;
 }}
 
-.section-card .section-desc {{
+.optimizer-loader-subtext {{
+    font-size: 0.74rem !important;
     color: {text_sub} !important;
     -webkit-text-fill-color: {text_sub} !important;
-    font-size: 0.9rem !important;
     font-weight: 500 !important;
-    margin: 0 !important;
+}}
+
+/* Skeleton Placeholders */
+.skeleton-card {{
+    pointer-events: none !important;
+    user-select: none !important;
+}}
+
+.skeleton-avatar {{
+    width: 40px !important;
+    height: 40px !important;
+    border-radius: 50% !important;
+    background: linear-gradient(90deg, {input_bg} 25%, {tag_gray_bg} 50%, {input_bg} 75%) !important;
+    background-size: 200% 100% !important;
+    animation: shimmer 1.5s infinite !important;
+    flex-shrink: 0 !important;
+}}
+
+.skeleton-line {{
+    border-radius: 4px !important;
+    background: linear-gradient(90deg, {input_bg} 25%, {tag_gray_bg} 50%, {input_bg} 75%) !important;
+    background-size: 200% 100% !important;
+    animation: shimmer 1.5s infinite !important;
+}}
+
+.skeleton-title {{
+    width: 45% !important;
+    height: 12px !important;
+    margin-bottom: 6px !important;
+}}
+
+.skeleton-meta {{
+    width: 75% !important;
+    height: 10px !important;
 }}
 
 .gw-badge {{
@@ -496,8 +576,8 @@ div[data-testid="column"] div[data-testid="stButton"] button:hover {{
     color: #2563eb !important;
     border: 1px solid rgba(37, 99, 235, 0.3) !important;
     border-radius: 999px !important;
-    padding: 0.2rem 0.65rem !important;
-    font-size: 0.78rem !important;
+    padding: 0.15rem 0.55rem !important;
+    font-size: 0.72rem !important;
     font-weight: 700 !important;
     letter-spacing: 0.02em !important;
 }}
@@ -508,7 +588,6 @@ div[data-testid="column"] div[data-testid="stButton"] button:hover {{
     border: 1px solid rgba(34, 197, 94, 0.4) !important;
 }}
 
-/* ── GUIDE EXPANDER FIX ── */
 [data-testid="stExpanderDetails"] {{
     background-color: var(--secondary-background-color) !important;
     color: var(--text-color) !important;
@@ -519,7 +598,6 @@ div[data-testid="column"] div[data-testid="stButton"] button:hover {{
     -webkit-text-fill-color: var(--text-color) !important;
 }}
 
-/* ── DROPDOWN / SELECTBOX FIX ── */
 div[data-baseweb="select"] > div {{
     background-color: var(--background-color) !important;
     border-color: #cbd5e1 !important;
@@ -556,6 +634,38 @@ def render_tag(label: str, tag_type: str = "gray") -> str:
     return f'<span class="tag tag-{tag_type}">{esc(label)}</span>'
 
 
+def render_optimizer_status(
+    title: str = "Optimizing your squad...",
+    subtext: str = "Crunching transfer permutations & expected points...",
+):
+    loader_html = (
+        f'<div class="optimizer-loader">'
+        f'<div class="optimizer-spinner"></div>'
+        f'<div class="optimizer-loader-content">'
+        f'<div class="optimizer-loader-title">{esc(title)}</div>'
+        f'<div class="optimizer-loader-subtext">{esc(subtext)}</div>'
+        f'</div>'
+        f'</div>'
+    )
+    return st.markdown(loader_html, unsafe_allow_html=True)
+
+
+def render_skeleton_cards(count: int = 3):
+    skeleton_cards = "".join(
+        f'<div class="list-card skeleton-card">'
+        f'<div class="list-card-content">'
+        f'<div class="skeleton-avatar"></div>'
+        f'<div class="list-card-body">'
+        f'<div class="skeleton-line skeleton-title"></div>'
+        f'<div class="skeleton-line skeleton-meta"></div>'
+        f'</div>'
+        f'</div>'
+        f'</div>'
+        for _ in range(count)
+    )
+    return st.markdown(skeleton_cards, unsafe_allow_html=True)
+
+
 def render_list_card(
     title: str,
     tags: list[tuple[str, str]],
@@ -590,7 +700,7 @@ def render_list_card(
         f'<div class="list-card-content">'
         f'{avatar_html}'
         f'<div class="list-card-body">'
-        f'<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">'
+        f'<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">'
         f'<div class="list-card-title" style="margin-bottom: 0;">{esc(title)}</div>'
         f'<div class="list-card-tags" style="margin-bottom: 0;">{tags_html}</div>'
         f'</div>'

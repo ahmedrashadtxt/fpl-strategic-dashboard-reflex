@@ -1,9 +1,12 @@
-import pandas as pd
-import streamlit as st
 from data import get_manager_squad_ids
+import pandas as pd
+from rapidfuzz import fuzz, process
+from st_keyup import st_keyup
+import streamlit as st
 from theme import render_sortable_table, section_header
 
 
+@st.fragment
 def render_fixture_ticker_tab(conn, current_gw):
     col_t3_hdr, col_t3_pop = st.columns([6, 1])
     with col_t3_hdr:
@@ -27,10 +30,11 @@ def render_fixture_ticker_tab(conn, current_gw):
 
     col_search3, col_sq3 = st.columns([2, 1])
     with col_search3:
-        search_query3 = st.text_input(
+        search_query3 = st_keyup(
             "🔍 Search Player / Club",
             placeholder="e.g. Saka, Arsenal, Haaland, MCI...",
-            key="tab3_search",
+            debounce=250,
+            key="tab3_search_keyup",
         )
 
     with col_sq3:
@@ -74,7 +78,7 @@ def render_fixture_ticker_tab(conn, current_gw):
     teams_list = teams_df["short_name"].tolist()
     team_name_map = dict(zip(teams_df["short_name"], teams_df["name"]))
     team_code_map = dict(zip(teams_df["short_name"], teams_df["code"]))
-    
+
     target_team_short_names = set(teams_list)
     team_players_map = {}
 
@@ -88,27 +92,48 @@ def render_fixture_ticker_tab(conn, current_gw):
             squad_players_df = pt_lookup[pt_lookup["element_id"].isin(squad_ids_tab3)]
             squad_teams = squad_players_df["short_name"].unique()
             target_team_short_names = target_team_short_names.intersection(set(squad_teams))
-            
+
             team_players_map = (
                 squad_players_df.groupby("short_name")["web_name"]
                 .apply(lambda names: ", ".join(names))
                 .to_dict()
             )
 
-    if search_query3.strip():
-        q3 = search_query3.strip().lower()
-        matching_from_lookup = pt_lookup[
-            pt_lookup["web_name"].str.contains(q3, case=False, na=False)
-            | pt_lookup["full_name"].str.contains(q3, case=False, na=False)
-            | pt_lookup["short_name"].str.contains(q3, case=False, na=False)
-            | pt_lookup["club_name"].str.contains(q3, case=False, na=False)
-        ]["short_name"].unique()
-        target_team_short_names = target_team_short_names.intersection(set(matching_from_lookup))
+    # Precompute club string target containing club names + squad player names
+    all_team_players = (
+        pt_lookup.groupby("short_name")["web_name"]
+        .apply(lambda s: " ".join(s))
+        .to_dict()
+    )
+    club_search_dict = {
+        team: f"{team} {team_name_map.get(team, '')} {all_team_players.get(team, '')}"
+        for team in target_team_short_names
+    }
+
+    has_search = bool(search_query3 and search_query3.strip())
+    search_relevance_order = {}
+
+    if has_search:
+        matches = process.extract(
+            query=search_query3.strip(),
+            choices=club_search_dict,
+            scorer=fuzz.WRatio,
+            score_cutoff=55,
+            limit=20,
+        )
+        if matches:
+            target_team_short_names = [m[2] for m in matches]
+            search_relevance_order = {team: idx for idx, team in enumerate(target_team_short_names)}
+        else:
+            target_team_short_names = []
 
     ticker_data = []
     gw_cols = [gw for gw in range(current_gw, current_gw + 5)]
 
     for team in teams_list:
+        if team not in target_team_short_names:
+            continue
+
         t_code = team_code_map.get(team, 0)
         row = {
             "code": t_code,
@@ -116,7 +141,7 @@ def render_fixture_ticker_tab(conn, current_gw):
             "full_name": team_name_map.get(team, team),
             "fixtures": {},
         }
-        
+
         if only_my_squad_tab3:
             row["my_players"] = team_players_map.get(team, "—")
 
@@ -145,8 +170,10 @@ def render_fixture_ticker_tab(conn, current_gw):
         row["difficulty_rating"] = total_difficulty
         ticker_data.append(row)
 
-    ticker_data = [r for r in ticker_data if r["short_name"] in target_team_short_names]
-    ticker_data.sort(key=lambda x: x["difficulty_rating"])
+    if has_search:
+        ticker_data.sort(key=lambda x: search_relevance_order.get(x["short_name"], 999))
+    else:
+        ticker_data.sort(key=lambda x: x["difficulty_rating"])
 
     if not ticker_data:
         st.info("No clubs found matching your search or squad criteria.")
@@ -246,13 +273,13 @@ def render_fixture_ticker_tab(conn, current_gw):
 
     html_out = [theme_styles, '<div class="fdr-table-wrapper"><table class="fdr-table"><thead><tr>']
     html_out.append('<th style="text-align: left; padding-left: 1rem;">Club</th>')
-    
+
     if only_my_squad_tab3:
         html_out.append('<th style="text-align: left;">My Players</th>')
-        
+
     for gw in gw_cols:
         html_out.append(f'<th>GW {gw}</th>')
-        
+
     html_out.append('<th>Total FDR (5 GW)</th></tr></thead><tbody>')
 
     for row in ticker_data:
@@ -292,6 +319,5 @@ def render_fixture_ticker_tab(conn, current_gw):
 
     html_out.append("</tbody></table></div>")
 
-    # Spans full length on main page without internal scrollbars
     full_table_height = (len(ticker_data) * 45) + 60
     render_sortable_table("".join(html_out), is_dark=is_dark, height=full_table_height)

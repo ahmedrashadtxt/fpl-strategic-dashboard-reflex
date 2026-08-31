@@ -92,6 +92,30 @@ def create_past_seasons_table(conn):
     conn.commit()
 
 
+def create_odds_table(conn):
+    """Creates the odds movement snapshot table tracking opening vs current lines."""
+    cursor = conn.cursor()
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS fixture_odds_snapshots (
+        fixture_id INTEGER,
+        event INTEGER,
+        home_team TEXT,
+        away_team TEXT,
+        snapshot_type TEXT, -- 'OPENING' or 'CURRENT'
+        home_win_prob REAL,
+        draw_prob REAL,
+        away_win_prob REAL,
+        home_xg REAL,
+        away_xg REAL,
+        home_cs_prob REAL,
+        away_cs_prob REAL,
+        recorded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (fixture_id, snapshot_type)
+    );
+    """)
+    conn.commit()
+
+
 def fetch_all_player_histories(player_ids, conn, session, headers):
     """Fetches element-summary histories and multi-season aggregates for all player IDs."""
     all_history_records = []
@@ -207,7 +231,7 @@ def fetch_all_player_histories(player_ids, conn, session, headers):
 
 
 def fetch_transfer_market_data(db_path="fpl.db"):
-    """Lightweight sync: Updates only players and events master data without fetching player histories."""
+    """Lightweight sync: Updates players, events, and records odds snapshots."""
     session, headers = get_session_and_headers()
     bootstrap_url = "https://fantasy.premierleague.com/api/bootstrap-static/"
     try:
@@ -226,7 +250,15 @@ def fetch_transfer_market_data(db_path="fpl.db"):
             with sqlite3.connect(db_path) as conn:
                 players_df.to_sql("players", conn, if_exists="replace", index=False)
                 events_df.to_sql("events", conn, if_exists="replace", index=False)
-            print("Transfer market data updated successfully.")
+                create_odds_table(conn)
+                
+                try:
+                    from betting_engine import sync_fixture_odds_snapshots
+                    sync_fixture_odds_snapshots(conn)
+                except Exception as ex:
+                    print(f"Notice: Odds snapshot skipped: {ex}")
+
+            print("Transfer market data and odds snapshots updated successfully.")
         else:
             print(f"Failed to fetch market data, status code: {response.status_code}")
     except Exception as e:
@@ -234,7 +266,7 @@ def fetch_transfer_market_data(db_path="fpl.db"):
 
 
 def fetch_data(db_path="fpl.db"):
-    """Full sync: Fetches master data, fixtures, match histories, and multi-season records into SQLite."""
+    """Full sync: Fetches master data, fixtures, match histories, and initializes odds movement."""
     session, headers = get_session_and_headers()
 
     def get_json(url):
@@ -283,11 +315,20 @@ def fetch_data(db_path="fpl.db"):
         events_df.to_sql("events", conn, if_exists="replace", index=False)
         fixtures_df.to_sql("fixtures", conn, if_exists="replace", index=False)
 
-        # 4. Create History & Past Season Tables, then fetch
+        # 4. Create History, Past Seasons, and Odds Tables
         create_history_table(conn)
         create_past_seasons_table(conn)
+        create_odds_table(conn)
+
         player_ids = players_df["id"].tolist()
         fetch_all_player_histories(player_ids, conn, session, headers)
+
+        # 5. Snapshot Odds Movement
+        try:
+            from betting_engine import sync_fixture_odds_snapshots
+            sync_fixture_odds_snapshots(conn)
+        except Exception as ex:
+            print(f"Notice: Odds snapshot skipped: {ex}")
 
         print("Database sync completed successfully!")
     finally:
