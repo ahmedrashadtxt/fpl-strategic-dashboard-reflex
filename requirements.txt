@@ -1,7 +1,7 @@
-streamlit
+reflex>=0.9.9
 pandas
-requests
 plotly
-streamlit-keyup
 rapidfuzz
+pulp
 scipy
+requests
