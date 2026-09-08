@@ -273,7 +273,10 @@ def sync_odds_data_with_logging(conn):
         print("  -> Notice: No ODDS_API_KEY found in environment or secrets. Populating baseline FDR estimates.")
 
     try:
-        from betting_engine import sync_fixture_odds_snapshots
+        try:
+            from .betting_engine import sync_fixture_odds_snapshots
+        except ImportError:
+            from backend.betting_engine import sync_fixture_odds_snapshots
         sync_fixture_odds_snapshots(conn, api_key=odds_key)
 
         cursor = conn.cursor()
@@ -285,7 +288,9 @@ def sync_odds_data_with_logging(conn):
         print(f"  -> Warning: Odds synchronization encountered an issue: {ex}", file=sys.stderr)
 
 
-def fetch_transfer_market_data(db_path="fpl.db"):
+def fetch_transfer_market_data(db_path=None):
+    if db_path is None:
+        db_path = Path(__file__).resolve().parent / "fpl.db"
     """Lightweight sync: Updates players, events, and records odds snapshots."""
     session, headers = get_session_and_headers()
     bootstrap_url = "https://fantasy.premierleague.com/api/bootstrap-static/"
@@ -315,7 +320,9 @@ def fetch_transfer_market_data(db_path="fpl.db"):
         print(f"Error fetching transfer market data: {e}", file=sys.stderr)
 
 
-def fetch_data(db_path="fpl.db"):
+def fetch_data(db_path=None):
+    if db_path is None:
+        db_path = Path(__file__).resolve().parent / "fpl.db"
     """Full sync: Fetches master data, fixtures, match histories, and initializes odds movement."""
     session, headers = get_session_and_headers()
 
@@ -381,7 +388,9 @@ def fetch_data(db_path="fpl.db"):
         conn.close()
 
 
-def get_rolling_match_stats(db_path="fpl.db", window=5):
+def get_rolling_match_stats(db_path=None, window=5):
+    if db_path is None:
+        db_path = Path(__file__).resolve().parent / "fpl.db"
     """Computes rolling N-gameweek metrics per player using SQL window functions."""
     query = f"""
     WITH ranked_matches AS (

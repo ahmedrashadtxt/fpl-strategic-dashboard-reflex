@@ -33,15 +33,18 @@ def ensure_database_ready():
             needs_init = True
 
     if needs_init:
-        with st.spinner("Initializing database from official FPL API..."):
-            import fetch_data
+        print("Initializing database from official FPL API...")
+        try:
+            from . import fetch_data
+        except ImportError:
+            import backend.fetch_data as fetch_data
 
-            if hasattr(fetch_data, "main"):
-                fetch_data.main()
-            elif hasattr(fetch_data, "fetch_all_data"):
-                fetch_data.fetch_all_data()
-            elif hasattr(fetch_data, "fetch_data"):
-                fetch_data.fetch_data()
+        if hasattr(fetch_data, "main"):
+            fetch_data.main()
+        elif hasattr(fetch_data, "fetch_all_data"):
+            fetch_data.fetch_all_data()
+        elif hasattr(fetch_data, "fetch_data"):
+            fetch_data.fetch_data()
 
 
 def get_global_gameweek_info(conn):

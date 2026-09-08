@@ -4,6 +4,7 @@ import pandas as pd
 from typing import List, Dict, Any
 
 from backend.data import get_connection, get_global_gameweek_info
+from backend.audit_db import save_pre_gw_snapshot
 from backend.squad_logic import (
     fetch_manager_entry, fetch_manager_history, fetch_manager_picks,
     fetch_live_gameweek_points, get_rolling_player_metrics, get_teams_fdr_map,
@@ -45,9 +46,44 @@ class SquadAnalyzerState(AppState):
     base_pitch_html: str = ""
     comp_pitch_html: str = ""
     
+    disagreements: List[Dict[str, Any]] = []
+    movements: List[Dict[str, Any]] = []
+    flagged_players: List[Dict[str, Any]] = []
+
     @rx.var
     def has_data(self) -> bool:
         return len(self.starters) > 0
+
+    @rx.event(background=True)
+    async def lock_lineup(self):
+        async with self:
+            self.is_loading = True
+            self.status_message = f"Locking Lineup for GW{self.selected_eval_gw}..."
+            sel_gw = int(self.selected_eval_gw)
+            chip = self.simulated_chip
+            weight = self.market_weight
+            movement = self.factor_movement
+            starters = self.starters
+            bench = self.bench
+
+        def _do_lock():
+            conn = get_connection()
+            full_lineup = starters + bench
+            save_pre_gw_snapshot(
+                conn=conn,
+                gw=sel_gw,
+                lineup_data=full_lineup,
+                chip=chip if chip != "None" else None,
+                formation="4-4-2", # Fallback or dynamic
+                market_weight=weight if self.enable_betting else 0.0,
+                factor_movement=movement if self.enable_betting else False
+            )
+
+        await asyncio.to_thread(_do_lock)
+
+        async with self:
+            self.is_loading = False
+            self.status_message = "Lineup locked successfully!"
         
     def toggle_chip(self, chip: str):
         if self.simulated_chip == chip:
@@ -124,6 +160,9 @@ class SquadAnalyzerState(AppState):
                 self.used_chips_keys = result.get('used_chips_keys', [])
                 self.base_pitch_html = result.get('base_pitch_html', '')
                 self.comp_pitch_html = result.get('comp_pitch_html', '')
+                self.disagreements = result.get('disagreements', [])
+                self.movements = result.get('movements', [])
+                self.flagged_players = result.get('flagged_players', [])
                 
                 if str(self.selected_eval_gw) not in self.gw_options and self.gw_options:
                     self.selected_eval_gw = str(result.get('default_gw', self.gw_options[0]))
@@ -236,11 +275,18 @@ def _run_squad_analysis(manager_id, current_gw, selected_eval_gw, chip, comp, su
             squad_df["Raw_GW_Pts"] = squad_df["id"].map(lambda x: eval_live_map.get(x, {}).get("points", 0) if isinstance(eval_live_map.get(x), dict) else eval_live_map.get(x, 0))
             squad_df["live_stats"] = squad_df["id"].map(lambda x: eval_live_map.get(x, {}) if isinstance(eval_live_map.get(x), dict) else {})
             
+        # Add Proj_Pts calculation if missing
+        if "Proj_Pts" not in squad_df.columns:
+            squad_df["Proj_Pts"] = squad_df["GW_Points"] if "GW_Points" in squad_df.columns else 0.0
+
         squad_df["tooltip_html"] = squad_df.apply(lambda r: build_player_tooltip(r, is_live=(selected_eval_gw in finished_gw_ids or selected_eval_gw == ongoing_gw)), axis=1)
         
         # Sort into starters and bench
         starters_df = squad_df[squad_df["order"] <= 11].sort_values("order")
         bench_df = squad_df[squad_df["order"] > 11].sort_values("order")
+
+        flagged = squad_df[squad_df["Status"] != "a"].fillna("")
+        flagged_players = flagged[["Player", "News"]].to_dict("records")
         
         # Comparison logic
         comp_starters = []
@@ -299,7 +345,10 @@ def _run_squad_analysis(manager_id, current_gw, selected_eval_gw, chip, comp, su
             'default_gw': default_gw,
             'used_chips_keys': used_chips_keys,
             'base_pitch_html': base_pitch_html,
-            'comp_pitch_html': comp_pitch_html
+            'comp_pitch_html': comp_pitch_html,
+            'disagreements': [],
+            'movements': [],
+            'flagged_players': flagged_players
         }
     except Exception as e:
         print(f"Squad analyzer backend error: {e}")
@@ -470,6 +519,15 @@ def squad_analyzer_page():
                     rx.box()
                 ),
                 
+                # Lock In Button
+                rx.hstack(
+                    rx.button("🔒 Lock In Starting XI", on_click=SquadAnalyzerState.lock_lineup, color_scheme="green"),
+                    rx.text("Save deterministic optimal lineup into SQLite audit log before deadline.", color="gray", size="2"),
+                    align_items="center",
+                    spacing="3",
+                    margin_bottom="4"
+                ),
+
                 # Views
                 rx.cond(
                     SquadAnalyzerState.enable_comparison,
@@ -505,6 +563,26 @@ def squad_analyzer_page():
                         ),
                         width="100%"
                     )
+                ),
+
+                # Squad News / Flagged Section
+                rx.cond(
+                    SquadAnalyzerState.flagged_players.length() > 0,
+                    rx.box(
+                        rx.text("📰 Squad News & Availability Warnings", weight="bold", color="orange", margin_bottom="2"),
+                        rx.foreach(
+                            SquadAnalyzerState.flagged_players,
+                            lambda p: rx.callout(
+                                f"{p['Player']}: {p['News']}",
+                                icon="triangle_alert",
+                                color_scheme="amber",
+                                margin_bottom="2"
+                            )
+                        ),
+                        width="100%",
+                        margin_top="4"
+                    ),
+                    rx.box()
                 ),
                 width="100%",
                 spacing="4"

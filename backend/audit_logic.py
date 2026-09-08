@@ -174,11 +174,17 @@ def get_audit_snapshot(conn, selected_gw, selected_version):
         else:
             bench.append(p)
             
+    total_proj = sum(p.get("proj_pts", 0) for p in starters)
+    total_act = sum(p.get("actual_pts", 0) for p in starters if p.get("actual_pts") is not None)
+    variance = total_act - total_proj if any(p.get("actual_pts") is not None for p in starters) else 0.0
+
     return {
         "created_at": snapshot.get("created_at"),
+        "status": snapshot.get("status", "LOCKED_PRE"),
         "starters": starters,
         "bench": bench,
-        "total_proj": sum(p.get("proj_pts", 0) for p in starters),
-        "total_act": sum(p.get("actual_pts", 0) for p in starters if p.get("actual_pts") is not None),
+        "total_proj": total_proj,
+        "total_act": total_act,
+        "variance": variance,
         "is_settled": any(p.get("actual_pts") is not None for p in starters)
     }

@@ -5,7 +5,7 @@ from fpl_strategic_dashboard_reflex.state import AppState
 import asyncio
 from rapidfuzz import fuzz, process
 
-from backend.data import get_connection, get_manager_squad_ids
+from backend.data import get_connection, get_manager_squad_ids, calculate_price_change_predictions
 from backend.market_logic import fetch_transfer_targets_base_data
 
 class TransferMarketState(AppState):
@@ -19,6 +19,7 @@ class TransferMarketState(AppState):
     exclude_my_squad: bool = True
     enable_betting: bool = True
     
+    price_predictions: List[Dict[str, Any]] = []
     raw_targets: List[Dict[str, Any]] = []
     filtered_targets: List[Dict[str, Any]] = []
     
@@ -68,6 +69,10 @@ class TransferMarketState(AppState):
             ngw_df = pd.read_sql("SELECT id FROM events WHERE is_next = 1 LIMIT 1", conn)
             target_gw = int(ngw_df.iloc[0]["id"]) if not ngw_df.empty else current_gw
             
+            # Fetch price predictions
+            pred_df = calculate_price_change_predictions(conn)
+            price_preds = pred_df.fillna("").to_dict("records") if not pred_df.empty else []
+
             raw_df = fetch_transfer_targets_base_data(conn, current_gw, target_gw, self.enable_betting, "")
             
             # fillna
@@ -81,6 +86,7 @@ class TransferMarketState(AppState):
         raw_df, current_gw = await asyncio.to_thread(_fetch)
         
         async with self:
+            self.price_predictions = price_preds
             self.raw_targets = raw_df.fillna("").to_dict("records")
             self._apply_filters_internal(raw_df, current_gw)
             self.is_loading = False
@@ -199,12 +205,51 @@ def render_target_card(row: Dict[str, Any]) -> rx.Component:
         box_shadow="sm"
     )
 
+def render_price_card(row: Dict[str, Any]) -> rx.Component:
+    return rx.card(
+        rx.vstack(
+            rx.hstack(
+                rx.text(row["player_name"], weight="bold"),
+                rx.spacer(),
+                rx.badge(row["price_status"], color_scheme=rx.cond(row["target_progress_pct"] > 0, "green", "red"))
+            ),
+            rx.hstack(
+                rx.text(f"{row['team_short']} · {row['pos']} · £{row['now_cost']:.1f}m", size="1", color="gray"),
+                rx.spacer(),
+                rx.text(f"Progress: {row['target_progress_pct']}%", size="1", weight="bold")
+            ),
+            rx.progress(value=abs(row["target_progress_pct"]), color_scheme=rx.cond(row["target_progress_pct"] > 0, "green", "red")),
+            spacing="2"
+        ),
+        width="100%",
+        padding="3"
+    )
+
 def transfer_market_page() -> rx.Component:
     return rx.box(
         rx.vstack(
-            rx.heading("Transfer Target Finder", size="6"),
-            rx.text("Identify high-EV incoming transfer targets ranked by projected points and value efficiency", color="gray", margin_bottom="4"),
+            rx.heading("Transfer Target Finder & Nightly Price Predictor", size="6"),
+            rx.text("Identify high-EV incoming transfer targets and track estimated nightly price rises and falls", color="gray", margin_bottom="4"),
             
+            # Nightly Price Predictor Section
+            rx.cond(
+                TransferMarketState.price_predictions.length() > 0,
+                rx.box(
+                    rx.text("💹 Nightly Price Predictor (Rises 🚀 & Falls ⚠️)", weight="bold", font_size="lg", margin_bottom="2"),
+                    rx.grid(
+                        rx.foreach(TransferMarketState.price_predictions[:4], render_price_card),
+                        columns="4",
+                        spacing="4",
+                        width="100%",
+                        margin_bottom="6"
+                    ),
+                    width="100%"
+                ),
+                rx.box()
+            ),
+
+            rx.divider(margin_y="4"),
+
             rx.hstack(
                 rx.input(placeholder="Search Player / Club...", on_change=TransferMarketState.set_search, width="300px"),
                 rx.select(["All", "GKP", "DEF", "MID", "FWD"], value=TransferMarketState.pos_filter, on_change=TransferMarketState.set_pos_filter),

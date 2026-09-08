@@ -16,7 +16,7 @@ class AuditJournalState(AppState):
     
     @rx.var
     def version_options(self) -> list[str]:
-        return [v["version_id"] for v in self.versions]
+        return [str(v.get("version", "1")) for v in self.versions]
     
     snapshot_data: Dict[str, Any] = {}
     
@@ -89,14 +89,16 @@ class AuditJournalState(AppState):
     @rx.event(background=True)
     async def lock_version(self):
         async with self:
+            if not self.manager_id:
+                self.status_message = "No Manager ID set."
+                return
             self.is_loading = True
             self.status_message = "Locking new version..."
-        
-        async with self:
+            mgr_id = self.manager_id
             c_gw = int(self.selected_gw)
             curr_gw = self.current_gw
             
-        success, msg = await asyncio.to_thread(_lock_version, manager_id, c_gw, curr_gw)
+        success, msg = await asyncio.to_thread(_lock_version, mgr_id, c_gw, curr_gw)
         
         async with self:
             self.is_loading = False
@@ -227,12 +229,19 @@ def audit_journal_page():
             rx.cond(
                 AuditJournalState.has_snapshot,
                 rx.box(
-                    rx.text(f"Locked at: {AuditJournalState.snapshot_data['created_at']}", color="gray", size="2", margin_bottom="4"),
+                    rx.hstack(
+                        rx.text(f"Locked at: {AuditJournalState.snapshot_data['created_at']}", color="gray", size="2"),
+                        rx.spacer(),
+                        rx.badge(AuditJournalState.snapshot_data["status"], color_scheme=rx.cond(AuditJournalState.snapshot_data["status"] == "SETTLED", "green", "blue")),
+                        width="100%",
+                        margin_bottom="4"
+                    ),
                     
                     rx.grid(
-                        rx.box(rx.text("Total Projected", color="gray"), rx.text(AuditJournalState.snapshot_data["total_proj"], weight="bold", size="6")),
-                        rx.box(rx.text("Total Actual", color="gray"), rx.text(AuditJournalState.snapshot_data["total_act"], weight="bold", size="6", color="green")),
-                        columns="2",
+                        rx.box(rx.text("Total Projected xP", color="gray", size="1"), rx.text(f"{AuditJournalState.snapshot_data['total_proj']:.1f}", weight="bold", size="6")),
+                        rx.box(rx.text("Total Actual Points", color="gray", size="1"), rx.text(f"{AuditJournalState.snapshot_data['total_act']}", weight="bold", size="6", color="green")),
+                        rx.box(rx.text("Variance (Delta)", color="gray", size="1"), rx.text(f"{AuditJournalState.snapshot_data['variance']:+.1f}", weight="bold", size="6", color=rx.cond(AuditJournalState.snapshot_data['variance'] >= 0, "green", "red"))),
+                        columns="3",
                         spacing="4",
                         margin_bottom="4"
                     ),

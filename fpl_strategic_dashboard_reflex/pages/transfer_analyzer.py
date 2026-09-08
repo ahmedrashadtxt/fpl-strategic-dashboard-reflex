@@ -51,6 +51,12 @@ class TransferAnalyzerState(AppState):
         "xp_diff": 0.0
     }
     
+    ledger_data: List[Dict[str, Any]] = []
+
+    @rx.var
+    def ledger_columns(self) -> list[str]:
+        return ["Role", "Player", "Team", "Pos", "Cost", "Horizon_xP", "Avg_xP"]
+
     @rx.var
     def has_data(self) -> bool:
         return len(self.base_starters) > 0
@@ -125,6 +131,7 @@ class TransferAnalyzerState(AppState):
                 self.base_pitch_html = result['base_pitch_html']
                 self.comp_pitch_html = result['comp_pitch_html']
                 self.metrics = result['metrics']
+                self.ledger_data = result.get('ledger_data', [])
                 # Reset free transfers on first load if default is set
                 if result.get("init_ft"):
                     self.ft_count = str(result["init_ft"])
@@ -252,11 +259,30 @@ def _run_transfer_analysis(manager_id, current_gw, horizon, ft, hits, betting, w
             safe_swaps.append({
                 "out_name": str(s["out"]["Player"]),
                 "in_name": str(s["in"]["Player"]),
+                "out_team": str(s["out"].get("Team", "")),
+                "in_team": str(s["in"].get("Team", "")),
+                "gain": float(s.get("gain", 0.0)),
+                "cost_diff": float(s.get("cost_diff", 0.0)),
                 "forced_out": bool(s.get("forced_out", False)),
-                "forced_in": bool(s.get("forced_in", False))
+                "target": bool(s.get("target", False))
             })
             
+        ledger_df = transferred_squad_df.copy()
+        if not ledger_df.empty:
+            ledger_df["Role"] = ledger_df["id"].map(
+                lambda x: (
+                    "Target Signing 🎯" if x in in_ids and x in targeted_in_players
+                    else ("New Signing 🟢" if x in in_ids else ("Locked 🔒" if x in locked_players else "Retained"))
+                )
+            )
+            cols = ["Role", "Player", "Team", "Pos", "Cost", "Horizon_xP", "Avg_xP"]
+            cols = [c for c in cols if c in ledger_df.columns]
+            ledger_data = ledger_df[cols].sort_values(by="Horizon_xP", ascending=False).fillna("").to_dict("records")
+        else:
+            ledger_data = []
+
         return {
+            'ledger_data': ledger_data,
             'pos_options': pos_options,
             'neg_options': neg_options,
             'bank_balance': bank_balance,
@@ -410,12 +436,43 @@ def transfer_analyzer_page():
                 
                 # Recommended Transfers
                 rx.box(
-                    rx.text("Recommended Transfers", font_weight="bold", margin_bottom="2"),
-                    rx.foreach(
-                        TransferAnalyzerState.swaps,
-                        lambda s: rx.text(s["out_name"], " ➔ ", s["in_name"])
+                    rx.text("🔄 Recommended Transfer Moves", font_weight="bold", font_size="lg", margin_bottom="3"),
+                    rx.cond(
+                        TransferAnalyzerState.swaps.length() == 0,
+                        rx.callout("✅ Your current squad is optimal for this horizon. No transfer yields higher starting points within your budget.", icon="check_check", color_scheme="green"),
+                        rx.vstack(
+                            rx.foreach(
+                                TransferAnalyzerState.swaps,
+                                lambda s: rx.card(
+                                    rx.hstack(
+                                        rx.box(
+                                            rx.badge("TRANSFER OUT", color_scheme="red", radius="full", margin_bottom="1"),
+                                            rx.text(s["out_name"], weight="bold"),
+                                            rx.text(s["out_team"], size="1", color="gray"),
+                                        ),
+                                        rx.icon("arrow_right", size=24, color="gray"),
+                                        rx.box(
+                                            rx.badge(rx.cond(s["target"], "TARGET IN 🎯", "TRANSFER IN 🟢"), color_scheme=rx.cond(s["target"], "blue", "green"), radius="full", margin_bottom="1"),
+                                            rx.text(s["in_name"], weight="bold"),
+                                            rx.text(s["in_team"], size="1", color="gray"),
+                                        ),
+                                        rx.spacer(),
+                                        rx.box(
+                                            rx.text("Expected Gain", size="1", color="gray"),
+                                            rx.text(f"+{s['gain']:.1f} xP", weight="bold", color="green"),
+                                            rx.text(f"Cost Δ: £{s['cost_diff']:.1f}m", size="1", color="gray"),
+                                            align_items="end"
+                                        ),
+                                        width="100%",
+                                        align_items="center"
+                                    ),
+                                    width="100%",
+                                    margin_bottom="2"
+                                )
+                            )
+                        )
                     ),
-                    margin_bottom="4"
+                    margin_bottom="6"
                 ),
                 
                 # Views
@@ -441,6 +498,21 @@ def transfer_analyzer_page():
                     columns="2",
                     spacing="4",
                     width="100%"
+                ),
+
+                # Multi-Gameweek Performance Ledger
+                rx.box(
+                    rx.text("📋 Multi-Gameweek Performance Ledger", weight="bold", font_size="lg", margin_bottom="3"),
+                    rx.data_table(
+                        data=TransferAnalyzerState.ledger_data,
+                        columns=TransferAnalyzerState.ledger_columns,
+                        pagination=True,
+                        search=True,
+                        sort=True,
+                        width="100%"
+                    ),
+                    width="100%",
+                    margin_top="6"
                 ),
                 width="100%",
                 spacing="4"
