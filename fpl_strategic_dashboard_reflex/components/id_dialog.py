@@ -2,9 +2,11 @@
 
 import reflex as rx
 from fpl_strategic_dashboard_reflex.state import AppState
+from fpl_strategic_dashboard_reflex.states.base import AppState
 
 
 def id_dialog(on_save_handler=None) -> rx.Component:
+    """Pure presentation modal dialog for setting user's FPL manager ID."""
     return rx.dialog.root(
         rx.dialog.content(
             rx.dialog.title("Enter FPL Team ID", font_family="'Outfit', sans-serif"),
@@ -24,6 +26,7 @@ def id_dialog(on_save_handler=None) -> rx.Component:
                     width="100%",
                 ),
                 # Explanatory guide box matching Streamlit modal
+                # Explanatory guide box
                 rx.box(
                     rx.vstack(
                         rx.text(

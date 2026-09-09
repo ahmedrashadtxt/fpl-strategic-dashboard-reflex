@@ -1,4 +1,6 @@
 import asyncio
+"""Transfer Analyzer / Solver Page - Pure presentation page layout."""
+
 import reflex as rx
 import pandas as pd
 from typing import List, Dict, Any
@@ -9,6 +11,12 @@ from backend.transfer_logic import (
     calculate_available_fts, get_rolling_player_metrics, get_teams_fdr_map,
     evaluate_league_multi_gw, solve_multi_gw_transfers, build_player_tooltip,
     prepare_xi_display, render_transfer_pitch_component
+from fpl_strategic_dashboard_reflex.states.transfer import TransferAnalyzerState
+from fpl_strategic_dashboard_reflex.components import (
+    guide_popover,
+    metric_card,
+    pitch_view,
+    squad_list_view,
 )
 from fpl_strategic_dashboard_reflex.state import AppState
 
@@ -224,14 +232,74 @@ def _run_transfer_analysis(manager_id, current_gw, horizon, ft, hits, betting, w
         curr_squad_horizon["is_forced_out"] = curr_squad_horizon["id"].isin(forced_out_ids)
         curr_squad_horizon["is_transfer_in"] = False
         curr_squad_horizon["is_target_in"] = False
+def transfer_analyzer_page() -> rx.Component:
+    """Renders the Transfer Analyzer / Multi-GW Solver page view."""
+    return rx.box(
+        # Page Title & Guide
+        rx.hstack(
+            rx.vstack(
+                rx.text("Transfer Solver & Horizon Planner", class_name="section-header-title"),
+                rx.text("Optimize multi-gameweek transfer sequences with integer linear programming to maximize net projected points.", class_name="section-header-sub"),
+                align="start",
+                spacing="1",
+            ),
+            rx.spacer(),
+            guide_popover(
+                title="Transfer Solver Guide",
+                subtitle="Mathematically optimal transfer decisions",
+                items=[
+                    {"badge": "Horizon", "title": "Multi-GW Planning", "desc": "Solve for 1 to 5 gameweeks ahead to avoid short-term trap transfers."},
+                    {"badge": "Free Transfers", "title": "FT Budget & Hits", "desc": "Factor in available free transfers and cost of point deductions (-4 per extra hit)."},
+                    {"badge": "Constraints", "title": "Target & Lock", "desc": "Force must-buy targets or lock indispensable assets in your squad."},
+                ],
+                tip="Planning over a 3-gameweek horizon helps preserve bank flexibility and prevents reactionary moves.",
+            ),
+            width="100%",
+            align="center",
+            margin_bottom="1.25rem",
+            wrap="wrap",
+            gap="1rem",
+        ),
 
         transferred_squad_df["is_transfer_out"] = False
         transferred_squad_df["is_forced_out"] = False
         transferred_squad_df["is_transfer_in"] = transferred_squad_df["id"].isin(in_ids)
         transferred_squad_df["is_target_in"] = transferred_squad_df["id"].isin(targeted_in_players)
+        # KPI Metrics Cards
+        rx.cond(
+            TransferAnalyzerState.has_data,
+            rx.hstack(
+                metric_card("Team Value", rx.concat("£", TransferAnalyzerState.metrics["team_value"].to_string(), "m"), "Assets", "amber"),
+                metric_card("Bank After", rx.concat("£", TransferAnalyzerState.metrics["bank_after"].to_string(), "m"), "Remaining", "green"),
+                metric_card("Current Squad xP", TransferAnalyzerState.metrics["old_xp"].to_string(), "Horizon", "gray"),
+                metric_card("Post-Transfer xP", TransferAnalyzerState.metrics["new_xp"].to_string(), "Projected", "blue"),
+                metric_card("Net Point Gain", rx.concat("+", TransferAnalyzerState.metrics["xp_diff"].to_string(), " xP"), "Optimization", "purple"),
+                width="100%",
+                spacing="3",
+                wrap="wrap",
+                margin_bottom="1.25rem",
+            ),
+            rx.box(),
+        ),
 
         raw_base_xi, raw_base_bench, _ = solve_optimal_xi(curr_squad_horizon)
         raw_trans_xi, raw_trans_bench, _ = solve_optimal_xi(transferred_squad_df)
+        # Controls & Filter Bar
+        rx.box(
+            rx.hstack(
+                # Horizon Length
+                rx.hstack(
+                    rx.text("Horizon:", font_size="0.8rem", color="var(--text-sub)", font_weight="600"),
+                    rx.select(
+                        ["1", "2", "3", "4", "5"],
+                        value=TransferAnalyzerState.horizon_len,
+                        on_change=TransferAnalyzerState.set_horizon,
+                        size="2",
+                        variant="surface",
+                    ),
+                    align="center",
+                    spacing="2",
+                ),
 
         base_xi, base_bench = prepare_xi_display(raw_base_xi, raw_base_bench)
         trans_xi, trans_bench = prepare_xi_display(raw_trans_xi, raw_trans_bench)
@@ -279,7 +347,33 @@ def _run_transfer_analysis(manager_id, current_gw, horizon, ft, hits, betting, w
     except Exception as e:
         print(f"Transfer analyzer backend error: {e}")
         return None
+                # Available FTs
+                rx.hstack(
+                    rx.text("Free Transfers:", font_size="0.8rem", color="var(--text-sub)", font_weight="600"),
+                    rx.select(
+                        ["1", "2", "3", "4", "5"],
+                        value=TransferAnalyzerState.ft_count,
+                        on_change=TransferAnalyzerState.set_fts,
+                        size="2",
+                        variant="surface",
+                    ),
+                    align="center",
+                    spacing="2",
+                ),
 
+                # Max Hits
+                rx.hstack(
+                    rx.text("Max Hits (-4):", font_size="0.8rem", color="var(--text-sub)", font_weight="600"),
+                    rx.select(
+                        ["0", "1", "2", "3"],
+                        value=TransferAnalyzerState.max_hits,
+                        on_change=TransferAnalyzerState.set_max_hits,
+                        size="2",
+                        variant="surface",
+                    ),
+                    align="center",
+                    spacing="2",
+                ),
 
 def squad_list_view(starters: list, bench: list):
     return rx.vstack(
@@ -287,6 +381,29 @@ def squad_list_view(starters: list, bench: list):
             starters,
             lambda row: rx.box(
                 rx.html(row["tooltip_html"]),
+                rx.spacer(),
+
+                # Solve Button & View Toggle
+                rx.hstack(
+                    rx.button(
+                        rx.icon("play", size=16),
+                        "Solve Transfers",
+                        variant="solid",
+                        color_scheme="blue",
+                        size="2",
+                        on_click=TransferAnalyzerState.analyze,
+                    ),
+                    rx.button(
+                        rx.cond(TransferAnalyzerState.pitch_view, "List View", "Pitch View"),
+                        variant="surface",
+                        color_scheme="gray",
+                        size="2",
+                        on_click=TransferAnalyzerState.set_pitch_view(~TransferAnalyzerState.pitch_view),
+                    ),
+                    align="center",
+                    spacing="2",
+                ),
+
                 width="100%",
                 padding="10px",
                 border="1px solid rgba(255,255,255,0.1)",
@@ -294,6 +411,16 @@ def squad_list_view(starters: list, bench: list):
                 background="rgba(15, 23, 42, 0.6)",
                 margin_bottom="2px"
             )
+                align="center",
+                wrap="wrap",
+                gap="1rem",
+            ),
+            padding="1rem",
+            background="rgba(255, 255, 255, 0.02)",
+            border="1px solid var(--border-color)",
+            border_radius="10px",
+            margin_bottom="1.25rem",
+            width="100%",
         ),
         rx.text("Bench", font_weight="bold", margin_top="4"),
         rx.foreach(
@@ -314,6 +441,7 @@ def squad_list_view(starters: list, bench: list):
 
 def transfer_analyzer_page():
     return rx.box(
+        # Solved Swaps Banner
         rx.cond(
             TransferAnalyzerState.is_loading,
             rx.center(
@@ -325,22 +453,62 @@ def transfer_analyzer_page():
                         rx.progress(value=None, width="100%", color_scheme="green"),
                         align_items="center",
                         spacing="4"
+            TransferAnalyzerState.swaps.length() > 0,
+            rx.box(
+                rx.vstack(
+                    rx.text("Proposed Transfer Strategy:", font_weight="700", font_size="0.85rem", color="var(--text-main)"),
+                    rx.hstack(
+                        rx.foreach(
+                            TransferAnalyzerState.swaps,
+                            lambda s: rx.badge(
+                                rx.hstack(
+                                    rx.text("🔴 ", s["out_name"], " ➔ ", font_weight="600"),
+                                    rx.text("🟢 ", s["in_name"], font_weight="700"),
+                                    spacing="1",
+                                    align="center",
+                                ),
+                                variant="surface",
+                                color_scheme="blue",
+                                size="2",
+                                padding_x="0.75rem",
+                                padding_y="0.35rem",
+                            ),
+                        ),
+                        wrap="wrap",
+                        spacing="2",
                     ),
                     padding="6",
                     width="350px",
                     box_shadow="0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)"
+                    align="start",
+                    spacing="2",
                 ),
                 padding="12",
+                padding="1rem",
+                border_radius="10px",
+                background="rgba(59, 130, 246, 0.08)",
+                border="1px solid rgba(59, 130, 246, 0.2)",
+                margin_bottom="1.5rem",
                 width="100%",
                 min_height="300px"
             )
+            ),
+            rx.box(),
         ),
+
+        # Main Content: Loading vs Comparison Pitch
         rx.cond(
             (TransferAnalyzerState.manager_id == ""),
+            TransferAnalyzerState.is_loading,
             rx.center(
                 rx.callout(
                     "👆 Click 'Enter FPL ID' in the top-right header to load your transfer analysis.",
                     icon="info",
+                rx.vstack(
+                    rx.spinner(size="3"),
+                    rx.text(TransferAnalyzerState.status_message, font_size="0.85rem", color="var(--text-sub)"),
+                    align="center",
+                    spacing="2",
                 ),
                 padding="8"
             )
@@ -353,6 +521,28 @@ def transfer_analyzer_page():
                     rx.box(
                         rx.text("Horizon (GWs)"),
                         rx.select(["1", "2", "3", "5"], value=TransferAnalyzerState.horizon_len, on_change=TransferAnalyzerState.set_horizon)
+                padding="4rem",
+                width="100%",
+            ),
+            rx.cond(
+                TransferAnalyzerState.has_data,
+                rx.box(
+                    rx.cond(
+                        TransferAnalyzerState.pitch_view,
+                        rx.grid(
+                            pitch_view(TransferAnalyzerState.base_pitch_html, header_text="Current Squad Lineup"),
+                            pitch_view(TransferAnalyzerState.comp_pitch_html, header_text="Proposed Transfer Squad"),
+                            columns="2",
+                            spacing="4",
+                            width="100%",
+                        ),
+                        rx.grid(
+                            squad_list_view(TransferAnalyzerState.base_starters, TransferAnalyzerState.base_bench),
+                            squad_list_view(TransferAnalyzerState.trans_starters, TransferAnalyzerState.trans_bench),
+                            columns="2",
+                            spacing="4",
+                            width="100%",
+                        ),
                     ),
                     rx.box(
                         rx.text("Free Transfers"),
@@ -382,12 +572,20 @@ def transfer_analyzer_page():
                         rx.text("🔒 Keep / 🎯 Target", weight="bold"),
                         rx.select(TransferAnalyzerState.pos_options, value=rx.cond(TransferAnalyzerState.selected_positive.length() > 0, TransferAnalyzerState.selected_positive[0], ""), on_change=lambda x: TransferAnalyzerState.set_selected_positive([x]))
                         # Note: Reflex select only supports single selection easily out of the box in this form, so we adapt it.
+                rx.center(
+                    rx.vstack(
+                        rx.icon("arrow-left-right", size=32, color="var(--text-muted)"),
+                        rx.text("No transfer data loaded. Enter your FPL Team ID to start optimization.", font_size="0.9rem", color="var(--text-sub)"),
+                        rx.button("Enter FPL Team ID", on_click=TransferAnalyzerState.open_id_dialog, variant="solid", color_scheme="blue", size="2"),
+                        align="center",
+                        spacing="3",
                     ),
                     rx.box(
                         rx.text("🔴 Sell / ⛔ Block", weight="bold"),
                         rx.select(TransferAnalyzerState.neg_options, value=rx.cond(TransferAnalyzerState.selected_negative.length() > 0, TransferAnalyzerState.selected_negative[0], ""), on_change=lambda x: TransferAnalyzerState.set_selected_negative([x]))
                     ),
                     columns="2",
+                    padding="4rem",
                     width="100%",
                     spacing="4",
                     margin_bottom="4"
@@ -445,6 +643,7 @@ def transfer_analyzer_page():
                 width="100%",
                 spacing="4"
             )
+            ),
         ),
         width="100%",
         on_mount=TransferAnalyzerState.analyze

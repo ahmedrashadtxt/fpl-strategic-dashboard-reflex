@@ -1,9 +1,20 @@
+"""Transfer Market Page - Pure presentation view for price changes and scout targets."""
+
 import reflex as rx
 import pandas as pd
 from typing import List, Dict, Any
 from fpl_strategic_dashboard_reflex.state import AppState
 import asyncio
 from rapidfuzz import fuzz, process
+from fpl_strategic_dashboard_reflex.states.market import TransferMarketState
+from fpl_strategic_dashboard_reflex.components import (
+    guide_popover,
+    metric_card,
+    data_table,
+    search_input,
+    filter_select,
+    filter_bar,
+)
 
 from backend.data import get_connection, get_manager_squad_ids
 from backend.market_logic import fetch_transfer_targets_base_data
@@ -185,12 +196,37 @@ class TransferMarketState(AppState):
         self.filtered_targets = df.fillna("").to_dict("records")
 
 def render_target_card(row: Dict[str, Any]) -> rx.Component:
+def transfer_market_page() -> rx.Component:
+    """Renders the Transfer Market tab view."""
     return rx.box(
         rx.vstack(
             rx.text(row["Player"], weight="bold"),
             rx.text(f"{row['Team']} - {row['Pos']}", color="gray", size="2"),
             rx.text(f"Price: £{row['Price']}", size="2"),
             rx.text(f"xP: {row['Proj_xP']}", color="green", weight="bold"),
+        # Page Title & Guide
+        rx.hstack(
+            rx.vstack(
+                rx.text("Transfer Market & Price Rise Predictor", class_name="section-header-title"),
+                rx.text("Monitor nightly price rise/fall thresholds, transfer volume momentum, and scout top targets.", class_name="section-header-sub"),
+                align="start",
+                spacing="1",
+            ),
+            rx.spacer(),
+            guide_popover(
+                title="Transfer Market Guide",
+                subtitle="Price changes and transfer trends",
+                items=[
+                    {"badge": "Thresholds", "title": "Nightly Price Changes", "desc": "Players reaching ~100% net transfer threshold are predicted to change price at 01:30 UK time."},
+                    {"badge": "Value Scout", "title": "Scout Targets", "desc": "Sort by points per million to identify budget enablers before price rises."},
+                ],
+                tip="Make planned transfers before price deadline to capture team value gains.",
+            ),
+            width="100%",
+            align="center",
+            margin_bottom="1.25rem",
+            wrap="wrap",
+            gap="1rem",
         ),
         padding="4",
         border="1px solid #e2e8f0",
@@ -205,23 +241,71 @@ def transfer_market_page() -> rx.Component:
             rx.heading("Transfer Target Finder", size="6"),
             rx.text("Identify high-EV incoming transfer targets ranked by projected points and value efficiency", color="gray", margin_bottom="4"),
             
+        # Top Targets Cards
+        rx.cond(
+            TransferMarketState.top_cards.length() > 0,
             rx.hstack(
                 rx.input(placeholder="Search Player / Club...", on_change=TransferMarketState.set_search, width="300px"),
                 rx.select(["All", "GKP", "DEF", "MID", "FWD"], value=TransferMarketState.pos_filter, on_change=TransferMarketState.set_pos_filter),
                 rx.select(["Projected Points (xP)", "Value Efficiency (xP / £M)", "Current Form", "Total Season Points", "Price (Low to High)"], value=TransferMarketState.sort_by, on_change=TransferMarketState.set_sort_by),
                 spacing="4"
+                rx.foreach(
+                    TransferMarketState.top_cards,
+                    lambda c: metric_card(c["Player"], rx.concat("£", c["Price"], "m"), c["Team"], "blue", rx.concat(c["Proj_xP"], " xP · ", c["Fixture"])),
+                ),
+                width="100%",
+                spacing="3",
+                wrap="wrap",
+                margin_bottom="1.25rem",
             ),
             
+            rx.box(),
+        ),
+
+        # Filter Bar
+        filter_bar(
+            rx.box(
+                search_input(
+                    value=TransferMarketState.search_query,
+                    on_change=TransferMarketState.set_search,
+                    placeholder="Search market target...",
+                ),
+                width="240px",
+            ),
+            filter_select(
+                "Position:",
+                ["All", "GKP", "DEF", "MID", "FWD"],
+                TransferMarketState.pos_filter,
+                TransferMarketState.set_pos_filter,
+            ),
+            filter_select(
+                "Sort by:",
+                [
+                    "Projected Points (xP)",
+                    "Value for Money (xP/£m)",
+                    "Form",
+                    "Easiest Fixture",
+                ],
+                TransferMarketState.sort_by,
+                TransferMarketState.set_sort_by,
+            ),
             rx.hstack(
                 rx.vstack(
                     rx.text("Target Max Price (£M)", size="2"),
                     rx.slider(default_value=[15], min=4, max=15, on_value_commit=TransferMarketState.set_max_price, width="200px"),
+                rx.switch(
+                    checked=TransferMarketState.exclude_my_squad,
+                    on_change=TransferMarketState.toggle_exclude,
+                    size="1",
                 ),
                 rx.checkbox("Exclude My Squad", checked=TransferMarketState.exclude_my_squad, on_change=TransferMarketState.toggle_exclude),
                 rx.checkbox("Apply Betting Odds", checked=TransferMarketState.enable_betting, on_change=TransferMarketState.toggle_betting),
                 rx.button("Apply Filters", on_click=TransferMarketState.apply_filters),
                 spacing="4",
                 align_items="center"
+                rx.text("Exclude My Squad", font_size="0.8rem", color="var(--text-sub)"),
+                align="center",
+                spacing="2",
             ),
             
             rx.cond(
@@ -242,6 +326,36 @@ def transfer_market_page() -> rx.Component:
                             pagination=True,
                             search=True,
                             sort=True,
+            rx.hstack(
+                rx.switch(
+                    checked=TransferMarketState.enable_betting,
+                    on_change=TransferMarketState.toggle_betting,
+                    size="1",
+                ),
+                rx.text("Betting Odds Blending", font_size="0.8rem", color="var(--text-sub)"),
+                align="center",
+                spacing="2",
+            ),
+        ),
+
+        # Data Table
+        data_table(
+            headers=TransferMarketState.columns,
+            rows=TransferMarketState.table_data,
+            row_render_func=lambda row: rx.table.row(
+                rx.table.cell(rx.text(row["Player"], font_weight="600")),
+                rx.table.cell(rx.badge(row["Team"], variant="surface", color_scheme="gray", size="1")),
+                rx.table.cell(rx.text(row["Pos"], font_size="0.8rem")),
+                rx.table.cell(rx.text(rx.concat("£", row["Price"], "m"))),
+                rx.table.cell(rx.text(row["Fixture"])),
+                rx.table.cell(
+                    rx.cond(
+                        row["FDR"].to(int) <= 2,
+                        rx.badge(row["FDR"].to_string(), variant="soft", color_scheme="green", size="1"),
+                        rx.cond(
+                            row["FDR"].to(int) == 3,
+                            rx.badge(row["FDR"].to_string(), variant="surface", color_scheme="gray", size="1"),
+                            rx.badge(row["FDR"].to_string(), variant="soft", color_scheme="red", size="1"),
                         ),
                         margin_top="6",
                         width="100%"
@@ -249,8 +363,17 @@ def transfer_market_page() -> rx.Component:
                     width="100%"
                 )
             )
+                    )
+                ),
+                rx.table.cell(rx.text(row["Proj_xP"], font_weight="700", color="#60a5fa")),
+                rx.table.cell(rx.badge(row["xP_per_Mil"], variant="soft", color_scheme="purple", size="1")),
+                rx.table.cell(rx.text(row["Form"])),
+                rx.table.cell(rx.text(row["Total_Points"], font_weight="600")),
+            ),
+            is_loading=TransferMarketState.is_loading,
         ),
         padding="6",
         on_mount=TransferMarketState.load_data
+        width="100%",
     )
 

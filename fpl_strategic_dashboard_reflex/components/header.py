@@ -2,9 +2,11 @@
 
 import reflex as rx
 from fpl_strategic_dashboard_reflex.state import AppState
+from fpl_strategic_dashboard_reflex.states.base import AppState
 
 
 def header() -> rx.Component:
+    """Pure presentation top navbar."""
     return rx.box(
         rx.hstack(
             # Brand & Subtitle
@@ -47,6 +49,7 @@ def header() -> rx.Component:
                     rx.text("GW:", font_size="0.8rem", color="var(--text-sub)", font_weight="600"),
                     rx.select(
                         [str(gw) for gw in range(1, 39)],
+                        AppState.available_gameweeks,
                         value=AppState.selected_gw.to_string(),
                         on_change=AppState.set_selected_gw,
                         size="2",

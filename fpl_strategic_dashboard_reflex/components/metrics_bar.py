@@ -2,6 +2,8 @@
 
 import reflex as rx
 from fpl_strategic_dashboard_reflex.state import AppState
+from fpl_strategic_dashboard_reflex.states.metrics import DashboardMetricsState
+from fpl_strategic_dashboard_reflex.components.metric_card import metric_card
 
 
 def metric_item(label: str, value: rx.Var, badge_text: str = "", color: str = "blue") -> rx.Component:
@@ -29,12 +31,18 @@ def metric_item(label: str, value: rx.Var, badge_text: str = "", color: str = "b
 
 
 def metrics_bar() -> rx.Component:
+    """Renders the top summary KPIs bar."""
     return rx.hstack(
         metric_item("Active Assets", AppState.total_players.to_string(), "Tracked", "gray"),
         metric_item("Underperforming xG", AppState.buy_signals.to_string(), "Buy Signals", "green"),
         metric_item("Overperforming xG", AppState.sell_signals.to_string(), "Sell Signals", "red"),
         metric_item("Transfer Momentum", AppState.heating_transfers.to_string(), "Heating 🔥", "amber"),
         metric_item("Cold Outflows", AppState.cooling_transfers.to_string(), "Cooling ❄️", "blue"),
+        metric_card("Active Assets", DashboardMetricsState.total_players.to_string(), "Tracked", "gray"),
+        metric_card("Underperforming xG", DashboardMetricsState.buy_signals.to_string(), "Buy Signals", "green"),
+        metric_card("Overperforming xG", DashboardMetricsState.sell_signals.to_string(), "Sell Signals", "red"),
+        metric_card("Transfer Momentum", DashboardMetricsState.heating_transfers.to_string(), "Heating 🔥", "amber"),
+        metric_card("Cold Outflows", DashboardMetricsState.cooling_transfers.to_string(), "Cooling ❄️", "blue"),
         width="100%",
         spacing="3",
         wrap="wrap",

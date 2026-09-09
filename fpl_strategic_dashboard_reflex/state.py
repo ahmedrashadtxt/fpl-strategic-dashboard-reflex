@@ -1,4 +1,5 @@
 """Global state for the FPL Strategic Dashboard Reflex application."""
+"""Compatibility module re-exporting AppState from states.base."""
 
 import os
 import requests
@@ -8,6 +9,7 @@ from backend.data import (
     get_connection,
     get_global_gameweek_info,
 )
+from fpl_strategic_dashboard_reflex.states.base import AppState
 
 
 class AppState(rx.State):
@@ -131,3 +133,4 @@ class AppState(rx.State):
 
 State = AppState
 
+__all__ = ["AppState", "State"]
