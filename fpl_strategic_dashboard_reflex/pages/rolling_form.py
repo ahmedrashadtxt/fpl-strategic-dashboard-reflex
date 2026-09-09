@@ -1,6 +1,17 @@
 import asyncio
+"""Rolling Form Page - Pure presentation view for multi-gameweek form analytics."""
+
 import reflex as rx
 from typing import List, Dict, Any
+from fpl_strategic_dashboard_reflex.states.rolling import RollingFormState
+from fpl_strategic_dashboard_reflex.components import (
+    guide_popover,
+    metric_card,
+    data_table,
+    search_input,
+    filter_select,
+    filter_bar,
+)
 
 from fpl_strategic_dashboard_reflex.state import AppState
 from backend.data import get_connection
@@ -88,14 +99,36 @@ def _run_roll_backend(c_gw, manager_id, sq, mm, pf, sb, mp, oms, lw):
         return None
 
 def render_top_card_roll(card: Dict[str, Any]):
+def rolling_form_page() -> rx.Component:
+    """Renders the Rolling Form tab view."""
     return rx.box(
+        # Page Title & Guide
         rx.hstack(
             rx.image(src=card["img_url"], width="40px", height="40px", border_radius="50%"),
             rx.vstack(
                 rx.text(card["player"], weight="bold"),
                 rx.text(f"{card['team']} - {card['pos']}", size="1", color="gray"),
                 spacing="0"
+                rx.text("Rolling Form & Value Dynamics", class_name="section-header-title"),
+                rx.text("Analyze moving window averages (3, 5, or 8 GWs) to separate genuine hot streaks from single-game anomalies.", class_name="section-header-sub"),
+                align="start",
+                spacing="1",
             ),
+            rx.spacer(),
+            guide_popover(
+                title="Rolling Form Guide",
+                subtitle="Smooth statistical volatility over customizable windows",
+                items=[
+                    {"badge": "Window", "title": "Rolling Windows", "desc": "Evaluate 3, 5, or 8 gameweeks to capture short-term form and long-term trends."},
+                    {"badge": "Value Ratio", "title": "Points per Million", "desc": "Calculates form points divided by player cost to identify budget enablers."},
+                ],
+                tip="Players with rising form and low upcoming FDR (green) offer the highest immediate transfer upside.",
+            ),
+            width="100%",
+            align="center",
+            margin_bottom="1.25rem",
+            wrap="wrap",
+            gap="1rem",
         ),
         rx.divider(margin_y="2"),
         rx.hstack(
@@ -112,9 +145,22 @@ def render_top_card_roll(card: Dict[str, Any]):
 
 def rolling_form_page():
     return rx.box(
+        # Top Metric Cards
         rx.cond(
             RollingFormState.is_loading,
             rx.center(rx.spinner(), padding="8")
+            RollingFormState.has_data,
+            rx.hstack(
+                rx.foreach(
+                    RollingFormState.top_cards,
+                    lambda c: metric_card(c["label"], c["value"], c["badge"], c["color"], c["subtext"]),
+                ),
+                width="100%",
+                spacing="3",
+                wrap="wrap",
+                margin_bottom="1.25rem",
+            ),
+            rx.box(),
         ),
         rx.vstack(
             rx.text("Rolling Form & Fixture Matrix", font_size="2xl", weight="bold"),
@@ -134,6 +180,16 @@ def rolling_form_page():
                 columns="4",
                 spacing="4",
                 width="100%"
+
+        # Filter Bar
+        filter_bar(
+            rx.box(
+                search_input(
+                    value=RollingFormState.search_query,
+                    on_change=RollingFormState.set_search,
+                    placeholder="Search player or club...",
+                ),
+                width="240px",
             ),
             
             rx.grid(
@@ -143,11 +199,21 @@ def rolling_form_page():
                 columns="3",
                 spacing="4",
                 width="100%"
+            filter_select(
+                "Window Size:",
+                ["3", "5", "8"],
+                RollingFormState.window_size.to_string(),
+                RollingFormState.set_window,
             ),
             
             rx.cond(
                 RollingFormState.has_data,
                 rx.plotly(data=RollingFormState.fig, layout={"height": "500px", "width": "100%"}),
+            filter_select(
+                "Position:",
+                ["All", "GKP", "DEF", "MID", "FWD"],
+                RollingFormState.position_filter,
+                RollingFormState.set_pos,
             ),
             
             rx.divider(),
@@ -157,6 +223,17 @@ def rolling_form_page():
                 columns="4",
                 spacing="4",
                 width="100%"
+            filter_select(
+                "Sort by:",
+                [
+                    "Form vs Price Ratio",
+                    "Rolling Points / GW",
+                    "Rolling Minutes / GW",
+                    "Rolling xGI / 90",
+                    "Total Points",
+                ],
+                RollingFormState.sort_by,
+                RollingFormState.set_sort,
             ),
             
             rx.data_table(
@@ -166,10 +243,50 @@ def rolling_form_page():
                 search=True,
                 sort=True,
                 width="100%"
+            rx.hstack(
+                rx.switch(
+                    checked=RollingFormState.only_my_squad,
+                    on_change=RollingFormState.set_only_squad,
+                    size="1",
+                ),
+                rx.text("My Squad Only", font_size="0.8rem", color="var(--text-sub)"),
+                align="center",
+                spacing="2",
             ),
             
             spacing="4",
             width="100%"
+        ),
+
+        # Data Table
+        data_table(
+            headers=RollingFormState.columns,
+            rows=RollingFormState.table_data,
+            row_render_func=lambda row: rx.table.row(
+                rx.table.cell(rx.text(row["Player"], font_weight="600")),
+                rx.table.cell(rx.badge(row["Team"], variant="surface", color_scheme="gray", size="1")),
+                rx.table.cell(rx.text(row["Pos"], font_size="0.8rem")),
+                rx.table.cell(rx.text(rx.concat("£", row["Price"], "m"))),
+                rx.table.cell(rx.text(row["Roll_Mins_GW"])),
+                rx.table.cell(rx.text(row["Roll_Points_GW"], font_weight="700", color="#4ade80")),
+                rx.table.cell(rx.badge(row["Form_Price_Ratio"], variant="soft", color_scheme="purple", size="1")),
+                rx.table.cell(rx.text(row["Roll_xGI_90"], color="#60a5fa")),
+                rx.table.cell(rx.text(row["Roll_ICT_GW"])),
+                rx.table.cell(rx.text(row["FDR_Next_5"])),
+                rx.table.cell(
+                    rx.cond(
+                        row["FDR_Difficulty"] == "Easy Run",
+                        rx.badge(row["FDR_Difficulty"], variant="soft", color_scheme="green", size="1"),
+                        rx.cond(
+                            row["FDR_Difficulty"] == "Tough Run",
+                            rx.badge(row["FDR_Difficulty"], variant="soft", color_scheme="red", size="1"),
+                            rx.badge(row["FDR_Difficulty"], variant="surface", color_scheme="gray", size="1"),
+                        ),
+                    )
+                ),
+                rx.table.cell(rx.text(row["BPS"])),
+            ),
+            is_loading=RollingFormState.is_loading,
         ),
         width="100%",
         on_mount=RollingFormState.load_data

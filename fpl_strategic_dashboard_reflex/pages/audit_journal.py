@@ -1,6 +1,16 @@
 import asyncio
+"""Audit Journal Page - Pure presentation view for model calibration and prediction audit."""
+
 import reflex as rx
 from typing import List, Dict, Any
+from fpl_strategic_dashboard_reflex.states.audit import AuditJournalState
+from fpl_strategic_dashboard_reflex.components import (
+    guide_popover,
+    metric_card,
+    filter_select,
+    filter_bar,
+)
+from fpl_strategic_dashboard_reflex.styles.theme import TABLE_CONTAINER_STYLE
 
 from fpl_strategic_dashboard_reflex.state import AppState
 from backend.data import get_connection
@@ -154,26 +164,116 @@ def _settle_version(gw, ver):
         return False, str(e)
         
 def render_audit_player(p: Dict[str, Any]):
+def audit_journal_page() -> rx.Component:
+    """Renders the Audit Journal & Calibration tab view."""
     return rx.box(
+        # Page Title & Guide
         rx.hstack(
             rx.image(src=p["img_url"], width="30px", height="30px", border_radius="50%"),
             rx.text(p["player_name"], weight="bold"),
             rx.text(f"£{p.get('price', 0):.1f}m", size="1", color="gray"),
+            rx.vstack(
+                rx.text("Audit Journal & Decision Logs", class_name="section-header-title"),
+                rx.text("Verify model accountability by comparing pre-deadline projected points against settled official scores.", class_name="section-header-sub"),
+                align="start",
+                spacing="1",
+            ),
             rx.spacer(),
             rx.text(f"Proj: {p.get('proj_pts', 0):.1f}", color="blue"),
             rx.cond(
                 p.get("actual_pts") != None,
                 rx.text(f"Act: {p.get('actual_pts', 0)}", weight="bold", color="green"),
                 rx.text("Act: -", color="gray")
+            guide_popover(
+                title="Audit Journal Guide",
+                subtitle="Model tracking and decision accountability",
+                items=[
+                    {"badge": "Lock", "title": "Pre-GW Snapshot", "desc": "Snapshot your lineup predictions before deadline to evaluate accuracy."},
+                    {"badge": "Settle", "title": "Post-GW Evaluation", "desc": "Sync official match points once the gameweek is finished to compute variance."},
+                ],
+                tip="Check projection accuracy across position groups to detect systemic biases.",
             ),
             width="100%",
             padding="2",
             border_bottom="1px solid rgba(255,255,255,0.1)"
         )
     )
+            align="center",
+            margin_bottom="1.25rem",
+            wrap="wrap",
+            gap="1rem",
+        ),
 
 def audit_journal_page():
     return rx.box(
+        # Filter & Action Bar
+        filter_bar(
+            filter_select(
+                "Audit Gameweek:",
+                [str(gw) for gw in range(1, 39)],
+                AuditJournalState.selected_audit_gw,
+                AuditJournalState.set_audit_gw,
+            ),
+            filter_select(
+                "Version:",
+                AuditJournalState.version_options,
+                AuditJournalState.selected_version,
+                AuditJournalState.set_version,
+            ),
+            rx.spacer(),
+            rx.hstack(
+                rx.button(
+                    rx.icon("lock", size=16),
+                    "Lock Pre-GW Lineup",
+                    variant="solid",
+                    color_scheme="blue",
+                    size="2",
+                    on_click=AuditJournalState.lock_version,
+                ),
+                rx.button(
+                    rx.icon("check-check", size=16),
+                    "Settle Official Points",
+                    variant="surface",
+                    color_scheme="green",
+                    size="2",
+                    on_click=AuditJournalState.settle_version,
+                ),
+                align="center",
+                spacing="2",
+            ),
+        ),
+
+        # Status Message Banner (if any)
+        rx.cond(
+            AuditJournalState.status_message != "",
+            rx.box(
+                rx.text(AuditJournalState.status_message, font_size="0.85rem", color="var(--accent-blue)"),
+                padding="0.75rem 1rem",
+                border_radius="8px",
+                background="rgba(59, 130, 246, 0.08)",
+                border="1px solid rgba(59, 130, 246, 0.2)",
+                margin_bottom="1.25rem",
+                width="100%",
+            ),
+            rx.box(),
+        ),
+
+        # KPI Summary Cards (if snapshot available)
+        rx.cond(
+            AuditJournalState.has_snapshot,
+            rx.hstack(
+                metric_card("Total Predicted xP", AuditJournalState.total_proj_str, "Pre-GW Model", "blue"),
+                metric_card("Total Actual Scored", AuditJournalState.total_act_str, "Settled Points", "green"),
+                metric_card("Variance Delta", AuditJournalState.variance_delta_str, "Deviation", "purple"),
+                width="100%",
+                spacing="3",
+                wrap="wrap",
+                margin_bottom="1.5rem",
+            ),
+            rx.box(),
+        ),
+
+        # Snapshot Player Table
         rx.cond(
             AuditJournalState.is_loading,
             rx.center(
@@ -197,6 +297,10 @@ def audit_journal_page():
                 rx.box(
                     rx.text("Gameweek"),
                     rx.select([str(i) for i in range(1, 39)], value=AuditJournalState.selected_gw, on_change=AuditJournalState.set_gw)
+                    rx.spinner(size="3"),
+                    rx.text("Loading audit snapshot...", font_size="0.85rem", color="var(--text-sub)"),
+                    align="center",
+                    spacing="2",
                 ),
                 rx.box(
                     rx.text("Snapshot Version"),
@@ -220,6 +324,8 @@ def audit_journal_page():
                 columns="3",
                 spacing="4",
                 width="100%"
+                padding="3rem",
+                width="100%",
             ),
             
             rx.divider(),
@@ -235,6 +341,61 @@ def audit_journal_page():
                         columns="2",
                         spacing="4",
                         margin_bottom="4"
+                    rx.text("Locked Starting XI Lineup", font_weight="700", font_size="0.95rem", margin_bottom="0.75rem"),
+                    rx.box(
+                        rx.table.root(
+                            rx.table.header(
+                                rx.table.row(
+                                    rx.table.column_header_cell("Player", font_weight="700"),
+                                    rx.table.column_header_cell("Club", font_weight="700"),
+                                    rx.table.column_header_cell("Pos", font_weight="700"),
+                                    rx.table.column_header_cell("Role", font_weight="700"),
+                                    rx.table.column_header_cell("Predicted xP", font_weight="700"),
+                                    rx.table.column_header_cell("Actual Points", font_weight="700"),
+                                    rx.table.column_header_cell("Variance", font_weight="700"),
+                                )
+                            ),
+                            rx.table.body(
+                                rx.foreach(
+                                    AuditJournalState.snapshot_starters,
+                                    lambda row: rx.table.row(
+                                        rx.table.cell(rx.text(row["web_name"], font_weight="600")),
+                                        rx.table.cell(rx.badge(row["team"], variant="surface", color_scheme="gray", size="1")),
+                                        rx.table.cell(rx.text(row["pos"], font_size="0.8rem")),
+                                        rx.table.cell(
+                                            rx.cond(
+                                                row["is_captain"],
+                                                rx.badge("Captain (C)", variant="solid", color_scheme="purple", size="1"),
+                                                rx.cond(
+                                                    row["is_vice"],
+                                                    rx.badge("Vice (V)", variant="surface", color_scheme="blue", size="1"),
+                                                    rx.badge("Starter", variant="surface", color_scheme="gray", size="1"),
+                                                ),
+                                            )
+                                        ),
+                                        rx.table.cell(rx.text(row["proj_pts"], font_weight="700", color="#60a5fa")),
+                                        rx.table.cell(
+                                            rx.cond(
+                                                row["actual_pts"].is_not_none(),
+                                                rx.text(row["actual_pts"], font_weight="700", color="#4ade80"),
+                                                rx.text("Pending", font_style="italic", color="var(--text-muted)"),
+                                            )
+                                        ),
+                                        rx.table.cell(
+                                            rx.cond(
+                                                row["actual_pts"].is_not_none(),
+                                                rx.badge(row["diff_str"], variant="soft", size="1"),
+                                                rx.text("-"),
+                                            )
+                                        ),
+                                    ),
+                                )
+                            ),
+                            variant="surface",
+                            size="2",
+                            width="100%",
+                        ),
+                        style=TABLE_CONTAINER_STYLE,
                     ),
                     
                     rx.text("Starters", weight="bold", margin_top="4"),
@@ -244,8 +405,19 @@ def audit_journal_page():
                     rx.foreach(AuditJournalState.snapshot_bench, render_audit_player),
                     
                     width="100%"
+                    width="100%",
                 ),
                 rx.center(rx.text("No snapshot selected.", color="gray"), padding="8")
+                rx.center(
+                    rx.vstack(
+                        rx.icon("clipboard-list", size=32, color="var(--text-muted)"),
+                        rx.text("No audit snapshot found for this gameweek. Click 'Lock Pre-GW Lineup' to record a snapshot.", font_size="0.9rem", color="var(--text-sub)"),
+                        align="center",
+                        spacing="2",
+                    ),
+                    padding="3rem",
+                    width="100%",
+                ),
             ),
             
             spacing="4",

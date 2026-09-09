@@ -189,3 +189,4 @@ def audit_journal_tab() -> rx.Component:
         spacing="4",
     )
 
+"""Deprecated placeholder module - all tabs are now fully migrated into pages/."""

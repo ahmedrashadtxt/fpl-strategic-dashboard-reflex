@@ -1,6 +1,17 @@
 import asyncio
+"""Defensive Stats Page - Pure presentation view for defensive metrics and rankings."""
+
 import reflex as rx
 from typing import List, Dict, Any
+from fpl_strategic_dashboard_reflex.states.defensive import DefensiveStatsState
+from fpl_strategic_dashboard_reflex.components import (
+    guide_popover,
+    metric_card,
+    data_table,
+    search_input,
+    filter_select,
+    filter_bar,
+)
 
 from fpl_strategic_dashboard_reflex.state import AppState
 from backend.data import get_connection
@@ -85,14 +96,36 @@ def _run_def_backend(c_gw, manager_id, sq, mm, pf, sb, mp, oms, scb):
         return None
 
 def render_top_card(card: Dict[str, Any]):
+def defensive_stats_page() -> rx.Component:
+    """Renders the Defensive Contributions tab view."""
     return rx.box(
+        # Page Title & Guide
         rx.hstack(
             rx.image(src=card["img_url"], width="40px", height="40px", border_radius="50%"),
             rx.vstack(
                 rx.text(card["player"], weight="bold"),
                 rx.text(f"{card['team']} - {card['pos']}", size="1", color="gray"),
                 spacing="0"
+                rx.text("Defensive Contributions & Clean Sheet Potential", class_name="section-header-title"),
+                rx.text("Track team expected goals conceded (xGC), clean sheets, clearances, blocks, interceptions, and goalkeeper save rates.", class_name="section-header-sub"),
+                align="start",
+                spacing="1",
             ),
+            rx.spacer(),
+            guide_popover(
+                title="Defensive Stats Guide",
+                subtitle="Clean sheet projections and baseline defensive actions",
+                items=[
+                    {"badge": "CBI", "title": "Clearances, Blocks, Interceptions", "desc": "High CBI defenders are baseline bonus point magnets even without clean sheets."},
+                    {"badge": "CS Prob", "title": "Clean Sheet Probability", "desc": "Estimated percentage chance of keeping a clean sheet in upcoming fixtures."},
+                ],
+                tip="Goalkeepers facing moderate shots often score more points through saves than goalkeepers facing zero shots.",
+            ),
+            width="100%",
+            align="center",
+            margin_bottom="1.25rem",
+            wrap="wrap",
+            gap="1rem",
         ),
         rx.divider(margin_y="2"),
         rx.hstack(
@@ -109,9 +142,22 @@ def render_top_card(card: Dict[str, Any]):
 
 def defensive_stats_page():
     return rx.box(
+        # Top Metric Cards
         rx.cond(
             DefensiveStatsState.is_loading,
             rx.center(rx.spinner(), padding="8")
+            DefensiveStatsState.has_data,
+            rx.hstack(
+                rx.foreach(
+                    DefensiveStatsState.top_cards,
+                    lambda c: metric_card(c["label"], c["value"], c["badge"], c["color"], c["subtext"]),
+                ),
+                width="100%",
+                spacing="3",
+                wrap="wrap",
+                margin_bottom="1.25rem",
+            ),
+            rx.box(),
         ),
         rx.vstack(
             rx.text("Defensive Resilience & Projected Defensive xP", font_size="2xl", weight="bold"),
@@ -124,6 +170,16 @@ def defensive_stats_page():
                 columns="3",
                 spacing="4",
                 width="100%"
+
+        # Filter Bar
+        filter_bar(
+            rx.box(
+                search_input(
+                    value=DefensiveStatsState.search_query,
+                    on_change=DefensiveStatsState.set_search,
+                    placeholder="Search defender or club...",
+                ),
+                width="240px",
             ),
             
             rx.grid(
@@ -134,6 +190,11 @@ def defensive_stats_page():
                 columns="4",
                 spacing="4",
                 width="100%"
+            filter_select(
+                "Position:",
+                ["All", "GKP", "DEF", "MID"],
+                DefensiveStatsState.position_filter,
+                DefensiveStatsState.set_pos,
             ),
             
             rx.divider(),
@@ -143,6 +204,18 @@ def defensive_stats_page():
                 columns="4",
                 spacing="4",
                 width="100%"
+            filter_select(
+                "Sort by:",
+                [
+                    "Projected Defensive xP (Next GW)",
+                    "Clean Sheets",
+                    "Clean Sheet Probability",
+                    "CBI (Clearances/Blocks/Interceptions)",
+                    "Saves Made",
+                    "Total Points",
+                ],
+                DefensiveStatsState.sort_by,
+                DefensiveStatsState.set_sort,
             ),
             
             rx.data_table(
@@ -152,10 +225,43 @@ def defensive_stats_page():
                 search=True,
                 sort=True,
                 width="100%"
+            rx.hstack(
+                rx.switch(
+                    checked=DefensiveStatsState.only_my_squad,
+                    on_change=DefensiveStatsState.set_only_squad,
+                    size="1",
+                ),
+                rx.text("My Squad Only", font_size="0.8rem", color="var(--text-sub)"),
+                align="center",
+                spacing="2",
             ),
             
             spacing="4",
             width="100%"
+        ),
+
+        # Data Table
+        data_table(
+            headers=DefensiveStatsState.columns,
+            rows=DefensiveStatsState.table_data,
+            row_render_func=lambda row: rx.table.row(
+                rx.table.cell(rx.text(row["Player"], font_weight="600")),
+                rx.table.cell(rx.badge(row["Team"], variant="surface", color_scheme="gray", size="1")),
+                rx.table.cell(rx.text(row["Pos"], font_size="0.8rem")),
+                rx.table.cell(rx.text(rx.concat("£", row["Price"], "m"))),
+                rx.table.cell(rx.text(row["Avg_Mins_GW"])),
+                rx.table.cell(rx.text(row["Total_Points"], font_weight="700")),
+                rx.table.cell(rx.text(row["CS"], font_weight="700", color="#4ade80")),
+                rx.table.cell(rx.text(row["GC"], color="#f87171")),
+                rx.table.cell(rx.text(row["Saves"], color="#fb923c")),
+                rx.table.cell(rx.text(row["T"])),
+                rx.table.cell(rx.text(row["CBI"], color="#60a5fa")),
+                rx.table.cell(rx.text(row["R"])),
+                rx.table.cell(rx.text(row["gw_def_xp"], font_weight="700", color="#a855f7")),
+                rx.table.cell(rx.badge(row["Clean_Sheet_Prob"], variant="soft", color_scheme="green", size="1")),
+                rx.table.cell(rx.text(row["BPS"])),
+            ),
+            is_loading=DefensiveStatsState.is_loading,
         ),
         width="100%",
         on_mount=DefensiveStatsState.load_data

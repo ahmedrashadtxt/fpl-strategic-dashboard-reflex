@@ -1,4 +1,6 @@
 import asyncio
+"""Squad Analyzer Page - Pure presentation page layout."""
+
 import reflex as rx
 import pandas as pd
 from typing import List, Dict, Any
@@ -9,6 +11,12 @@ from backend.squad_logic import (
     fetch_live_gameweek_points, get_rolling_player_metrics, get_teams_fdr_map,
     build_player_tooltip, get_cached_league_dream_15, get_cached_league_super_15,
     find_best_chip_gw, build_pitch_html
+from fpl_strategic_dashboard_reflex.states.squad import SquadAnalyzerState
+from fpl_strategic_dashboard_reflex.components import (
+    guide_popover,
+    metric_card,
+    pitch_view,
+    squad_list_view,
 )
 from fpl_strategic_dashboard_reflex.state import AppState
 
@@ -318,6 +326,33 @@ def squad_list_view(starters: list, bench: list):
                 background="rgba(15, 23, 42, 0.6)",
                 margin_bottom="2px"
             )
+def squad_analyzer_page() -> rx.Component:
+    """Renders the Squad Analyzer dashboard view."""
+    return rx.box(
+        # Page Title & Guide
+        rx.hstack(
+            rx.vstack(
+                rx.text("Squad Analyzer & Formation Pitch", class_name="section-header-title"),
+                rx.text("Evaluate projected points (xP), simulate tactical chips, and benchmark against the optimal Dream 15.", class_name="section-header-sub"),
+                align="start",
+                spacing="1",
+            ),
+            rx.spacer(),
+            guide_popover(
+                title="Squad Analyzer Guide",
+                subtitle="Evaluate and optimize your starting XI and bench",
+                items=[
+                    {"badge": "Formations", "title": "Dynamic Tactics", "desc": "Pitch automatically configures to the highest scoring legal formation based on projected xP."},
+                    {"badge": "Chips", "title": "Chip Simulation", "desc": "Toggle TC, BB, FH, or WC to preview projected upside and optimal gameweek timing."},
+                    {"badge": "Dream 15", "title": "Budget Benchmark", "desc": "Compare your squad side-by-side against the mathematically optimal 15 players within your exact team value."},
+                ],
+                tip="Look for low FDR numbers (green) and high projected minutes to maximize your weekly returns.",
+            ),
+            width="100%",
+            align="center",
+            margin_bottom="1.25rem",
+            wrap="wrap",
+            gap="1rem",
         ),
         rx.text("Bench", font_weight="bold", margin_top="4"),
         rx.foreach(
@@ -338,6 +373,7 @@ def squad_list_view(starters: list, bench: list):
 
 def squad_analyzer_page():
     return rx.box(
+        # KPI Metrics Cards
         rx.cond(
             SquadAnalyzerState.is_loading,
             rx.center(
@@ -355,9 +391,21 @@ def squad_analyzer_page():
                     box_shadow="0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)"
                 ),
                 padding="12",
+            SquadAnalyzerState.has_data,
+            rx.hstack(
+                metric_card("Manager", SquadAnalyzerState.mgr_name, "Verified", "blue"),
+                metric_card("Overall Rank", SquadAnalyzerState.overall_rank.to_string(), "Global", "gray"),
+                metric_card("Total Points", SquadAnalyzerState.total_points.to_string(), "Season", "purple"),
+                metric_card("Squad Value", rx.concat("£", SquadAnalyzerState.squad_value.to_string(), "m"), "Assets", "amber"),
+                metric_card("In the Bank", rx.concat("£", SquadAnalyzerState.bank_balance.to_string(), "m"), "Available", "green"),
                 width="100%",
                 min_height="300px"
             )
+                spacing="3",
+                wrap="wrap",
+                margin_bottom="1.25rem",
+            ),
+            rx.box(),
         ),
         rx.cond(
             (SquadAnalyzerState.manager_id == ""),
@@ -395,9 +443,24 @@ def squad_analyzer_page():
                         on_change=SquadAnalyzerState.set_simulated_chip,
                         direction="row",
                         spacing="4"
+
+        # Controls & Filter Bar
+        rx.box(
+            rx.hstack(
+                # Gameweek Select
+                rx.hstack(
+                    rx.text("Evaluate GW:", font_size="0.8rem", color="var(--text-sub)", font_weight="600"),
+                    rx.select(
+                        SquadAnalyzerState.gw_options,
+                        value=SquadAnalyzerState.selected_eval_gw,
+                        on_change=SquadAnalyzerState.set_eval_gw,
+                        size="2",
+                        variant="surface",
                     ),
                     spacing="1",
                     margin_bottom="4"
+                    align="center",
+                    spacing="2",
                 ),
                 # Controls
                 rx.vstack(
@@ -405,6 +468,15 @@ def squad_analyzer_page():
                         rx.icon("calendar"),
                         rx.text("Select Gameweek:", weight="bold"),
                         align_items="center"
+
+                # Chip Simulator Buttons
+                rx.hstack(
+                    rx.button(
+                        "3x TC",
+                        variant=rx.cond(SquadAnalyzerState.simulated_chip == "TC", "solid", "surface"),
+                        color_scheme="purple",
+                        size="2",
+                        on_click=lambda: SquadAnalyzerState.toggle_chip("TC"),
                     ),
                     rx.radio(
                         items=SquadAnalyzerState.gw_options,
@@ -412,29 +484,113 @@ def squad_analyzer_page():
                         on_change=SquadAnalyzerState.set_eval_gw,
                         direction="row",
                         spacing="4"
+                    rx.button(
+                        "BB",
+                        variant=rx.cond(SquadAnalyzerState.simulated_chip == "BB", "solid", "surface"),
+                        color_scheme="blue",
+                        size="2",
+                        on_click=lambda: SquadAnalyzerState.toggle_chip("BB"),
                     ),
+                    rx.button(
+                        "FH",
+                        variant=rx.cond(SquadAnalyzerState.simulated_chip == "FH", "solid", "surface"),
+                        color_scheme="amber",
+                        size="2",
+                        on_click=lambda: SquadAnalyzerState.toggle_chip("FH"),
+                    ),
+                    rx.button(
+                        "WC",
+                        variant=rx.cond(SquadAnalyzerState.simulated_chip == "WC", "solid", "surface"),
+                        color_scheme="green",
+                        size="2",
+                        on_click=lambda: SquadAnalyzerState.toggle_chip("WC"),
+                    ),
+                    align="center",
                     spacing="2",
                     margin_bottom="4"
                 ),
+
+                rx.spacer(),
+
+                # View Toggles
                 rx.hstack(
                     rx.hstack(
                         rx.switch(checked=SquadAnalyzerState.pitch_view, on_change=SquadAnalyzerState.set_pitch_view),
                         rx.text("Pitch View"),
                         align_items="center"
+                    rx.button(
+                        rx.cond(SquadAnalyzerState.enable_comparison, "Hide Dream 15", "Compare Dream 15"),
+                        variant=rx.cond(SquadAnalyzerState.enable_comparison, "solid", "surface"),
+                        color_scheme="cyan",
+                        size="2",
+                        on_click=SquadAnalyzerState.set_enable_comparison(~SquadAnalyzerState.enable_comparison),
                     ),
                     rx.hstack(
                         rx.switch(checked=SquadAnalyzerState.enable_comparison, on_change=SquadAnalyzerState.set_enable_comparison),
                         rx.text("Comparison"),
                         align_items="center"
+                    rx.button(
+                        rx.cond(SquadAnalyzerState.pitch_view, "List View", "Pitch View"),
+                        variant="surface",
+                        color_scheme="gray",
+                        size="2",
+                        on_click=SquadAnalyzerState.set_pitch_view(~SquadAnalyzerState.pitch_view),
                     ),
+                    align="center",
+                    spacing="2",
+                ),
+
+                width="100%",
+                align="center",
+                wrap="wrap",
+                gap="1rem",
+            ),
+            padding="1rem",
+            background="rgba(255, 255, 255, 0.02)",
+            border="1px solid var(--border-color)",
+            border_radius="10px",
+            margin_bottom="1.5rem",
+            width="100%",
+        ),
+
+        # Main Content: Loading vs Pitch / List View
+        rx.cond(
+            SquadAnalyzerState.is_loading,
+            rx.center(
+                rx.vstack(
+                    rx.spinner(size="3"),
+                    rx.text(SquadAnalyzerState.status_message, font_size="0.85rem", color="var(--text-sub)"),
+                    align="center",
+                    spacing="2",
+                ),
+                padding="4rem",
+                width="100%",
+            ),
+            rx.cond(
+                SquadAnalyzerState.has_data,
+                rx.box(
                     rx.cond(
                         SquadAnalyzerState.enable_comparison,
                         rx.hstack(
                             rx.switch(checked=SquadAnalyzerState.super_team_mode, on_change=SquadAnalyzerState.set_super_team_mode),
                             rx.text("Super Team"),
                             align_items="center"
+                        SquadAnalyzerState.pitch_view,
+                        # Pitch Layout (Side-by-Side if Comparison enabled)
+                        rx.cond(
+                            SquadAnalyzerState.enable_comparison,
+                            rx.grid(
+                                pitch_view(SquadAnalyzerState.base_pitch_html, header_text=SquadAnalyzerState.squad_header_text),
+                                pitch_view(SquadAnalyzerState.comp_pitch_html, header_text=SquadAnalyzerState.comp_header_text),
+                                columns="2",
+                                spacing="4",
+                                width="100%",
+                            ),
+                            pitch_view(SquadAnalyzerState.base_pitch_html, header_text=SquadAnalyzerState.squad_header_text),
                         ),
                         rx.box()
+                        # List View
+                        squad_list_view(SquadAnalyzerState.starters, SquadAnalyzerState.bench),
                     ),
                     rx.hstack(
                         rx.switch(checked=SquadAnalyzerState.enable_betting, on_change=SquadAnalyzerState.set_enable_betting),
@@ -449,6 +605,7 @@ def squad_analyzer_page():
                 # Market Weight Slider
                 rx.cond(
                     SquadAnalyzerState.enable_betting,
+                rx.center(
                     rx.vstack(
                         rx.text("Market Implied Weight: " + SquadAnalyzerState.market_weight.to_string(), size="2"),
                         rx.slider(
@@ -466,8 +623,15 @@ def squad_analyzer_page():
                         spacing="2",
                         width="300px",
                         margin_bottom="4"
+                        rx.icon("user-x", size=32, color="var(--text-muted)"),
+                        rx.text("No squad data found. Enter your FPL Team ID in the header to load your team.", font_size="0.9rem", color="var(--text-sub)"),
+                        rx.button("Enter FPL Team ID", on_click=SquadAnalyzerState.open_id_dialog, variant="solid", color_scheme="blue", size="2"),
+                        align="center",
+                        spacing="3",
                     ),
                     rx.box()
+                    padding="4rem",
+                    width="100%",
                 ),
                 
                 # Views
@@ -509,6 +673,7 @@ def squad_analyzer_page():
                 width="100%",
                 spacing="4"
             )
+            ),
         ),
         width="100%",
         on_mount=SquadAnalyzerState.load_squad
