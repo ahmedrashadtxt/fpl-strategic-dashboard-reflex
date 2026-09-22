@@ -12,6 +12,11 @@ import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util import Retry
 
+# Ensure project root is in sys.path when executed directly as a script
+project_root = str(Path(__file__).resolve().parents[2])
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
+
 from fpl_strategic_dashboard_reflex.services.db import get_connection
 
 
@@ -115,10 +120,19 @@ def fetch_data():
     teams = pd.DataFrame(data["teams"])
     positions = pd.DataFrame(data["element_types"])
     events = pd.DataFrame(data["events"])
-
     fix_url = "https://fantasy.premierleague.com/api/fixtures/"
     fix_res = session.get(fix_url, headers=headers, timeout=15)
     fixtures = pd.DataFrame(fix_res.json()) if fix_res.status_code == 200 else pd.DataFrame()
+
+    def clean_lists(df):
+        return df.map(lambda x: str(x) if isinstance(x, (list, dict)) else x)
+
+    players = clean_lists(players)
+    teams = clean_lists(teams)
+    positions = clean_lists(positions)
+    events = clean_lists(events)
+    if not fixtures.empty:
+        fixtures = clean_lists(fixtures)
 
     with conn:
         players.to_sql("players", conn, if_exists="replace", index=False)

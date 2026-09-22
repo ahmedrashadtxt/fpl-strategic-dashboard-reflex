@@ -5,8 +5,10 @@ Stateless and agnostic of backend database/logic.
 """
 
 from .header import header
+from .global_stats_panel import global_stats_panel
 from .id_dialog import id_dialog
 from .metric_card import metric_card
+from .player_card import player_highlight_card
 from .metrics_bar import metrics_bar
 from .tab_placeholders import (
     squad_analyzer_tab,
@@ -23,11 +25,14 @@ from .guide_popover import guide_popover
 from .filters import search_input, filter_select, filter_bar
 from .data_table import data_table
 from .utils import concat
+from .loading import loading_view
 
 __all__ = [
     "header",
+    "global_stats_panel",
     "id_dialog",
     "metric_card",
+    "player_highlight_card",
     "metrics_bar",
     "squad_analyzer_tab",
     "transfer_solver_tab",
@@ -45,5 +50,6 @@ __all__ = [
     "filter_bar",
     "data_table",
     "concat",
+    "loading_view",
 ]
 

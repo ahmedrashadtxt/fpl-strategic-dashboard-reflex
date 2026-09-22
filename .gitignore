@@ -1,9 +1,22 @@
+# Local databases & caches
 *.db
-.web
-.states
+fpl.db
+fpl_data.db
+.web/
+.states/
 assets/external/
-# Streamlit secrets (private credentials)
+
+# Secrets, API keys, and environment credentials
+**/.streamlit/secrets.toml
 .streamlit/secrets.toml
+secrets.toml
+*.env
+.env
+.env.*
+*.pem
+*.key
+*.pfx
+*.p12
 
 # Python cache & virtual environment
 __pycache__/
@@ -12,8 +25,6 @@ __pycache__/
 venv/
 .venv/
 env/
-
-# Local databases (if dynamically fetched)
 
 # OS-specific files
 .DS_Store

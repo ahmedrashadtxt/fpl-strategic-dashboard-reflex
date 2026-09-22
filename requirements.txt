@@ -5,3 +5,5 @@ rapidfuzz
 pulp
 scipy
 requests
+python-socketio
+python-engineio

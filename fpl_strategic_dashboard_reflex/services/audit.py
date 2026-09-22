@@ -8,6 +8,7 @@ import sqlite3
 from datetime import datetime, timezone
 import pandas as pd
 import requests
+from fpl_strategic_dashboard_reflex.services.cache import ttl_cache
 
 from fpl_strategic_dashboard_reflex.services.db import (
     get_connection,
@@ -28,7 +29,7 @@ from fpl_strategic_dashboard_reflex.services.squad import (
     get_rolling_player_metrics,
 )
 
-OWNER_IDS = ["123456", "7716321"]
+OWNER_IDS = ["123456", "999999"]
 
 
 def is_owner_manager(manager_id: str = None) -> bool:
@@ -297,6 +298,7 @@ def compute_active_solver_squad(conn, manager_id: str, target_gw: int, current_g
     return full_lineup_records, None
 
 
+@ttl_cache(ttl_seconds=300)
 def load_audit_data(conn, selected_gw):
     init_audit_tables(conn)
     return get_all_gw_versions(conn, selected_gw)
@@ -307,6 +309,8 @@ def lock_audit_version(conn, manager_id, selected_gw, current_gw):
     if err:
         return False, err
     new_ver = save_pre_gw_snapshot(conn, selected_gw, lineup_records, transfers_data=[])
+    if hasattr(load_audit_data, "clear_cache"):
+        load_audit_data.clear_cache()
     return True, str(new_ver)
 
 
@@ -319,9 +323,14 @@ def settle_audit_version(conn, selected_gw, selected_version):
         for pid, data in raw_live_map.items()
     }
     settle_post_gw_snapshot(conn, selected_gw, clean_points_map, target_version=selected_version)
+    if hasattr(load_audit_data, "clear_cache"):
+        load_audit_data.clear_cache()
+    if hasattr(get_audit_snapshot, "clear_cache"):
+        get_audit_snapshot.clear_cache()
     return True, ""
 
 
+@ttl_cache(ttl_seconds=300)
 def get_audit_snapshot(conn, selected_gw, selected_version):
     snapshot = get_snapshot(conn, selected_gw, version=selected_version)
     if not snapshot:

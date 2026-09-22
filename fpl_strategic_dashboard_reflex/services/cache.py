@@ -76,6 +76,7 @@ def ttl_cache(ttl_seconds: int = 300, show_spinner: bool = False):
             return res
 
         wrapper.clear_cache = cache.clear
+        wrapper.clear = cache.clear
         return wrapper
 
     return decorator

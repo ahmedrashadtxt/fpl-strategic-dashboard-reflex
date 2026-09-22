@@ -8,6 +8,11 @@ import sqlite3
 import pandas as pd
 import requests
 
+try:
+    pd.set_option("future.no_silent_downcasting", True)
+except Exception:
+    pass
+
 from fpl_strategic_dashboard_reflex.services.cache import ttl_cache
 
 
@@ -66,7 +71,7 @@ def get_global_gameweek_info(conn):
     Fetches current, ongoing, and next gameweek metadata directly from the events table.
     """
     events_df = pd.read_sql(
-        "SELECT id, name, is_current, is_next, finished FROM events", conn
+        "SELECT id, name, is_current, is_next, finished, deadline_time_epoch, average_entry_score FROM events", conn
     )
     finished_ids = (
         events_df[events_df["finished"] == 1]["id"].tolist()
@@ -302,12 +307,20 @@ def calculate_projected_points(player_row, fix_info, current_gw_num, hist_baseli
     avg_mins_per_gw = season_mins / elapsed_gws if current_gw_num > 1 else 90.0
 
     roll_mins = player_row.get("roll_mins")
-    if pd.notna(roll_mins) and float(roll_mins) > 0:
+    cost = float(player_row.get("Cost", 5.0) or 5.0)
+    curr_ppg = float(player_row.get("PPG", 0.0) or 0.0)
+    is_target = player_row.get("is_target", False)
+
+    if is_target:
+        exp_mins = 80.0
+    elif pd.notna(roll_mins) and float(roll_mins) > 0:
         exp_mins = (float(roll_mins) * 0.65) + (avg_mins_per_gw * 0.35)
     elif current_gw_num > 1:
         exp_mins = avg_mins_per_gw
+        status = str(player_row.get("Status", player_row.get("status", "a"))).lower()
+        if (cost >= 6.5 or curr_ppg >= 4.0) and (status in ("a", "d")):
+            exp_mins = max(exp_mins, 60.0)
     else:
-        cost = float(player_row.get("Cost", 5.0) or 5.0)
         exp_mins = 85.0 if cost >= 8.0 else (70.0 if cost >= 6.0 else 45.0)
 
     exp_mins = max(0.0, min(90.0, exp_mins))
@@ -327,10 +340,16 @@ def calculate_projected_points(player_row, fix_info, current_gw_num, hist_baseli
             hist_pts_90 = float(val)
 
     sample_weight = min(1.0, season_mins / 540.0) if current_gw_num > 1 else 0.0
-    curr_ppg = float(player_row.get("PPG", 0.0) or 0.0)
     form = float(player_row.get("Form", 0.0) or 0.0)
 
-    curr_base_rate = (curr_ppg * 0.7) + (form * 0.3) if curr_ppg > 0 else hist_pts_90
+    if curr_ppg > 0:
+        if curr_ppg >= 3.5 and (form == 0.0 or form < (curr_ppg * 0.4)):
+            curr_base_rate = curr_ppg
+        else:
+            curr_base_rate = (curr_ppg * 0.7) + (form * 0.3)
+    else:
+        curr_base_rate = hist_pts_90
+
     blended_base_rate = (sample_weight * curr_base_rate) + ((1.0 - sample_weight) * hist_pts_90)
 
     fdr_cs_probs = {2: 0.44, 3: 0.28, 4: 0.16, 5: 0.08}
@@ -490,14 +509,19 @@ def calculate_price_change_predictions(conn) -> pd.DataFrame:
 
         if progress >= 90.0:
             price_status = "RISING_TONIGHT 🚀"
+            price_status = "RISING_TONIGHT"
         elif progress >= 70.0:
             price_status = "RISING_SOON 📈"
+            price_status = "RISING_SOON"
         elif progress <= -90.0:
             price_status = "FALLING_TONIGHT ⚠️"
+            price_status = "FALLING_TONIGHT"
         elif progress <= -70.0:
             price_status = "FALLING_SOON 📉"
+            price_status = "FALLING_SOON"
         else:
             price_status = "STABLE ⚪"
+            price_status = "STABLE"
 
         records.append({
             "element_id": row["element_id"],

@@ -4,6 +4,7 @@ from fpl_strategic_dashboard_reflex.services.db import get_manager_squad_ids
 import numpy as np
 import pandas as pd
 from rapidfuzz import fuzz, process
+from fpl_strategic_dashboard_reflex.services.cache import ttl_cache
 
 pos_map = {"GKP": 1, "DEF": 2, "MID": 3, "FWD": 4}
 
@@ -21,6 +22,7 @@ def get_player_img_url_old(photo, code=None):
     return f"https://resources.premierleague.com/premierleague/photos/players/110x140/{base_name}.png"
 
 
+@ttl_cache(ttl_seconds=300)
 def fetch_expected_stats_base_data(_conn, current_gw: int = 1):
     """Fetches player attacking metrics and calculates expected gameweek points (Proj xP)."""
     table_check = pd.read_sql(
@@ -198,8 +200,7 @@ def fetch_expected_stats_base_data(_conn, current_gw: int = 1):
 
 
 
-
-def run_expected_analysis(conn, current_gw, manager_id, search_query, min_avg_mins, position_filter, sort_by, max_price, only_my_squad, show_career_baseline):
+@ttl_cache(ttl_seconds=300)
 def run_expected_analysis(
     conn=None,
     current_gw=1,
@@ -271,54 +272,85 @@ def run_expected_analysis(
             
     if not filtered_df.empty:
         sort_map = {
-            "Projected Gameweek xP (Total)": ("Proj_GW_xP", False),
-            "Expected Goal Involvement (xGI)": ("xGI", False),
+            "Projected Attacking xP": ("Proj_Attacking_xP", False),
+            "Expected Goal Involvements (xGI)": ("xGI", False),
+            "xGI per 90": ("xGI_per_90", False),
+            "Projected Attacking xP / 90": ("Proj_Attacking_xP_90", False),
+            "Career GI / 90 (Past Seasons)": ("Career_GI_90", False),
+            "Total Points": ("Total_Points", False),
+            "Clean Sheets": ("Clean_Sheets", False),
+            "Goalkeeper Saves": ("Saves", False),
+            # Fallbacks
+            "Projected Gameweek xP (Total)": ("Proj_Attacking_xP", False),
             "Expected Goals (xG)": ("xG", False),
             "Expected Assists (xA)": ("xA", False),
-            "Form": ("Form", False),
-            "Total Points": ("Total_Points", False),
-            "Attacking Return Probability (1+ G/A)": ("Att_Ret_Prob", False),
-            "Bonus Points System (BPS)": ("BPS", False),
-            "Projected Points / 90": ("Proj_GW_xP_90", False),
-            "xGI": ("xGI", False),
-            "xG": ("xG", False),
-            "xA": ("xA", False),
-            "Att_Ret_Prob": ("Att_Ret_Prob", False),
-            "BPS": ("BPS", False),
-            "Proj_GW_xP": ("Proj_GW_xP", False),
         }
-        sort_col, sort_asc = sort_map.get(sort_by, ("Proj_GW_xP", False))
-        sort_col, sort_asc = sort_map.get(sort_by, ("xGI", False))
+        sort_col, sort_asc = sort_map.get(sort_by, ("Proj_Attacking_xP", False))
         if sort_col not in filtered_df.columns:
-            sort_col = "xGI" if "xGI" in filtered_df.columns else "Total_Points"
+            sort_col = "Proj_Attacking_xP" if "Proj_Attacking_xP" in filtered_df.columns else "Total_Points"
         filtered_df = filtered_df.sort_values(by=sort_col, ascending=sort_asc)
-        
+
     if filtered_df.empty:
-        return {"top_cards": [], "table": []}
-        
+        return {"top_cards": [], "cards": [], "table": []}
+
+    pos_colors = {"GKP": "amber", "DEF": "blue", "MID": "green", "FWD": "purple"}
+
     top_cards = []
     for _, row in filtered_df.head(4).iterrows():
+        proj_xp = float(row.get("Proj_Attacking_xP", 0.0))
+        c_gi = row.get("Career_GI_90")
+        hist_note = (
+            f" · Career GI/90 {float(c_gi):.2f}"
+            if pd.notna(c_gi) and float(c_gi) > 0 and show_career_baseline
+            else ""
+        )
+        pos_str = str(row["Pos"])
         top_cards.append({
-            "player": row["Player"],
-            "team": row["Team"],
-            "pos": row["Pos"],
-            "price": float(row["Price"]),
-            "avg_mins": int(row["Avg_Mins_GW"]),
-            "xg": float(row.get("xG", 0.0)),
-            "xa": float(row.get("xA", 0.0)),
-            "xgi": float(row.get("xGI", 0.0)),
-            "pts": int(float(row["Total_Points"])),
-            "gw_xp": float(row["Proj_GW_xP"]),
-            "img_url": get_player_img_url(row.get("photo"), row.get("code"))
+            "player": str(row["Player"]),
+            "team": str(row["Team"]),
+            "team_display": f"({row['Team']})",
+            "pos": pos_str,
+            "pos_color": pos_colors.get(pos_str, "gray"),
+            "badge_text": f"Proj {proj_xp:.2f} xP",
+            "badge_color": "green",
+            "subtext": (
+                f"Price £{float(row['Price']):.1f} · Avg M/GW {int(row['Avg_Mins_GW'])}m · "
+                f"xGI {float(row.get('xGI', 0.0)):.2f} · Pts {int(float(row['Total_Points']))} · "
+                f"Proj xP {proj_xp:.2f}{hist_note}"
+            ),
+            "img_url": get_player_img_url(row.get("photo"), row.get("code")),
         })
-        
+
     table_data = []
     for _, row in filtered_df.head(35).iterrows():
-        r_dict = row.fillna("").to_dict()
-        r_dict["img_url"] = get_player_img_url(row.get("photo"), row.get("code"))
-        r_dict["gw_xp"] = float(row["Proj_GW_xP"])
-        r_dict["Price"] = float(row["Price"])
-        table_data.append(r_dict)
-        
-    return {"top_cards": top_cards, "table": table_data}
+        p_img = get_player_img_url(row.get("photo"), row.get("code"))
+        proj_xp = float(row.get("Proj_Attacking_xP", 0.0))
+        pos_str = str(row["Pos"])
+        c_gi = row.get("Career_GI_90")
+        c_pts = row.get("Career_Pts_90")
+        c_mins = row.get("Career_Mins")
+        table_data.append({
+            "img_url": p_img,
+            "Player": str(row["Player"]),
+            "Team": str(row["Team"]),
+            "Pos": pos_str,
+            "Pos_Color": pos_colors.get(pos_str, "gray"),
+            "Price_Display": f"{float(row['Price']):.1f}",
+            "Minutes_Display": f"{int(row['Minutes']):,}",
+            "Avg_Mins_GW": f"{int(row['Avg_Mins_GW'])}",
+            "Total_Points": str(int(row["Total_Points"])),
+            "Goals": str(int(row["Goals"])),
+            "Assists": str(int(row["Assists"])),
+            "Clean_Sheets": str(int(row["Clean_Sheets"])),
+            "Saves": str(int(row["Saves"])),
+            "xG_Display": f"{float(row['xG']):.2f}",
+            "xA_Display": f"{float(row['xA']):.2f}",
+            "xGI_Display": f"{float(row['xGI']):.2f}",
+            "Proj_XP_Display": f"{proj_xp:.2f}",
+            "xGI_90_Display": f"{float(row['xGI_per_90']):.2f}",
+            "Career_GI_90_Display": f"{float(c_gi):.2f}" if pd.notna(c_gi) and float(c_gi) > 0 else "—",
+            "Career_Pts_90_Display": f"{float(c_pts):.2f}" if pd.notna(c_pts) and float(c_pts) > 0 else "—",
+            "Career_Mins_Display": f"{int(c_mins):,}" if pd.notna(c_mins) and float(c_mins) > 0 else "—",
+        })
+
     return {"top_cards": top_cards, "cards": top_cards, "table": table_data}

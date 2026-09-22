@@ -104,7 +104,7 @@ def _render_id_modal_body():
         new_id = st.text_input(
             "FPL Team ID",
             value=st.session_state.get("manager_id", ""),
-            placeholder="e.g. 7716321",
+            placeholder="e.g. 1234567",
         )
 
         st.markdown(
@@ -114,7 +114,7 @@ def _render_id_modal_body():
                 1. Log into <span style="color: #60a5fa;">fantasy.premierleague.com</span> and click the <strong>Points</strong> or <strong>Pick Team</strong> tab.<br>
                 2. Check the URL in your browser's address bar:<br>
                 <div style="margin-top: 4px; padding: 4px 8px; background: rgba(0,0,0,0.4); border-radius: 4px; word-break: break-all; font-family: monospace;">
-                    https://fantasy.premierleague.com/entry/<span style="color: #4ade80; font-weight: 800;">7716321</span>/event/2
+                    https://fantasy.premierleague.com/entry/<span style="color: #4ade80; font-weight: 800;">1234567</span>/event/2
                 </div>
                 👉 The number right after <code>/entry/</code> is your Team ID.
             </div>

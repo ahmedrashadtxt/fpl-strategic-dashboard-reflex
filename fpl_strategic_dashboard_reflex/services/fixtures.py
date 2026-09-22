@@ -1,7 +1,9 @@
 import pandas as pd
 from rapidfuzz import fuzz, process
 from fpl_strategic_dashboard_reflex.services.db import get_connection, get_manager_squad_ids
+from fpl_strategic_dashboard_reflex.services.cache import ttl_cache
 
+@ttl_cache(ttl_seconds=300)
 def _build_ticker_rows(
     current_gw: int,
     search_query: str,
@@ -147,11 +149,19 @@ def _build_ticker_rows(
             })
 
         # Build a flat dict — no nested lists
+        t_code = int(team_code_map.get(team, 0))
+        crest_url = f"https://resources.premierleague.com/premierleague/badges/50/t{t_code}.png"
+        club_display = f"{team_name_map.get(team, team)} ({team})"
+        tot_color = "#4ade80" if total_diff <= 11 else ("#facc15" if total_diff <= 14 else "#f87171")
+
         flat_row: dict = {
             "short_name": team,
             "full_name": team_name_map.get(team, team),
-            "code": int(team_code_map.get(team, 0)),
+            "club_display": club_display,
+            "code": t_code,
+            "crest_url": crest_url,
             "difficulty_rating": total_diff,
+            "total_fdr_color": tot_color,
             "my_players": team_players_map.get(team, "—"),
         }
         for i, cell in enumerate(gw_cells):
