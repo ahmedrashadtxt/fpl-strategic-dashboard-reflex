@@ -4,6 +4,7 @@ from fpl_strategic_dashboard_reflex.services.db import get_manager_squad_ids
 import numpy as np
 import pandas as pd
 from rapidfuzz import fuzz, process
+from fpl_strategic_dashboard_reflex.services.cache import ttl_cache
 
 pos_map = {"GKP": 1, "DEF": 2, "MID": 3, "FWD": 4}
 
@@ -21,6 +22,7 @@ def get_player_img_url_old(photo, code=None):
     return f"https://resources.premierleague.com/premierleague/photos/players/110x140/{base_name}.png"
 
 
+@ttl_cache(ttl_seconds=300)
 def fetch_defensive_base_data(_conn, current_gw: int = 1):
     """Fetches player defensive records and precomputes absolute gameweek projected defensive xP."""
     player_cols = [
@@ -186,15 +188,15 @@ def fetch_defensive_base_data(_conn, current_gw: int = 1):
             df_def[col_name] = pd.to_numeric(df_def[col_name], errors="coerce")
 
     df_def["DC_per_90"] = (
-        (df_def["DC"] / df_def["Minutes"].replace(0, pd.NA)) * 90.0
+        (df_def["DC"] / df_def["Minutes"].replace(0, np.nan)) * 90.0
     ).fillna(0.0).round(2)
     df_def["Saves_per_90"] = (
-        (df_def["Saves"] / df_def["Minutes"].replace(0, pd.NA)) * 90.0
+        (df_def["Saves"] / df_def["Minutes"].replace(0, np.nan)) * 90.0
     ).fillna(0.0).round(2)
 
     if (df_def["xGC_per_90"] == 0).all():
         df_def["xGC_per_90"] = (
-            (df_def["xGC"] / df_def["Minutes"].replace(0, pd.NA)) * 90.0
+            (df_def["xGC"] / df_def["Minutes"].replace(0, np.nan)) * 90.0
         ).fillna(0.0).round(2)
 
     completed_gws = max(1, current_gw - 1)
@@ -330,8 +332,7 @@ def fetch_defensive_base_data(_conn, current_gw: int = 1):
 
 
 
-
-def run_defensive_analysis(conn, current_gw, manager_id, search_query, min_avg_mins, position_filter, sort_by, max_price, only_my_squad, show_career_baseline):
+@ttl_cache(ttl_seconds=300)
 def run_defensive_analysis(
     conn=None,
     current_gw=1,
@@ -420,31 +421,71 @@ def run_defensive_analysis(
         filtered_df = filtered_df.sort_values(by=sort_col, ascending=sort_asc)
         
     if filtered_df.empty:
-        return {"top_cards": [], "table": []}
-        
+        return {"top_cards": [], "cards": [], "table": []}
+
+    pos_colors = {"GKP": "amber", "DEF": "blue", "MID": "green", "FWD": "purple"}
+
     top_cards = []
     for _, row in filtered_df.head(4).iterrows():
+        def_xp = float(row.get("Proj_Defensive_xP", 0.0))
+        c_cs = row.get("Career_CS_90")
+        hist_note = (
+            f" · Career CS/90 {float(c_cs):.2f}"
+            if pd.notna(c_cs) and float(c_cs) > 0 and show_career_baseline
+            else ""
+        )
+        pos_str = str(row["Pos"])
         top_cards.append({
-            "player": row["Player"],
-            "team": row["Team"],
-            "pos": row["Pos"],
-            "price": float(row["Price"]),
-            "avg_mins": int(row["Avg_Mins_GW"]),
-            "xgc": float(row["xGC"]),
-            "dc_90": float(row["DC_per_90"]),
-            "pts": int(float(row["Total_Points"])),
-            "def_xp": float(row["Proj_Defensive_xP"]),
-            "career_cs": float(row.get("Career_CS_90", 0.0)) if pd.notna(row.get("Career_CS_90")) else 0.0,
-            "img_url": get_player_img_url(row.get("photo"), row.get("code"))
+            "player": str(row["Player"]),
+            "team": str(row["Team"]),
+            "team_display": f"({row['Team']})",
+            "pos": pos_str,
+            "pos_color": pos_colors.get(pos_str, "gray"),
+            "badge_text": f"Proj {def_xp:.2f} def xP",
+            "badge_color": "blue",
+            "subtext": (
+                f"Price £{float(row['Price']):.1f} · Avg M/GW {int(row['Avg_Mins_GW'])}m · "
+                f"xGC {float(row.get('xGC', 0.0)):.2f} · DC/90 {float(row.get('DC_per_90', 0.0)):.2f} · "
+                f"Pts {int(float(row['Total_Points']))} · Def xP {def_xp:.2f}{hist_note}"
+            ),
+            "img_url": get_player_img_url(row.get("photo"), row.get("code")),
         })
-        
+
     table_data = []
     for _, row in filtered_df.head(35).iterrows():
-        r_dict = row.fillna("").to_dict()
-        r_dict["img_url"] = get_player_img_url(row.get("photo"), row.get("code"))
-        r_dict["def_xp"] = float(row["Proj_Defensive_xP"])
-        r_dict["Price"] = float(row["Price"])
-        table_data.append(r_dict)
-        
-    return {"top_cards": top_cards, "table": table_data}
+        p_img = get_player_img_url(row.get("photo"), row.get("code"))
+        def_xp = float(row.get("Proj_Defensive_xP", 0.0))
+        pos_str = str(row["Pos"])
+        c_gc = row.get("Career_GC_90")
+        c_cs = row.get("Career_CS_90")
+        c_pts = row.get("Career_Pts_90")
+        c_mins = row.get("Career_Mins")
+        table_data.append({
+            "img_url": p_img,
+            "Player": str(row["Player"]),
+            "Team": str(row["Team"]),
+            "Pos": pos_str,
+            "Pos_Color": pos_colors.get(pos_str, "gray"),
+            "Price_Display": f"{float(row['Price']):.1f}",
+            "Minutes_Display": f"{int(row['Minutes']):,}",
+            "Avg_Mins_GW": f"{int(row['Avg_Mins_GW'])}",
+            "Total_Points": str(int(row["Total_Points"])),
+            "Clean_Sheets": str(int(row.get("Clean_Sheets", 0))),
+            "Goals_Conceded": str(int(row.get("Goals_Conceded", 0))),
+            "xGC_Display": f"{float(row.get('xGC', 0.0)):.2f}",
+            "Proj_Def_XP_Display": f"{def_xp:.2f}",
+            "xGC_90_Display": f"{float(row.get('xGC_per_90', 0.0)):.2f}",
+            "DC": str(int(row.get("DC", 0))),
+            "DC_90_Display": f"{float(row.get("DC_per_90", 0.0)):.2f}",
+            "CBI": str(int(row.get("CBI", 0))),
+            "R": str(int(row.get("R", 0))),
+            "T": str(int(row.get("T", 0))),
+            "Saves": str(int(row.get("Saves", 0))),
+            "Saves_90_Display": f"{float(row.get('Saves_per_90', 0.0)):.2f}",
+            "Career_GC_90_Display": f"{float(c_gc):.2f}" if pd.notna(c_gc) and float(c_gc) > 0 else "—",
+            "Career_CS_90_Display": f"{float(c_cs):.2f}" if pd.notna(c_cs) and float(c_cs) > 0 else "—",
+            "Career_Pts_90_Display": f"{float(c_pts):.2f}" if pd.notna(c_pts) and float(c_pts) > 0 else "—",
+            "Career_Mins_Display": f"{int(c_mins):,}" if pd.notna(c_mins) and float(c_mins) > 0 else "—",
+        })
+
     return {"top_cards": top_cards, "cards": top_cards, "table": table_data}

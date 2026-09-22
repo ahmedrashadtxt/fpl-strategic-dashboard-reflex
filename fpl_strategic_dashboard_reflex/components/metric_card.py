@@ -10,6 +10,8 @@ def metric_card(
     badge_text: str = "",
     color: str = "blue",
     subtext: str = "",
+    delta: rx.Var | str = "",
+    delta_color: rx.Var | str = "green",
 ) -> rx.Component:
     """Pure presentation metric card."""
     return rx.box(
@@ -17,6 +19,11 @@ def metric_card(
             rx.vstack(
                 rx.text(label, class_name="metric-card-label", font_size="0.75rem", color="var(--text-sub)"),
                 rx.text(value, class_name="metric-card-value", font_size="1.25rem", font_weight="800"),
+                rx.cond(
+                    delta != "",
+                    rx.badge(delta, variant="soft", color_scheme=delta_color, radius="full", size="1"),
+                    rx.box(),
+                ),
                 rx.cond(
                     subtext != "",
                     rx.text(subtext, font_size="0.7rem", color="var(--text-muted)"),

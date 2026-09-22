@@ -18,7 +18,9 @@ from fpl_strategic_dashboard_reflex.services.betting import (
 )
 from fpl_strategic_dashboard_reflex.services.db import (
     calculate_projected_points,
+    get_connection,
     get_fixture_for_team,
+    get_global_gameweek_info,
     get_historical_player_baselines,
     get_teams_fdr_map,
     solve_optimal_xi,
@@ -51,6 +53,17 @@ LIVE_EVENT_CONFIG = {
     "own_goals": ("Own Goal", "⚠️"),
     "penalties_saved": ("Penalty Saved", "🧤"),
     "penalties_missed": ("Penalty Missed", "❌"),
+    "goals_scored": ("Goals Scored", ""),
+    "assists": ("Assists", ""),
+    "clean_sheets": ("Clean Sheet", ""),
+    "goals_conceded": ("Goals Conceded", ""),
+    "saves": ("Saves Made", ""),
+    "bonus": ("Bonus Points", ""),
+    "yellow_cards": ("Yellow Card", ""),
+    "red_cards": ("Red Card", ""),
+    "own_goals": ("Own Goal", ""),
+    "penalties_saved": ("Penalty Saved", ""),
+    "penalties_missed": ("Penalty Missed", ""),
 }
 
 
@@ -263,6 +276,7 @@ def build_player_tooltip(p: pd.Series, is_live: bool = False) -> str:
         if status != "a" and news and news != "None":
             clean_news = html.escape(news[:40] + ("..." if len(news) > 40 else ""))
             news_row = f'<div class="tt-row tt-news"><span>⚠️ {clean_news}</span></div>'
+            news_row = f'<div class="tt-row tt-news"><span>• {clean_news}</span></div>'
 
         return (
             f'<div class="player-tooltip-card" style="width: 200px;">'
@@ -299,6 +313,7 @@ def build_player_tooltip(p: pd.Series, is_live: bool = False) -> str:
         if status != "a" and news and news != "None":
             clean_news = html.escape(news[:40] + ("..." if len(news) > 40 else ""))
             news_row = f'<div class="tt-row tt-news"><span>⚠️ {clean_news}</span></div>'
+            news_row = f'<div class="tt-row tt-news"><span>• {clean_news}</span></div>'
 
         return (
             f'<div class="player-tooltip-card">'
@@ -352,8 +367,10 @@ def fetch_manager_history(manager_id: str):
 
 
 @ttl_cache(ttl_seconds=300)
-def fetch_manager_picks(manager_id: str, eval_gw: int, current_gw: int):
+def fetch_manager_picks(manager_id: str, eval_gw: int, current_gw: int = None):
     try:
+        if current_gw is None:
+            current_gw = eval_gw
         picks_url = f"https://fantasy.premierleague.com/api/entry/{manager_id}/event/{eval_gw}/picks/"
         picks_res = requests.get(picks_url, timeout=10)
         if picks_res.status_code == 200:
@@ -368,6 +385,19 @@ def fetch_manager_picks(manager_id: str, eval_gw: int, current_gw: int):
         return {}
 
 
+@ttl_cache(ttl_seconds=60)
+def fetch_manager_transfers(manager_id: str):
+    try:
+        url = f"https://fantasy.premierleague.com/api/entry/{manager_id}/transfers/"
+        res = requests.get(url, timeout=10)
+        if res.status_code == 200:
+            return res.json()
+    except Exception:
+        pass
+    return []
+
+
+@ttl_cache(ttl_seconds=60)
 def fetch_live_gameweek_points(eval_gw: int):
     try:
         live_url = f"https://fantasy.premierleague.com/api/event/{eval_gw}/live/"
@@ -388,6 +418,7 @@ def fetch_live_gameweek_points(eval_gw: int):
         return {}
 
 
+@ttl_cache(ttl_seconds=300)
 def fetch_dream_team_data(target_gw: int):
     try:
         dt_res = requests.get(
@@ -399,16 +430,16 @@ def fetch_dream_team_data(target_gw: int):
             {
                 "element": el["element"],
                 "position": i + 1,
-                "multiplier": 2 if i == 0 else 1,
-                "is_captain": i == 0,
-                "is_vice_captain": i == 1,
+                "multiplier": 1,
+                "is_captain": False,
+                "is_vice_captain": False,
             }
             for i, el in enumerate(dt_elements)
         ]
         top_pts = sum(el.get("points", 0) for el in dt_elements)
         return {
             "type": "dream_team",
-            "manager_name": "Super Team",
+            "manager_name": "Team of the Week",
             "player_name": "Official Dream Team",
             "total_score": top_pts,
             "picks": picks_list,
@@ -417,6 +448,7 @@ def fetch_dream_team_data(target_gw: int):
         return None
 
 
+@ttl_cache(ttl_seconds=300)
 def fetch_motw_manager_data(target_gw: int):
     motw_id = None
     motw_score = None
@@ -624,19 +656,31 @@ def apply_market_projection_with_movement(
             "Fixture": f"{team_short} vs {opp_short}" if is_home else f"{opp_short} vs {team_short}",
             "Model xG": round(fdr_base, 2),
             "Market xG": round(mkt_team_xg, 2),
+            "Model_xG": f"{fdr_base:.2f}",
+            "Market_xG": f"{mkt_team_xg:.2f}",
             "Diff": f"{diff:+.2f}",
+            "Diff_Color": "#4ade80" if diff > 0 else "#f87171",
             "CS Prob": f"{int(mkt_cs_prob * 100)}%",
+            "CS_Prob": f"{int(mkt_cs_prob * 100)}%",
             "Verdict": "Market Bullish 📈" if diff > 0 else "Market Bearish 📉",
+            "Verdict": "Market Bullish" if diff > 0 else "Market Bearish",
+            "Verdict_Color": "green" if diff > 0 else "red",
         }
 
+    delta_val = team_mv.get("delta_xg", 0.0)
     move_item = {
         "Club": team_short,
         "Fixture": f"{team_short} vs {opp_short}" if is_home else f"{opp_short} vs {team_short}",
         "Open xG": round(team_mv["open_xg"], 2),
         "Current xG": round(team_mv["curr_xg"], 2),
-        "Δ xG": f"{team_mv['delta_xg']:+.2f}",
-        "Trend": team_mv["trend"],
-        "Signal": team_mv["note"],
+        "Open_xG": f"{team_mv['open_xg']:.2f}",
+        "Current_xG": f"{team_mv['curr_xg']:.2f}",
+        "Δ xG": f"{delta_val:+.2f}",
+        "Delta_xG": f"{delta_val:+.2f}",
+        "Delta_Color": "#4ade80" if delta_val > 0 else ("#f87171" if delta_val < 0 else "#94a3b8"),
+        "Trend": team_mv.get("trend", "Stable"),
+        "Trend_Color": "green" if "Shorten" in team_mv.get("trend", "") else ("red" if "Drift" in team_mv.get("trend", "") else "gray"),
+        "Signal": team_mv.get("note", "Stable"),
     }
 
     return round(final_proj, 2), dis_item, move_item
@@ -873,6 +917,39 @@ def get_cached_league_super_15(
     return solve_optimal_xi(super_15)
 
 
+def enrich_player_list_fields(df: pd.DataFrame) -> pd.DataFrame:
+    """Pre-formats player presentation fields to prevent untyped frontend expression evaluation."""
+    if df.empty:
+        return df
+    df = df.copy()
+    pos_colors = {"GKP": "amber", "DEF": "blue", "MID": "green", "FWD": "purple"}
+    df["Pos_Color"] = df["Pos"].map(lambda p: pos_colors.get(str(p), "gray"))
+    df["Cap_Badge"] = df.apply(
+        lambda r: "3x TC" if int(r.get("Multiplier") or 1) == 3 else ("Captain (2x)" if r.get("is_cap") else ("Vice Captain" if r.get("is_vc") else "")),
+        axis=1,
+    )
+    df["Cap_Badge_Color"] = df.apply(
+        lambda r: "purple" if int(r.get("Multiplier") or 1) == 3 else ("green" if r.get("is_cap") else ("amber" if r.get("is_vc") else "gray")),
+        axis=1,
+    )
+    df["FDR_Color"] = df["FDR"].map(lambda f: "green" if float(f or 3) <= 2 else ("amber" if float(f or 3) == 3 else "red"))
+    df["Cost_Display"] = df["Cost"].map(lambda c: f"\u00a3{float(c):.1f}m" if pd.notna(c) and c != "" else "\u00a30.0m")
+    df["Proj_Pts_Display"] = df["Proj_Pts"].map(lambda p: f"{float(p):.1f}" if pd.notna(p) and p != "" else "0.0")
+    df["FDR_Display"] = df["FDR"].map(lambda f: f"FDR {int(f)}" if pd.notna(f) and f != "" else "FDR 3")
+    df["Opponent_Display"] = df["Opponent"].map(lambda o: f"vs {str(o).strip()}" if pd.notna(o) and str(o).strip() not in ["", "-"] else "vs -")
+    if "News" in df.columns:
+        df["News"] = df["News"].fillna("").map(
+            lambda n: str(n).strip() if pd.notna(n) and str(n).strip().lower() not in ["", "none", "nan"] else ""
+        )
+    else:
+        df["News"] = ""
+    df["photo_url"] = df.apply(
+        lambda r: f"https://resources.premierleague.com/premierleague/photos/players/110x140/p{int(r['code'])}.png" if pd.notna(r.get("code")) and r.get("code") else "",
+        axis=1,
+    )
+    return df
+
+
 def build_pitch_html(
     starters_df: pd.DataFrame,
     bench_df: pd.DataFrame,
@@ -1084,8 +1161,12 @@ def build_pitch_html(
         f'.pitch-player-node:last-child:hover .player-tooltip-card {{ transform: translateX(0) translateY(0); }}'
         f'.pitch-player-node:last-child .player-tooltip-card::after {{ left: auto; right: 20px; }}'
         f'.pitch-formation-row:first-child .player-tooltip-card {{ bottom: auto; top: 108%; transform: translateX(-50%) translateY(-4px); }}'
-        f'.pitch-formation-row:first-child:hover .player-tooltip-card {{ transform: translateX(-50%) translateY(0); }}'
+        f'.pitch-formation-row:first-child .pitch-player-node:hover .player-tooltip-card {{ visibility: visible; opacity: 1; transform: translateX(-50%) translateY(0); }}'
         f'.pitch-formation-row:first-child .player-tooltip-card::after {{ top: auto; bottom: 100%; border-color: transparent transparent rgba(15, 23, 42, 0.96) transparent; }}'
+        f'.pitch-formation-row:first-child .pitch-player-node:first-child .player-tooltip-card {{ left: 0; transform: translateX(0) translateY(-4px); }}'
+        f'.pitch-formation-row:first-child .pitch-player-node:first-child:hover .player-tooltip-card {{ transform: translateX(0) translateY(0); }}'
+        f'.pitch-formation-row:first-child .pitch-player-node:last-child .player-tooltip-card {{ left: auto; right: 0; transform: translateX(0) translateY(-4px); }}'
+        f'.pitch-formation-row:first-child .pitch-player-node:last-child:hover .player-tooltip-card {{ transform: translateX(0) translateY(0); }}'
         f'.tt-header {{ display: flex; flex-direction: column; gap: 1px; border-bottom: 1px solid rgba(255, 255, 255, 0.1); padding-bottom: 5px; margin-bottom: 5px; }}'
         f'.tt-name {{ font-family: "Outfit", sans-serif; font-size: 0.82rem; font-weight: 700; color: #ffffff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }}'
         f'.tt-badge {{ font-size: 0.68rem; color: #94a3b8; font-weight: 600; }}'
@@ -1113,6 +1194,7 @@ def build_pitch_html(
     return full_pitch_html
 
 
+@ttl_cache(ttl_seconds=300)
 def analyze_manager_squad(manager_id, current_gw, selected_eval_gw, chip, comp, super_t, betting, weight, movement):
     try:
         selected_eval_gw = int(selected_eval_gw)
@@ -1126,23 +1208,104 @@ def analyze_manager_squad(manager_id, current_gw, selected_eval_gw, chip, comp, 
         rolling_metrics_df = get_rolling_player_metrics(conn)
         teams_fdr_map = get_teams_fdr_map(conn, current_gw)
         mgr_history = fetch_manager_history(manager_id)
+        current_season_history = mgr_history.get("current", []) if mgr_history else []
+        rank_delta = ""
+        rank_delta_color = "gray"
+        if len(current_season_history) >= 2:
+            latest_rank = current_season_history[-1].get("overall_rank", mgr_data.get("summary_overall_rank", 0))
+            prev_rank = current_season_history[-2].get("overall_rank", latest_rank)
+            rank_diff = prev_rank - latest_rank
+            if rank_diff > 0:
+                rank_delta = f"↑ +{rank_diff:,}"
+                rank_delta_color = "green"
+            elif rank_diff < 0:
+                rank_delta = f"↓ {rank_diff:,}"
+                rank_delta_color = "red"
 
-        finished_gw_ids = [int(r["id"]) for _, r in events_df[events_df["finished"] == 1].iterrows()] if "finished" in events_df.columns else []
-        ongoing_gw_ids = [int(r["id"]) for _, r in events_df.iterrows() if int(r["id"]) not in finished_gw_ids and int(r["id"]) < next_gw_id]
+        import time
+        now_epoch = int(time.time())
+
+        finished_gw_ids = []
+        ongoing_gw_ids = []
+        upcoming_gws = []
+
+        for _, r in events_df.iterrows():
+            gw_id = int(r["id"])
+            is_fin = str(r.get("finished", "")).strip().lower() in ["1", "true", "yes"]
+            is_cur = str(r.get("is_current", "")).strip().lower() in ["1", "true", "yes"]
+            try:
+                dl_epoch = int(r.get("deadline_time_epoch", 2000000000))
+            except (ValueError, TypeError):
+                dl_epoch = 2000000000
+
+            if is_fin:
+                finished_gw_ids.append(gw_id)
+            elif is_cur or dl_epoch <= now_epoch:
+                ongoing_gw_ids.append(gw_id)
+            else:
+                upcoming_gws.append(gw_id)
+
         ongoing_gw = ongoing_gw_ids[0] if ongoing_gw_ids else None
         last_finished_gw = max(finished_gw_ids) if finished_gw_ids else None
+        next_gw_id = upcoming_gws[0] if upcoming_gws else current_gw
 
-        active_calc_gw = ongoing_gw if ongoing_gw else (last_finished_gw or next_gw_id)
+        all_gw_options = []
+        if last_finished_gw is not None:
+            all_gw_options.append(last_finished_gw)
+        if ongoing_gw is not None:
+            all_gw_options.append(ongoing_gw)
+        all_gw_options.append(next_gw_id)
+        all_gw_options = sorted(list(dict.fromkeys(all_gw_options)))
 
-        picks_data = fetch_manager_picks(manager_id, active_calc_gw, next_gw_id)
+        def format_gw_label(g):
+            if g in finished_gw_ids:
+                return f"GW {g} (Finished)"
+            elif g == ongoing_gw:
+                return f"GW {g} (Live)"
+            elif g == next_gw_id:
+                return f"GW {g} (Upcoming)"
+            else:
+                return f"GW {g}"
+
+        default_gw = ongoing_gw if ongoing_gw else next_gw_id
+        if selected_eval_gw not in all_gw_options:
+            selected_eval_gw = default_gw
+
+        active_calc_gw = selected_eval_gw
+        is_live = (selected_eval_gw in finished_gw_ids or selected_eval_gw == ongoing_gw)
+        if is_live:
+            betting = False
+
+        picks_data = fetch_manager_picks(manager_id, selected_eval_gw, next_gw_id)
         entry_history = picks_data.get("entry_history", {})
         transfers_cost = entry_history.get("event_transfers_cost", 0)
-        bank_balance = entry_history.get("bank", mgr_data.get("last_deadline_bank", 0)) / 10.0
+        base_bank = entry_history.get("bank", mgr_data.get("last_deadline_bank", 0))
 
         picks_list = picks_data.get("picks", [])
         pick_ids = [p["element"] for p in picks_list]
         if not pick_ids:
             return None
+
+        if selected_eval_gw == next_gw_id:
+            pending_transfers = fetch_manager_transfers(manager_id)
+            if pending_transfers:
+                for t in reversed(pending_transfers):
+                    if t.get("event") == next_gw_id:
+                        out_id = t.get("element_out")
+                        in_id = t.get("element_in")
+                        out_cost = t.get("element_out_cost")
+                        in_cost = t.get("element_in_cost")
+                        if out_id in pick_ids:
+                            idx = pick_ids.index(out_id)
+                            pick_ids[idx] = in_id
+                            if base_bank is not None and out_cost is not None and in_cost is not None:
+                                base_bank = base_bank + out_cost - in_cost
+                            for p in picks_list:
+                                if p.get("element") == out_id:
+                                    p["element"] = in_id
+                                    break
+
+        bank_balance = (base_bank / 10.0) if base_bank is not None else 0.0
 
         placeholders = ",".join(["?"] * len(pick_ids))
         squad_query = f"""
@@ -1166,36 +1329,68 @@ def analyze_manager_squad(manager_id, current_gw, selected_eval_gw, chip, comp, 
         squad_df["Multiplier"] = squad_df["id"].map(lambda x: meta_dict[x]["multiplier"])
         squad_df["is_cap"] = squad_df["id"].map(lambda x: meta_dict[x]["is_captain"])
         squad_df["is_vc"] = squad_df["id"].map(lambda x: meta_dict[x]["is_vice"])
+        if chip == "TC":
+            squad_df.loc[squad_df["is_cap"] == True, "Multiplier"] = 3
 
-        live_points_map = fetch_live_gameweek_points(active_calc_gw)
+        live_points_map = fetch_live_gameweek_points(selected_eval_gw)
         squad_df["Raw_GW_Pts"] = squad_df["id"].map(lambda x: live_points_map.get(x, {}).get("points", 0) if isinstance(live_points_map.get(x), dict) else live_points_map.get(x, 0))
         squad_df["GW_Points"] = squad_df["Raw_GW_Pts"] * squad_df["Multiplier"]
         squad_df["live_stats"] = squad_df["id"].map(lambda x: live_points_map.get(x, {}) if isinstance(live_points_map.get(x), dict) else {})
 
-        target_chip_gw = None
-        if chip != "None":
-            target_chip_gw = find_best_chip_gw(chip, squad_df, conn, next_gw_id)
+        # Compute Fixture FDR & Projected xP for all players in squad
+        adv_fix_df = pd.read_sql(
+            """
+            SELECT f.event AS GW, f.team_h AS team_h_id, f.team_a AS team_a_id,
+                   th.short_name AS Home_Team, ta.short_name AS Away_Team,
+                   f.team_h_difficulty AS Home_Diff, f.team_a_difficulty AS Away_Diff
+            FROM fixtures f
+            INNER JOIN teams th ON f.team_h = th.id
+            INNER JOIN teams ta ON f.team_a = ta.id
+            WHERE f.event >= ? AND f.event <= ?
+            """,
+            conn,
+            params=[current_gw, max(19, selected_eval_gw)],
+        )
+        hist_baselines_df = get_historical_player_baselines(conn)
+        market_cache = load_db_market_odds(conn) if betting else {}
 
-        standard_upcoming = [g for g in range(next_gw_id, min(20, next_gw_id + 3))]
-        upcoming_gws = list(standard_upcoming)
-        if target_chip_gw and target_chip_gw not in standard_upcoming:
-            upcoming_gws.append(target_chip_gw)
-        else:
-            fourth_gw = next_gw_id + 3
-            if fourth_gw <= 19:
-                upcoming_gws.append(fourth_gw)
+        proj_pts_list = []
+        opp_list = []
+        fdr_list = []
+        disagreements = []
+        movements = []
+        for _, p_row in squad_df.iterrows():
+            fix_data = get_fixture_for_team(adv_fix_df, p_row["team_id"], selected_eval_gw)
+            base_proj_pts = calculate_projected_points(p_row, fix_data, current_gw, hist_baselines_df)
+            final_proj_pts = base_proj_pts
+            if betting and fix_data.get("opponent"):
+                opp_short = fix_data["opponent"].replace(" (H)", "").replace(" (A)", "")
+                final_proj_pts, dis_item, mv_item = apply_market_projection_with_movement(
+                    conn,
+                    base_proj_pts,
+                    p_row["Pos"],
+                    fix_data["fdr"],
+                    fix_data["is_home"],
+                    p_row["Team"],
+                    opp_short,
+                    weight,
+                    movement,
+                    market_cache,
+                )
+                if dis_item:
+                    disagreements.append(dis_item)
+                if mv_item:
+                    movements.append(mv_item)
+            proj_pts_list.append(round(final_proj_pts, 2))
+            opp_list.append(fix_data.get("opponent", "-"))
+            fdr_list.append(fix_data.get("fdr", 3))
 
-        all_gw_options = []
-        if last_finished_gw is not None:
-            all_gw_options.append(last_finished_gw)
-        if ongoing_gw is not None:
-            all_gw_options.append(ongoing_gw)
-        all_gw_options.extend(upcoming_gws)
-        all_gw_options = sorted(list(dict.fromkeys(all_gw_options)))
+        squad_df["Proj_Pts"] = proj_pts_list
+        squad_df["Opponent"] = opp_list
+        squad_df["FDR"] = fdr_list
 
-        default_gw = target_chip_gw if (target_chip_gw and target_chip_gw in all_gw_options) else (ongoing_gw if ongoing_gw else next_gw_id)
-        if selected_eval_gw not in all_gw_options:
-            selected_eval_gw = default_gw
+        unique_disagreements = list({v["Club"]: v for v in disagreements}.values()) if disagreements else []
+        unique_movements = list({v["Club"]: v for v in movements}.values()) if movements else []
 
         if not squad_df.empty:
             if not rolling_metrics_df.empty:
@@ -1211,13 +1406,10 @@ def analyze_manager_squad(manager_id, current_gw, selected_eval_gw, chip, comp, 
             else:
                 squad_df["fdr5"] = 15
 
-        if selected_eval_gw != active_calc_gw and (selected_eval_gw in finished_gw_ids or selected_eval_gw == ongoing_gw):
-            eval_live_map = fetch_live_gameweek_points(selected_eval_gw)
-            squad_df["Raw_GW_Pts"] = squad_df["id"].map(lambda x: eval_live_map.get(x, {}).get("points", 0) if isinstance(eval_live_map.get(x), dict) else eval_live_map.get(x, 0))
-            squad_df["live_stats"] = squad_df["id"].map(lambda x: eval_live_map.get(x, {}) if isinstance(eval_live_map.get(x), dict) else {})
+        is_live = (selected_eval_gw in finished_gw_ids or selected_eval_gw == ongoing_gw)
+        squad_df["tooltip_html"] = squad_df.apply(lambda r: build_player_tooltip(r, is_live=is_live), axis=1)
 
-        squad_df["tooltip_html"] = squad_df.apply(lambda r: build_player_tooltip(r, is_live=(selected_eval_gw in finished_gw_ids or selected_eval_gw == ongoing_gw)), axis=1)
-
+        squad_df = enrich_player_list_fields(squad_df)
         starters_df = squad_df[squad_df["order"] <= 11].sort_values("order")
         bench_df = squad_df[squad_df["order"] > 11].sort_values("order")
 
@@ -1225,59 +1417,336 @@ def analyze_manager_squad(manager_id, current_gw, selected_eval_gw, chip, comp, 
         comp_bench = []
         comp_xi = pd.DataFrame()
         comp_sub = pd.DataFrame()
+        comp_header = "Dream 15"
         if comp:
-            total_val = float(squad_df["Cost"].sum()) + bank_balance
-            if super_t:
-                comp_xi, comp_sub, _ = get_cached_league_super_15(conn, current_gw, selected_eval_gw, betting, weight, movement)
-            else:
-                comp_xi, comp_sub, _ = get_cached_league_dream_15(conn, current_gw, selected_eval_gw, total_val, betting, weight, movement)
+            if is_live:
+                motw_manager_data = fetch_motw_manager_data(selected_eval_gw)
+                dream_team_data = fetch_dream_team_data(selected_eval_gw)
 
-            if not comp_xi.empty:
-                comp_xi["is_cap"] = (comp_xi["id"] == comp_xi.iloc[0]["id"])
-                comp_xi["is_vc"] = (comp_xi["id"] == comp_xi.iloc[1]["id"]) if len(comp_xi) > 1 else False
-                comp_xi["Multiplier"] = comp_xi["is_cap"].map(lambda x: 2 if x else 1)
-                comp_xi["tooltip_html"] = comp_xi.apply(lambda r: build_player_tooltip(r, is_live=False), axis=1)
-                comp_starters = comp_xi.fillna("").to_dict("records")
-            if not comp_sub.empty:
-                comp_sub["tooltip_html"] = comp_sub.apply(lambda r: build_player_tooltip(r, is_live=False), axis=1)
-                comp_bench = comp_sub.fillna("").to_dict("records")
+                if super_t:
+                    comp_data = dream_team_data or motw_manager_data
+                    comp_title = comp_data.get("manager_name", "Team of the Week") if comp_data else "Super Team"
+                else:
+                    comp_data = motw_manager_data or dream_team_data
+                    comp_title = comp_data.get("manager_name", "Manager of the Week") if comp_data else "Top Performer"
+
+                if comp_data and comp_data.get("picks"):
+                    comp_pick_ids = [p["element"] for p in comp_data["picks"]]
+                    comp_placeholders = ",".join(["?"] * len(comp_pick_ids))
+                    comp_df = pd.read_sql(
+                        squad_query.replace(placeholders, comp_placeholders),
+                        conn,
+                        params=comp_pick_ids,
+                    )
+                    comp_meta = {p["element"]: p for p in comp_data["picks"]}
+                    comp_df["order"] = comp_df["id"].map(lambda x: comp_meta.get(x, {}).get("position", 1))
+                    comp_df["Multiplier"] = comp_df["id"].map(lambda x: comp_meta.get(x, {}).get("multiplier", 1))
+                    comp_df["is_cap"] = comp_df["id"].map(lambda x: comp_meta.get(x, {}).get("is_captain", False))
+                    comp_df["is_vc"] = comp_df["id"].map(lambda x: comp_meta.get(x, {}).get("is_vice_captain", False))
+                    if comp_data.get("type") == "dream_team" or super_t:
+                        comp_df["Multiplier"] = 1
+                        comp_df["is_cap"] = False
+                        comp_df["is_vc"] = False
+
+                    comp_live_pts_map = fetch_live_gameweek_points(selected_eval_gw)
+                    comp_df["Raw_GW_Pts"] = comp_df["id"].map(lambda x: comp_live_pts_map.get(x, {}).get("points", 0) if isinstance(comp_live_pts_map.get(x), dict) else comp_live_pts_map.get(x, 0))
+                    comp_df["GW_Points"] = comp_df["Raw_GW_Pts"] * comp_df["Multiplier"]
+                    comp_df["Proj_Pts"] = comp_df["Raw_GW_Pts"]
+                    comp_df["FDR"] = 3
+                    comp_df["Opponent"] = "-"
+                    comp_df["tooltip_html"] = comp_df.apply(lambda r: build_player_tooltip(r, is_live=True), axis=1)
+
+                    comp_xi = comp_df[comp_df["order"] <= 11].sort_values("order")
+                    comp_sub = comp_df[comp_df["order"] > 11].sort_values("order")
+
+                    comp_xi = enrich_player_list_fields(comp_xi)
+                    comp_starters = comp_xi.fillna("").to_dict("records")
+                    if not comp_sub.empty:
+                        comp_sub = enrich_player_list_fields(comp_sub)
+                        comp_bench = comp_sub.fillna("").to_dict("records")
+
+                    comp_score = comp_data.get("total_score") if comp_data and comp_data.get("total_score") is not None else (int(comp_xi["GW_Points"].sum()) if not comp_xi.empty else 0)
+                    comp_header = f"{comp_title} ({comp_score} pts)"
+            else:
+                total_val = float(squad_df["Cost"].sum()) + bank_balance
+                if super_t:
+                    comp_xi, comp_sub, _ = get_cached_league_super_15(conn, current_gw, selected_eval_gw, betting, weight, movement)
+                else:
+                    comp_xi, comp_sub, _ = get_cached_league_dream_15(conn, current_gw, selected_eval_gw, total_val, betting, weight, movement)
+
+                if not comp_xi.empty:
+                    comp_xi["is_cap"] = (comp_xi["id"] == comp_xi.iloc[0]["id"])
+                    comp_xi["is_vc"] = (comp_xi["id"] == comp_xi.iloc[1]["id"]) if len(comp_xi) > 1 else False
+                    comp_xi["Multiplier"] = comp_xi["is_cap"].map(lambda x: 2 if x else 1)
+                    comp_xi["tooltip_html"] = comp_xi.apply(lambda r: build_player_tooltip(r, is_live=False), axis=1)
+                    comp_xi = enrich_player_list_fields(comp_xi)
+                    comp_starters = comp_xi.fillna("").to_dict("records")
+                if not comp_sub.empty:
+                    comp_sub["tooltip_html"] = comp_sub.apply(lambda r: build_player_tooltip(r, is_live=False), axis=1)
+                    comp_sub = enrich_player_list_fields(comp_sub)
+                    comp_bench = comp_sub.fillna("").to_dict("records")
+
+                if not comp_xi.empty:
+                    comp_xp = float(comp_xi["Proj_Pts"].sum())
+                    comp_header = f"Super Team · GW{selected_eval_gw} ({comp_xp:.1f} xP)" if super_t else f"Dream 15 · GW{selected_eval_gw} ({comp_xp:.1f} xP)"
 
         used_chips_keys = [c["name"] for c in mgr_history.get("chips", [])]
 
-        is_live = (selected_eval_gw in finished_gw_ids or selected_eval_gw == ongoing_gw)
         base_pitch_html = build_pitch_html(starters_df, bench_df, is_live=is_live)
         comp_pitch_html = ""
         if comp and not comp_xi.empty:
-            comp_pitch_html = build_pitch_html(comp_xi, comp_sub, is_live=False)
+            comp_pitch_html = build_pitch_html(comp_xi, comp_sub, is_live=is_live)
 
+        active_chip_used = picks_data.get("active_chip")
         squad_pts = int(starters_df["GW_Points"].sum() - transfers_cost) if not starters_df.empty else 0
-        squad_xp = float(starters_df["Proj_Pts"].sum()) if not starters_df.empty else 0.0
-        squad_header = f"Your Squad - GW{selected_eval_gw} ({squad_pts} pts)" if is_live else f"Your Squad - GW{selected_eval_gw} ({squad_xp:.1f} xP)"
+        if (active_chip_used == "bboost" or chip == "BB") and not bench_df.empty:
+            squad_pts += int(bench_df["GW_Points"].sum())
 
-        comp_header = ""
-        if comp and not comp_xi.empty:
-            comp_xp = float(comp_xi["Proj_Pts"].sum())
-            comp_header = f"Super Team - GW{selected_eval_gw} ({comp_xp:.1f} xP)" if super_t else f"Dream 15 - GW{selected_eval_gw} ({comp_xp:.1f} xP)"
+        squad_xp = float((starters_df["Proj_Pts"] * starters_df["Multiplier"]).sum()) if not starters_df.empty else 0.0
+        if chip == "BB" and not bench_df.empty:
+            squad_xp += float(bench_df["Proj_Pts"].sum())
+
+        squad_header = f"Your Squad · GW{selected_eval_gw} ({squad_pts} pts)" if is_live else f"Your Squad · GW{selected_eval_gw} ({squad_xp:.1f} xP)"
+
+        # Compute Live Match Center / Performance Review Banner and 4 KPI Cards
+        if is_live:
+            is_ongoing_gw = (selected_eval_gw == ongoing_gw)
+            banner_title = f"Gameweek {selected_eval_gw} Live Match Center" if is_ongoing_gw else f"Gameweek {selected_eval_gw} Performance Review"
+            score_sub = f"Your Score: {squad_pts} pts{' (Live)' if is_ongoing_gw else ''}"
+
+            if comp and comp_data:
+                comp_score_val = comp_score
+                comp_title_clean = comp_title
+                pts_diff = squad_pts - comp_score_val
+                banner_subtext = f"{score_sub} · Comparing against {comp_title_clean}: {comp_score_val} pts"
+                banner_diff_text = f"{pts_diff:+d} pts vs Comp"
+                banner_diff_color = "green" if pts_diff >= 0 else "red"
+                arrow = "↑" if pts_diff >= 0 else "↓"
+                kpi2_c1_delta = f"{arrow} {pts_diff:+d} vs Comp"
+                kpi2_c1_delta_color = "green" if pts_diff >= 0 else "red"
+            else:
+                banner_subtext = score_sub
+                banner_diff_text = ""
+                banner_diff_color = "gray"
+                if transfers_cost > 0:
+                    kpi2_c1_delta = f"-{transfers_cost} hit"
+                    kpi2_c1_delta_color = "red"
+                else:
+                    kpi2_c1_delta = ""
+                    kpi2_c1_delta_color = "gray"
+
+            kpi2_c1_label = "Net GW Points (Live)" if is_ongoing_gw else "Net GW Points (Finished)"
+            kpi2_c1_val = f"{squad_pts} pts"
+
+            gw_rank = entry_history.get("rank")
+            kpi2_c2_label = "Gameweek Rank"
+            kpi2_c2_val = f"{int(gw_rank):,}" if (gw_rank and int(gw_rank) > 0) else "Updating..."
+            kpi2_c2_delta = ""
+            kpi2_c2_delta_color = "gray"
+
+            gw_fix_df = pd.read_sql(
+                "SELECT team_h, team_a, started, finished, finished_provisional FROM fixtures WHERE event = ?",
+                conn,
+                params=[selected_eval_gw],
+            )
+            started_or_fin_teams = set()
+            for _, f_r in gw_fix_df.iterrows():
+                if f_r.get("started") or f_r.get("finished") or f_r.get("finished_provisional"):
+                    started_or_fin_teams.add(f_r["team_h"])
+                    started_or_fin_teams.add(f_r["team_a"])
+
+            played_count = 0
+            for _, p in starters_df.iterrows():
+                live_mins = int(p.get("live_stats", {}).get("minutes", 0) if isinstance(p.get("live_stats"), dict) else 0)
+                if live_mins > 0 or p.get("team_id") in started_or_fin_teams:
+                    played_count += 1
+
+            kpi2_c3_label = "Players Played"
+            kpi2_c3_val = f"{played_count} / 11"
+            kpi2_c3_delta = ""
+            kpi2_c3_delta_color = "gray"
+
+            cap_row = starters_df[starters_df["is_cap"] == True]
+            if not cap_row.empty:
+                cap_p = cap_row.iloc[0]
+                cap_name = str(cap_p.get("Player", "Captain"))
+                cap_pts = int(cap_p.get("GW_Points", 0))
+                cap_mult = int(round(float(cap_p.get("Multiplier", 2))))
+                kpi2_c4_label = f"{cap_name} ({'TC' if cap_mult == 3 else 'C'})"
+                kpi2_c4_val = f"{cap_pts} pts"
+            else:
+                kpi2_c4_label = "Captain (C)"
+                kpi2_c4_val = "0 pts"
+            kpi2_c4_delta = ""
+            kpi2_c4_delta_color = "gray"
+
+        else:
+            avg_fdr = float(starters_df["FDR"].mean()) if not starters_df.empty else 3.0
+            fdr_ease_pct = max(0.0, min(100.0, ((5.0 - avg_fdr) / 3.0) * 100.0))
+            pts_index_pct = max(0.0, min(100.0, (squad_xp / 52.0) * 100.0))
+            squad_rating = round((0.50 * fdr_ease_pct) + (0.50 * pts_index_pct), 1)
+
+            banner_title = f"GW{selected_eval_gw} Squad Rating"
+            banner_subtext = "Optimized lineup permutations and fixture difficulty rating"
+            banner_diff_text = f"{squad_rating}%"
+            banner_diff_color = "green" if squad_rating >= 60 else "amber"
+
+            num_def = sum(1 for _, p in starters_df.iterrows() if p.get("Pos") == "DEF")
+            num_mid = sum(1 for _, p in starters_df.iterrows() if p.get("Pos") == "MID")
+            num_fwd = sum(1 for _, p in starters_df.iterrows() if p.get("Pos") == "FWD")
+            kpi2_c1_label = "Optimal Formation"
+            kpi2_c1_val = f"{num_def}-{num_mid}-{num_fwd}"
+            kpi2_c1_delta = ""
+            kpi2_c1_delta_color = "gray"
+
+            kpi2_c2_label = "Projected XI Points"
+            kpi2_c2_val = f"{squad_xp:.1f} pts"
+            if comp and not comp_xi.empty:
+                comp_xp = float(comp_xi["Proj_Pts"].sum())
+                xp_diff = squad_xp - comp_xp
+                arrow = "↑" if xp_diff >= 0 else "↓"
+                kpi2_c2_delta = f"{arrow} {xp_diff:+.1f} vs Comp"
+                kpi2_c2_delta_color = "green" if xp_diff >= 0 else "red"
+            else:
+                kpi2_c2_delta = ""
+                kpi2_c2_delta_color = "gray"
+
+            kpi2_c3_label = "Avg Starting FDR"
+            kpi2_c3_val = f"{avg_fdr:.2f}"
+            kpi2_c3_delta = "Favorable Schedule" if avg_fdr <= 2.8 else ("Moderate" if avg_fdr <= 3.4 else "Difficult")
+            kpi2_c3_delta_color = "green" if avg_fdr <= 2.8 else ("amber" if avg_fdr <= 3.4 else "red")
+
+            fit_count = sum(1 for _, p in squad_df.iterrows() if p.get("Status") == "a")
+            kpi2_c4_label = "Squad Health"
+            kpi2_c4_val = f"{fit_count}/15 Fit"
+            kpi2_c4_delta = "Available" if fit_count == 15 else f"{15 - fit_count} Flagged"
+            kpi2_c4_delta_color = "green" if fit_count == 15 else "red"
+
+        # Determine the manager's active gameweek points (for the global hero card).
+        # Always reflects the current live gameweek or latest finished gameweek, never dropping to 0 when inspecting upcoming GWs.
+        active_target_gw = ongoing_gw if ongoing_gw is not None else last_finished_gw
+        if active_target_gw is not None:
+            if ongoing_gw is not None:
+                active_hero_label = f"GW{ongoing_gw} Live"
+            else:
+                active_hero_label = f"GW{last_finished_gw} Pts"
+
+            if selected_eval_gw == active_target_gw:
+                active_hero_pts = squad_pts
+            else:
+                # When viewing an upcoming or different gameweek, compute the points for the
+                # active/current gameweek so the global hero card never drops to 0.
+                try:
+                    target_picks_data = fetch_manager_picks(manager_id, active_target_gw, next_gw_id)
+                    target_picks = target_picks_data.get("picks", []) if target_picks_data else []
+                    target_hist = target_picks_data.get("entry_history", {}) if target_picks_data else {}
+                    target_cost = target_hist.get("event_transfers_cost", 0)
+
+                    if active_target_gw == ongoing_gw:
+                        live_pts_map = fetch_live_gameweek_points(active_target_gw)
+                        t_pts = 0
+                        for p in target_picks:
+                            m = p.get("multiplier", 1)
+                            if m > 0:
+                                eid = p.get("element")
+                                p_data = live_pts_map.get(eid, {}) if live_pts_map else {}
+                                t_pts += int(p_data.get("points", 0)) * m
+                        t_pts -= target_cost
+                        active_hero_pts = t_pts
+                    else:
+                        t_pts = target_hist.get("points")
+                        if t_pts is None:
+                            for h_item in current_season_history:
+                                if h_item.get("event") == active_target_gw:
+                                    t_pts = h_item.get("points", 0) - h_item.get("event_transfers_cost", 0)
+                                    break
+                        active_hero_pts = int(t_pts) if t_pts is not None else squad_pts
+                except Exception as ex:
+                    print(f"Error computing active hero points: {ex}")
+            # Determine Average Points for active_target_gw
+            gw_avg_pts = 0
+            if "average_entry_score" in events_df.columns:
+                avg_series = events_df[events_df["id"] == active_target_gw]["average_entry_score"]
+                if not avg_series.empty and pd.notna(avg_series.values[0]):
+                    gw_avg_pts = int(round(float(avg_series.values[0])))
+
+            gw_avg_label = f"GW{active_target_gw} Average"
+            if gw_avg_pts > 0:
+                diff_val = active_hero_pts - gw_avg_pts
+                if diff_val > 0:
+                    gw_avg_diff_str = f"↑ +{diff_val} vs Avg"
+                    hero_perf_status = "green"
+                elif diff_val < 0:
+                    gw_avg_diff_str = f"↓ -{abs(diff_val)} vs Avg"
+                    hero_perf_status = "red"
+                else:
+                    gw_avg_diff_str = "= Avg"
+                    hero_perf_status = "gray"
+            else:
+                gw_avg_diff_str = ""
+                hero_perf_status = "green"
+        else:
+            active_hero_pts = squad_pts
+            active_hero_label = f"GW{current_gw} Pts"
+            gw_avg_pts = 0
+            gw_avg_label = "GW Average"
+            gw_avg_diff_str = ""
+            hero_perf_status = "green"
 
         return {
             "squad_header_text": squad_header,
             "comp_header_text": comp_header,
             "gw_options": [str(gw) for gw in all_gw_options],
+            "gw_labels": [format_gw_label(gw) for gw in all_gw_options],
+            "gw_map": {format_gw_label(gw): str(gw) for gw in all_gw_options},
+            "selected_eval_gw": str(selected_eval_gw),
+            "selected_eval_label": format_gw_label(selected_eval_gw),
             "mgr_name": mgr_data.get("name", "My Team"),
             "overall_rank": int(mgr_data.get("summary_overall_rank", 0)),
+            "rank_delta": rank_delta,
+            "rank_delta_color": rank_delta_color,
             "total_points": int(mgr_data.get("summary_overall_points", 0)),
-            "active_gw_pts": squad_pts,
-            "active_gw_label": f"GW{ongoing_gw} Live" if ongoing_gw else f"GW{last_finished_gw} Pts",
-            "squad_value": float(squad_df["Cost"].sum()) if not squad_df.empty else 100.0,
-            "bank_balance": bank_balance,
+            "active_gw_pts": active_hero_pts,
+            "active_gw_label": active_hero_label,
+            "gw_avg_pts": gw_avg_pts,
+            "gw_avg_label": gw_avg_label,
+            "gw_avg_diff_str": gw_avg_diff_str,
+            "hero_perf_status": hero_perf_status,
+            "squad_value": round(float(squad_df["Cost"].sum()), 2) if not squad_df.empty else 100.0,
+            "bank_balance": round(float(bank_balance), 2),
             "starters": starters_df.fillna("").to_dict("records"),
             "bench": bench_df.fillna("").to_dict("records"),
             "compare_starters": comp_starters,
             "compare_bench": comp_bench,
-            "default_gw": default_gw,
+            "default_gw": str(default_gw),
+            "default_label": format_gw_label(default_gw),
             "used_chips_keys": used_chips_keys,
             "base_pitch_html": base_pitch_html,
             "comp_pitch_html": comp_pitch_html,
+            "market_disagreements": unique_disagreements,
+            "market_movements": unique_movements,
+            "is_live_or_finished": is_live,
+            "banner_title": banner_title,
+            "banner_subtext": banner_subtext,
+            "banner_diff_text": banner_diff_text,
+            "banner_diff_color": banner_diff_color,
+            "show_banner": True,
+            "kpi2_card1_label": kpi2_c1_label,
+            "kpi2_card1_val": kpi2_c1_val,
+            "kpi2_card1_delta": kpi2_c1_delta,
+            "kpi2_card1_delta_color": kpi2_c1_delta_color,
+            "kpi2_card2_label": kpi2_c2_label,
+            "kpi2_card2_val": kpi2_c2_val,
+            "kpi2_card2_delta": kpi2_c2_delta,
+            "kpi2_card2_delta_color": kpi2_c2_delta_color,
+            "kpi2_card3_label": kpi2_c3_label,
+            "kpi2_card3_val": kpi2_c3_val,
+            "kpi2_card3_delta": kpi2_c3_delta,
+            "kpi2_card3_delta_color": kpi2_c3_delta_color,
+            "kpi2_card4_label": kpi2_c4_label,
+            "kpi2_card4_val": kpi2_c4_val,
+            "kpi2_card4_delta": kpi2_c4_delta,
+            "kpi2_card4_delta_color": kpi2_c4_delta_color,
         }
     except Exception as e:
         print(f"Squad analyzer backend error: {e}")

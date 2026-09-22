@@ -1,26 +1,19 @@
+"""Service functions for Rolling Form analysis."""
+
 from fpl_strategic_dashboard_reflex.services.squad import get_player_img_url, fmt_num, SILHOUETTE_BASE64
-from fpl_strategic_dashboard_reflex.services.db import get_manager_squad_ids, get_teams_fdr_map
+from fpl_strategic_dashboard_reflex.services.db import get_connection, get_manager_squad_ids, get_teams_fdr_map
 import numpy as np
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 from rapidfuzz import fuzz, process
+from fpl_strategic_dashboard_reflex.services.cache import ttl_cache
 
 pos_map = {"GKP": 1, "DEF": 2, "MID": 3, "FWD": 4}
+pos_colors = {"GKP": "amber", "DEF": "blue", "MID": "green", "FWD": "purple"}
 
 
-def get_player_img_url_old(photo, code=None):
-    photo_str = str(photo) if pd.notna(photo) else ""
-    if not photo_str or "Photo-Missing" in photo_str or photo_str == "None":
-        if pd.notna(code) and str(code).strip():
-            return f"https://resources.premierleague.com/premierleague/photos/players/110x140/p{int(code)}.png"
-        return SILHOUETTE_BASE64
-
-    base_name = photo_str.replace(".jpg", "").replace(".png", "")
-    if not base_name.startswith("p"):
-        base_name = f"p{base_name}"
-    return f"https://resources.premierleague.com/premierleague/photos/players/110x140/{base_name}.png"
-
-
+@ttl_cache(ttl_seconds=300)
 def fetch_rolling_base_data(_conn, window_size: int):
     """Caches rolling window computations per window size."""
     table_check = pd.read_sql(
@@ -136,49 +129,47 @@ def fetch_rolling_base_data(_conn, window_size: int):
     return df
 
 
+def calc_rolling_proj_xp(row):
+    etype = int(row.get("element_type", 3))
+    xgi90 = float(row.get("Rolling_xGI_per_90", 0))
+    avg_mins = float(row.get("Rolling_Avg_Mins", 60))
+    avg_pts = float(row.get("Rolling_Avg_Pts", 3.0))
+    fdr = int(row.get("Upcoming_FDR", 15))
+
+    app_pts = 2.0 * min(1.0, max(0.2, avg_mins / 75.0))
+    att_weight = 4.2 if etype == 4 else (4.6 if etype == 3 else 3.5)
+    underlying_xp = (xgi90 * att_weight) * (avg_mins / 90.0)
+    schedule_mult = max(0.75, min(1.25, 1.0 + ((15 - fdr) / 30.0)))
+    blended_raw = (0.55 * (app_pts + underlying_xp)) + (0.45 * avg_pts)
+    return round(blended_raw * schedule_mult, 2)
 
 
-def run_rolling_analysis(conn, current_gw, manager_id, search_query, min_avg_mins, position_filter, sort_by, max_price, only_my_squad, lookback_window):
-    from fpl_strategic_dashboard_reflex.services.rolling import fetch_rolling_form_data
-    from fpl_strategic_dashboard_reflex.services.db import get_manager_squad_ids, get_teams_fdr_map
-    
+@ttl_cache(ttl_seconds=300)
 def run_rolling_analysis(*args, **kwargs):
-    from fpl_strategic_dashboard_reflex.services.rolling import fetch_rolling_base_data
-    from fpl_strategic_dashboard_reflex.services.db import get_connection, get_manager_squad_ids, get_teams_fdr_map
-
     if args and isinstance(args[0], int):
         conn = get_connection()
         current_gw = args[0]
         manager_id = args[1] if len(args) > 1 else ""
-        window_size = args[2] if len(args) > 2 else "L5"
+        window_size = args[2] if len(args) > 2 else 5
         search_query = args[3] if len(args) > 3 else ""
-        min_avg_mins = args[4] if len(args) > 4 else 0
+        min_avg_mins = args[4] if len(args) > 4 else 45
         position_filter = args[5] if len(args) > 5 else "All"
-        sort_by = args[6] if len(args) > 6 else "Roll_Points_GW"
+        sort_by = args[6] if len(args) > 6 else "Projected Form xP / Match"
         only_my_squad = args[7] if len(args) > 7 else False
-        max_price = args[8] if len(args) > 8 else 15.0
+        max_price = args[8] if len(args) > 8 else 15.5
+        min_matches = args[9] if len(args) > 9 else 1
     else:
         conn = args[0] if len(args) > 0 else kwargs.get("conn", get_connection())
         current_gw = args[1] if len(args) > 1 else kwargs.get("current_gw", 1)
         manager_id = args[2] if len(args) > 2 else kwargs.get("manager_id", "")
-        if len(args) > 9:
-            search_query, min_avg_mins, position_filter, sort_by, max_price, only_my_squad, window_size = args[3:10]
-        elif len(args) > 3:
-            window_size = args[3]
-            search_query = args[4] if len(args) > 4 else ""
-            min_avg_mins = args[5] if len(args) > 5 else 0
-            position_filter = args[6] if len(args) > 6 else "All"
-            sort_by = args[7] if len(args) > 7 else "Roll_Points_GW"
-            only_my_squad = args[8] if len(args) > 8 else False
-            max_price = 15.0
-        else:
-            window_size = kwargs.get("window_size", kwargs.get("lookback_window", "L5"))
-            search_query = kwargs.get("search_query", "")
-            min_avg_mins = kwargs.get("min_avg_mins", 0)
-            position_filter = kwargs.get("position_filter", "All")
-            sort_by = kwargs.get("sort_by", "Roll_Points_GW")
-            only_my_squad = kwargs.get("only_my_squad", False)
-            max_price = kwargs.get("max_price", 15.0)
+        window_size = kwargs.get("window_size", args[3] if len(args) > 3 else 5)
+        search_query = kwargs.get("search_query", args[4] if len(args) > 4 else "")
+        min_avg_mins = kwargs.get("min_avg_mins", args[5] if len(args) > 5 else 45)
+        position_filter = kwargs.get("position_filter", args[6] if len(args) > 6 else "All")
+        sort_by = kwargs.get("sort_by", args[7] if len(args) > 7 else "Projected Form xP / Match")
+        only_my_squad = kwargs.get("only_my_squad", args[8] if len(args) > 8 else False)
+        max_price = kwargs.get("max_price", args[9] if len(args) > 9 else 15.5)
+        min_matches = kwargs.get("min_matches", args[10] if len(args) > 10 else 1)
 
     if conn is None:
         conn = get_connection()
@@ -191,58 +182,39 @@ def run_rolling_analysis(*args, **kwargs):
     else:
         lookback_window = 5
 
+    try:
+        max_price = float(max_price)
+    except Exception:
+        max_price = 15.5
+
+    try:
+        min_matches = int(min_matches)
+    except Exception:
+        min_matches = 1
+
+    try:
+        min_avg_mins = int(min_avg_mins)
+    except Exception:
+        min_avg_mins = 45
+
     fdr_map = get_teams_fdr_map(conn, current_gw)
-    df_raw = fetch_rolling_form_data(conn, current_gw, lookback_window, fdr_map)
     df_raw = fetch_rolling_base_data(conn, lookback_window)
     if df_raw.empty:
-        return None
-        
-        return {"top_cards": [], "cards": [], "table": [], "fig": None}
+        return {"top_cards": [], "cards": [], "table": [], "fig": go.Figure()}
 
     df_raw["Upcoming_FDR"] = df_raw["Team_ID"].map(fdr_map).fillna(15).astype(int)
-
-    def calc_rolling_proj_xp(row):
-        etype = int(row.get("element_type", 3))
-        xgi90 = float(row.get("Rolling_xGI_per_90", 0))
-        avg_mins = float(row.get("Rolling_Avg_Mins", 60))
-        avg_pts = float(row.get("Rolling_Avg_Pts", 3.0))
-        fdr = int(row.get("Upcoming_FDR", 15))
-
-        app_pts = 2.0 * min(1.0, max(0.2, avg_mins / 75.0))
-        att_weight = 4.2 if etype == 4 else (4.6 if etype == 3 else 3.5)
-        underlying_xp = (xgi90 * att_weight) * (avg_mins / 90.0)
-        schedule_mult = max(0.75, min(1.25, 1.0 + ((15 - fdr) / 30.0)))
-        blended_raw = (0.55 * (app_pts + underlying_xp)) + (0.45 * avg_pts)
-        return round(blended_raw * schedule_mult, 2)
-
     df_raw["Proj_Form_xP"] = df_raw.apply(calc_rolling_proj_xp, axis=1)
-    df_raw["Avg_Mins_GW"] = df_raw["Rolling_Avg_Mins"]
-    df_raw["Roll_Points_GW"] = df_raw["Rolling_Avg_Pts"]
-    df_raw["Roll_Mins_GW"] = df_raw["Rolling_Avg_Mins"]
-    df_raw["Roll_xGI_90"] = df_raw["Rolling_xGI_per_90"]
-    df_raw["Form"] = df_raw["Rolling_Avg_Pts"]
-    df_raw["Total_Points"] = df_raw["Rolling_Avg_Pts"]
-    df_raw["xGI"] = df_raw["Rolling_Sum_xGI"]
-    df_raw["Form_Price_Ratio"] = (df_raw["Rolling_Avg_Pts"] / df_raw["Price"].replace(0, pd.NA)).fillna(0).round(2)
-    df_raw["FDR_Next_5"] = df_raw["Upcoming_FDR"].astype(str)
-    df_raw["FDR_Difficulty"] = df_raw["Upcoming_FDR"].apply(
-        lambda f: "Easy Run" if f <= 12 else ("Tough Run" if f >= 18 else "Moderate")
-    )
-    df_raw["Roll_ICT_GW"] = 0.0
-    df_raw["BPS"] = 0
 
     filtered_df = df_raw.copy()
-    
 
     if position_filter != "All":
         filtered_df = filtered_df[filtered_df["Pos"] == position_filter]
-        
 
     filtered_df = filtered_df[
-        (filtered_df["Avg_Mins_GW"] >= min_avg_mins)
-        & (filtered_df["Price"] <= max_price)
+        (filtered_df["Price"] <= max_price)
+        & (filtered_df["Rolling_Avg_Mins"] >= min_avg_mins)
+        & (filtered_df["Rolling_Matches_Played"] >= min_matches)
     ]
-    
 
     if only_my_squad and not filtered_df.empty:
         if not manager_id:
@@ -250,99 +222,159 @@ def run_rolling_analysis(*args, **kwargs):
         else:
             squad_ids = get_manager_squad_ids(manager_id, current_gw)
             filtered_df = filtered_df[filtered_df["element_id"].isin(squad_ids)]
-            
 
     has_search = bool(search_query and search_query.strip())
-    
-
     if has_search and not filtered_df.empty:
         q = search_query.strip()
         search_targets = filtered_df["_search_target"].to_dict()
-        results = process.extract(
-            q,
-            search_targets,
-            scorer=fuzz.partial_ratio,
-            limit=None,
-            score_cutoff=65,
+        matches = process.extract(
+            query=q,
+            choices=search_targets,
+            scorer=fuzz.WRatio,
+            score_cutoff=60,
+            limit=40,
         )
-        if results:
-            matched_indices = [idx for (_, score, idx) in results]
+        if matches:
+            matched_indices = [m[2] for m in matches]
             filtered_df = filtered_df.loc[matched_indices]
         else:
             filtered_df = filtered_df.iloc[0:0]
-            
-
-    if not filtered_df.empty:
-        sort_map = {
+    elif not filtered_df.empty:
+        sort_rolling_map = {
+            "Projected Form xP / Match": ("Proj_Form_xP", False),
+            "Rolling Avg Points": ("Rolling_Avg_Pts", False),
+            "Rolling Sum xGI": ("Rolling_Sum_xGI", False),
+            "Rolling xGI / 90": ("Rolling_xGI_per_90", False),
+            "Upcoming Fixture Ease": ("Upcoming_FDR", True),
+            "Rolling Avg Minutes": ("Rolling_Avg_Mins", False),
+            "Price": ("Price", False),
+            # Legacy fallbacks
+            "Form vs Price Ratio": ("Rolling_Avg_Pts", False),
+            "Points / GW": ("Rolling_Avg_Pts", False),
+            "Minutes / GW": ("Rolling_Avg_Mins", False),
+            "Rolling xGI": ("Rolling_Sum_xGI", False),
+            "Total Points": ("Rolling_Avg_Pts", False),
+            "Upcoming Schedule (Easiest FDR)": ("Upcoming_FDR", True),
             "Blended Form xP": ("Proj_Form_xP", False),
-            "Expected Goal Involvement (xGI)": ("xGI", False),
-            "Base FPL Form": ("Form", False),
-            "Upcoming Fixture Difficulty (Lowest FDR)": ("Upcoming_FDR", True),
-            "Recent Points (Total)": ("Total_Points", False),
+            "Expected Goal Involvement (xGI)": ("Rolling_Sum_xGI", False),
             "Roll_Points_GW": ("Rolling_Avg_Pts", False),
-            "Form_Price_Ratio": ("Rolling_Avg_Pts", False),
             "Roll_xGI_90": ("Rolling_xGI_per_90", False),
             "Roll_Mins_GW": ("Rolling_Avg_Mins", False),
             "FDR_Next_5": ("Upcoming_FDR", True),
             "Proj_Form_xP": ("Proj_Form_xP", False),
         }
-        sort_col, sort_asc = sort_map.get(sort_by, ("Proj_Form_xP", False))
-        sort_col, sort_asc = sort_map.get(sort_by, ("Rolling_Avg_Pts", False))
-        if sort_col not in filtered_df.columns:
-            sort_col = "Rolling_Avg_Pts" if "Rolling_Avg_Pts" in filtered_df.columns else "Player"
-        filtered_df = filtered_df.sort_values(by=sort_col, ascending=sort_asc)
-        
+        r_col, r_asc = sort_rolling_map.get(sort_by, ("Proj_Form_xP", False))
+        if r_col in filtered_df.columns:
+            filtered_df = filtered_df.sort_values(by=r_col, ascending=r_asc)
 
     if filtered_df.empty:
-        return {"top_cards": [], "table": [], "fig": None}
-        return {"top_cards": [], "cards": [], "table": [], "fig": None}
-        
+        return {"top_cards": [], "cards": [], "table": [], "fig": go.Figure()}
+
+    # Plotly Scatter Matrix
+    if len(filtered_df) >= 2:
+        x_mid = float(filtered_df["Upcoming_FDR"].median())
+        y_mid = float(filtered_df["Proj_Form_xP"].median())
+
+        fig = px.scatter(
+            filtered_df,
+            x="Upcoming_FDR",
+            y="Proj_Form_xP",
+            color="Pos",
+            size="Price",
+            size_max=16,
+            hover_name="Player",
+            hover_data={
+                "Team": True,
+                "Price": ":.1f",
+                "Proj_Form_xP": ":.2f",
+                "Rolling_Avg_Pts": ":.2f",
+                "Rolling_Sum_xGI": ":.2f",
+                "Upcoming_FDR": True,
+                "Rolling_Avg_Mins": ":.0f",
+                "Rolling_Matches_Played": True,
+                "Pos": False,
+            },
+            labels={
+                "Upcoming_FDR": "Upcoming 5-GW Fixture Difficulty Rating (Lower = Easier)",
+                "Proj_Form_xP": "Projected Form xP / Match",
+                "Pos": "Position",
+            },
+            title="Projected Form vs Fixture Run (Proj Form xP vs Next 5 FDR)",
+            color_discrete_map={
+                "GKP": "#f59e0b",
+                "DEF": "#3b82f6",
+                "MID": "#10b981",
+                "FWD": "#ef4444",
+            },
+        )
+
+        fig.update_traces(
+            marker=dict(
+                opacity=0.88,
+                line=dict(width=1, color="rgba(255, 255, 255, 0.45)"),
+            )
+        )
+
+        fig.add_vline(x=x_mid, line_dash="dash", line_color="rgba(255, 255, 255, 0.25)")
+        fig.add_hline(y=y_mid, line_dash="dash", line_color="rgba(255, 255, 255, 0.25)")
+
+        fig.update_layout(
+            template="plotly_dark",
+            plot_bgcolor="rgba(15, 23, 42, 0.4)",
+            paper_bgcolor="rgba(15, 23, 42, 0.0)",
+            margin=dict(l=20, r=20, t=50, b=20),
+            height=450,
+            xaxis=dict(gridcolor="rgba(255, 255, 255, 0.08)", zeroline=False),
+            yaxis=dict(gridcolor="rgba(255, 255, 255, 0.08)", zeroline=False),
+        )
+    else:
+        fig = go.Figure()
+
+    # Top Cards
     top_cards = []
     for _, row in filtered_df.head(4).iterrows():
+        p_img = get_player_img_url(row.get("photo"), row.get("code"))
+        proj_xp = float(row["Proj_Form_xP"])
+        pos_str = str(row["Pos"])
         top_cards.append({
-            "player": row["Player"],
-            "team": row["Team"],
-            "pos": row["Pos"],
-            "price": float(row["Price"]),
-            "avg_mins": int(row["Avg_Mins_GW"]),
-            "form": float(row["Form"]),
-            "fdr": float(row["Upcoming_FDR"]),
-            "xgi": float(row.get("xGI", 0.0)),
-            "form_xp": float(row["Proj_Form_xP"]),
-            "img_url": get_player_img_url(row.get("photo"), row.get("code"))
+            "player": str(row["Player"]),
+            "team": str(row["Team"]),
+            "team_display": f"({row['Team']})",
+            "pos": pos_str,
+            "pos_color": pos_colors.get(pos_str, "gray"),
+            "badge_text": f"Proj {proj_xp:.1f} xP",
+            "badge_color": "green",
+            "subtext": (
+                f"Price £{float(row['Price']):.1f} · Form xP {proj_xp:.2f} · "
+                f"Avg Pts {float(row['Rolling_Avg_Pts']):.1f} · Next 5 FDR {int(row['Upcoming_FDR'])}"
+            ),
+            "img_url": p_img,
         })
-        
+
+    # Table Data
     table_data = []
     for _, row in filtered_df.head(35).iterrows():
-        r_dict = row.fillna("").to_dict()
-        r_dict["img_url"] = get_player_img_url(row.get("photo"), row.get("code"))
-        r_dict["form_xp"] = float(row["Proj_Form_xP"])
-        r_dict["Price"] = float(row["Price"])
-        table_data.append(r_dict)
-        
-    x_mid = float(filtered_df["Upcoming_FDR"].median())
-    y_mid = float(filtered_df["Proj_Form_xP"].median())
-    
-    fig = px.scatter(
-        filtered_df,
-        x="Upcoming_FDR",
-        y="Proj_Form_xP",
-        color="Pos",
-        size="Price",
-        hover_name="Player",
-        hover_data={"Upcoming_FDR": True, "Proj_Form_xP": ":.2f", "Pos": False, "Price": False},
-        title="Form vs. Fixture Difficulty Matrix",
-        color_discrete_map={"GKP": "#f59e0b", "DEF": "#3b82f6", "MID": "#10b981", "FWD": "#ef4444"}
-    )
-    fig.add_vline(x=x_mid, line_dash="dash", line_color="gray", opacity=0.5)
-    fig.add_hline(y=y_mid, line_dash="dash", line_color="gray", opacity=0.5)
-    fig.update_layout(
-        plot_bgcolor="rgba(0,0,0,0)",
-        paper_bgcolor="rgba(0,0,0,0)",
-        xaxis_title="Avg Upcoming FDR (Lower = Easier)",
-        yaxis_title="Blended Form xP",
-        font_color="#cbd5e1"
-    )
-        
-    return {"top_cards": top_cards, "table": table_data, "fig": fig}
+        p_img = get_player_img_url(row.get("photo"), row.get("code"))
+        fdr_val = int(row["Upcoming_FDR"])
+        fdr_color = "green" if fdr_val <= 11 else ("amber" if fdr_val <= 14 else "red")
+        proj_xp = float(row["Proj_Form_xP"])
+        pos_str = str(row["Pos"])
+        table_data.append({
+            "img_url": p_img,
+            "Player": str(row["Player"]),
+            "Team": str(row["Team"]),
+            "Pos": pos_str,
+            "Pos_Color": pos_colors.get(pos_str, "gray"),
+            "Price_Display": f"{float(row['Price']):.1f}",
+            "Latest_GW": str(int(row["Latest_GW"])),
+            "Proj_Form_XP_Display": f"{proj_xp:.2f}",
+            "Rolling_Avg_Pts_Display": f"{float(row['Rolling_Avg_Pts']):.2f}",
+            "Rolling_Sum_xGI_Display": f"{float(row['Rolling_Sum_xGI']):.2f}",
+            "Rolling_xGI_90_Display": f"{float(row['Rolling_xGI_per_90']):.2f}",
+            "FDR_Display": str(fdr_val),
+            "FDR_Color": fdr_color,
+            "Rolling_Avg_Mins_Display": f"{float(row['Rolling_Avg_Mins']):.1f}",
+            "Rolling_Matches_Played": str(int(row["Rolling_Matches_Played"])),
+        })
+
     return {"top_cards": top_cards, "cards": top_cards, "table": table_data, "fig": fig}

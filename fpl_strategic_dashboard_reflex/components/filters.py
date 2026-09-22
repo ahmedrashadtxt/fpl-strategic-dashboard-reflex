@@ -13,6 +13,7 @@ def search_input(value: rx.Var, on_change, placeholder: str = "Search player or 
         placeholder=placeholder,
         size="2",
         variant="surface",
+        debounce_timeout=300,
         width="100%",
     )
 

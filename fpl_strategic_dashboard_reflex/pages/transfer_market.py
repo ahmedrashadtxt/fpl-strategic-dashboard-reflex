@@ -1,226 +1,229 @@
-"""Transfer Market Page - Pure presentation view for price changes and scout targets."""
+"""Transfer Market Page - Transfer Target Finder with player pictures, stats, and price change indicators."""
 
 import reflex as rx
-import pandas as pd
-from typing import List, Dict, Any
-from fpl_strategic_dashboard_reflex.state import AppState
-import asyncio
-from rapidfuzz import fuzz, process
 from fpl_strategic_dashboard_reflex.states.market import TransferMarketState
 from fpl_strategic_dashboard_reflex.components import (
     guide_popover,
-    metric_card,
+    player_highlight_card,
     data_table,
     search_input,
     filter_select,
-    filter_bar,
 )
 
-from backend.data import get_connection, get_manager_squad_ids
-from backend.market_logic import fetch_transfer_targets_base_data
 
-class TransferMarketState(AppState):
-    is_loading: bool = False
-    
-    # Filters
-    search_query: str = ""
-    pos_filter: str = "All"
-    sort_by: str = "Projected Points (xP)"
-    max_price: str = "15.5"
-    exclude_my_squad: bool = True
-    enable_betting: bool = True
-    
-    raw_targets: List[Dict[str, Any]] = []
-    filtered_targets: List[Dict[str, Any]] = []
-    
-    @rx.var
-    def top_cards(self) -> List[Dict[str, Any]]:
-        return self.filtered_targets[:4]
-        
-    @rx.var
-    def table_data(self) -> List[Dict[str, Any]]:
-        return self.filtered_targets
-        
-    @rx.var
-    def columns(self) -> List[str]:
-        return ["Player", "Team", "Pos", "Price", "Fixture", "FDR", "Proj_xP", "xP_per_Mil", "Form", "Total_Points"]
+def market_metric_cards() -> rx.Component:
+    """Isolated player highlight cards component matching Streamlit layout."""
+    return rx.cond(
+        TransferMarketState.has_data,
+        rx.grid(
+            rx.foreach(
+                TransferMarketState.top_cards,
+                player_highlight_card,
+            ),
+            columns=rx.breakpoints(initial="1", sm="2", lg="4"),
+            spacing="3",
+            width="100%",
+            margin_bottom="1.25rem",
+        ),
+        rx.box(),
+    )
 
-    def set_search(self, value: str):
-        self.search_query = value
-        
-    def set_pos_filter(self, value: str):
-        self.pos_filter = value
-        
-    def set_sort_by(self, value: str):
-        self.sort_by = value
-        
-    def set_max_price(self, value: list[int]):
-        self.max_price = str(value[0])
-        
-    def toggle_exclude(self, value: bool):
-        self.exclude_my_squad = value
-        
-    def toggle_betting(self, value: bool):
-        self.enable_betting = value
 
-    @rx.event(background=True)
-    async def load_data(self):
-        async with self:
-            if not self.manager_id:
-                return
-            self.is_loading = True
-            
-        def _fetch():
-            conn = get_connection()
-            # Find current gw
-            cgw_df = pd.read_sql("SELECT id FROM events WHERE is_current = 1 LIMIT 1", conn)
-            current_gw = int(cgw_df.iloc[0]["id"]) if not cgw_df.empty else 1
-            
-            ngw_df = pd.read_sql("SELECT id FROM events WHERE is_next = 1 LIMIT 1", conn)
-            target_gw = int(ngw_df.iloc[0]["id"]) if not ngw_df.empty else current_gw
-            
-            raw_df = fetch_transfer_targets_base_data(conn, current_gw, target_gw, self.enable_betting, "")
-            
-            # fillna
-            if not raw_df.empty:
-                for col in ["Proj_xP", "xP_per_Mil", "Cost", "Price", "Form", "Total_Points", "Season_Points", "FDR"]:
-                    if col in raw_df.columns:
-                        raw_df[col] = pd.to_numeric(raw_df[col], errors="coerce").fillna(0)
-                        
-            return raw_df, current_gw
-            
-        raw_df, current_gw = await asyncio.to_thread(_fetch)
-        
-        async with self:
-            self.raw_targets = raw_df.fillna("").to_dict("records")
-            self._apply_filters_internal(raw_df, current_gw)
-            self.is_loading = False
-            
-    @rx.event(background=True)
-    async def apply_filters(self):
-        async with self:
-            self.is_loading = True
-        
-        def _filter():
-            if not self.raw_targets:
-                return []
-            
-            df = pd.DataFrame(self.raw_targets)
-            if self.pos_filter != "All":
-                df = df[df["Pos"] == self.pos_filter]
-                
-            df = df[df["Cost"] <= float(self.max_price)]
-            
-            if self.exclude_my_squad and self.manager_id:
-                squad_ids = get_manager_squad_ids(self.manager_id, 1) # Note: we just need some squad_ids. 1 is placeholder.
-                df = df[~df["id"].isin(squad_ids)]
-                
-            has_search = bool(self.search_query and self.search_query.strip())
-            
-            if has_search and not df.empty:
-                q = self.search_query.strip()
-                search_targets = df["_search_target"].to_dict()
-                matches = process.extract(
-                    query=q,
-                    choices=search_targets,
-                    scorer=fuzz.WRatio,
-                    score_cutoff=60,
-                    limit=40,
-                )
-                if matches:
-                    matched_indices = [m[2] for m in matches]
-                    df = df.loc[matched_indices]
-                else:
-                    df = df.iloc[0:0]
-            elif not df.empty:
-                sort_options = {
-                    "Projected Points (xP)": ("Proj_xP", False),
-                    "Value Efficiency (xP / £M)": ("xP_per_Mil", False),
-                    "Current Form": ("Form", False),
-                    "Total Season Points": ("Total_Points", False),
-                    "Price (Low to High)": ("Cost", True),
-                }
-                sort_col, sort_asc = sort_options.get(self.sort_by, ("Proj_xP", False))
-                df = df.sort_values(by=sort_col, ascending=sort_asc)
-                
-            return df.fillna("").to_dict("records")
-            
-        res = await asyncio.to_thread(_filter)
-        
-        async with self:
-            self.filtered_targets = res
-            self.is_loading = False
-            
-    def _apply_filters_internal(self, df, current_gw):
-        if df.empty:
-            self.filtered_targets = []
-            return
-            
-        if self.pos_filter != "All":
-            df = df[df["Pos"] == self.pos_filter]
-            
-        df = df[df["Cost"] <= float(self.max_price)]
-        
-        if self.exclude_my_squad and self.manager_id:
-            squad_ids = get_manager_squad_ids(self.manager_id, current_gw)
-            df = df[~df["id"].isin(squad_ids)]
-            
-        has_search = bool(self.search_query and self.search_query.strip())
-        
-        if has_search and not df.empty:
-            q = self.search_query.strip()
-            search_targets = df["_search_target"].to_dict()
-            matches = process.extract(
-                query=q,
-                choices=search_targets,
-                scorer=fuzz.WRatio,
-                score_cutoff=60,
-                limit=40,
-            )
-            if matches:
-                matched_indices = [m[2] for m in matches]
-                df = df.loc[matched_indices]
-            else:
-                df = df.iloc[0:0]
-        elif not df.empty:
-            sort_options = {
-                "Projected Points (xP)": ("Proj_xP", False),
-                "Value Efficiency (xP / £M)": ("xP_per_Mil", False),
-                "Current Form": ("Form", False),
-                "Total Season Points": ("Total_Points", False),
-                "Price (Low to High)": ("Cost", True),
-            }
-            sort_col, sort_asc = sort_options.get(self.sort_by, ("Proj_xP", False))
-            df = df.sort_values(by=sort_col, ascending=sort_asc)
-            
-        self.filtered_targets = df.fillna("").to_dict("records")
-
-def render_target_card(row: Dict[str, Any]) -> rx.Component:
-def transfer_market_page() -> rx.Component:
-    """Renders the Transfer Market tab view."""
-    return rx.box(
-        rx.vstack(
-            rx.text(row["Player"], weight="bold"),
-            rx.text(f"{row['Team']} - {row['Pos']}", color="gray", size="2"),
-            rx.text(f"Price: £{row['Price']}", size="2"),
-            rx.text(f"xP: {row['Proj_xP']}", color="green", weight="bold"),
-        # Page Title & Guide
+def market_controls() -> rx.Component:
+    """Filter controls matching the Streamlit Transfer Target Finder interface."""
+    return rx.vstack(
+        # Row 1: Search, Filter Position, Rank Targets By
+        rx.grid(
+            # Search
+            rx.vstack(
+                rx.text("Search Player / Club", font_size="0.8rem", color="var(--text-sub)", font_weight="600"),
+                search_input(
+                    value=TransferMarketState.search_query,
+                    on_change=TransferMarketState.set_search,
+                    placeholder="e.g. Eze, Semenyo, Arsenal, LIV...",
+                ),
+                align="start",
+                spacing="1",
+                width="100%",
+            ),
+            # Filter Position
+            filter_select(
+                "Filter Position",
+                ["All", "GKP", "DEF", "MID", "FWD"],
+                TransferMarketState.pos_filter,
+                TransferMarketState.set_pos_filter,
+            ),
+            # Rank Targets By
+            filter_select(
+                "Rank Targets By",
+                [
+                    "Projected Points (xP)",
+                    "Value Efficiency (xP / £M)",
+                    "Current Form",
+                    "Total Season Points",
+                    "Price (Low to High)",
+                    "Ownership % (Low to High)",
+                ],
+                TransferMarketState.sort_by,
+                TransferMarketState.set_sort_by,
+            ),
+            columns=rx.breakpoints(initial="1", sm="2", md="3"),
+            spacing="3",
+            width="100%",
+            align_items="end",
+        ),
+        # Row 2: Target Max Price Slider, Exclude My Squad Toggle, Apply Betting Odds Toggle
         rx.hstack(
             rx.vstack(
-                rx.text("Transfer Market & Price Rise Predictor", class_name="section-header-title"),
-                rx.text("Monitor nightly price rise/fall thresholds, transfer volume momentum, and scout top targets.", class_name="section-header-sub"),
+                rx.hstack(
+                    rx.text("Target Max Price (£M)", font_size="0.8rem", color="var(--text-sub)", font_weight="600"),
+                    rx.badge(
+                        rx.concat("£", TransferMarketState.max_price),
+                        variant="surface",
+                        color_scheme="green",
+                        size="1",
+                    ),
+                    align="center",
+                    spacing="2",
+                ),
+                rx.slider(
+                    min=4.0,
+                    max=15.5,
+                    step=0.5,
+                    value=[TransferMarketState.max_price],
+                    on_value_commit=TransferMarketState.set_max_price,
+                    color_scheme="green",
+                    size="1",
+                    width="260px",
+                ),
                 align="start",
                 spacing="1",
             ),
             rx.spacer(),
-            guide_popover(
-                title="Transfer Market Guide",
-                subtitle="Price changes and transfer trends",
-                items=[
-                    {"badge": "Thresholds", "title": "Nightly Price Changes", "desc": "Players reaching ~100% net transfer threshold are predicted to change price at 01:30 UK time."},
-                    {"badge": "Value Scout", "title": "Scout Targets", "desc": "Sort by points per million to identify budget enablers before price rises."},
-                ],
-                tip="Make planned transfers before price deadline to capture team value gains.",
+            rx.hstack(
+                rx.switch(
+                    checked=TransferMarketState.exclude_my_squad,
+                    on_change=TransferMarketState.toggle_exclude,
+                    color_scheme="green",
+                    size="1",
+                ),
+                rx.hstack(
+                    rx.icon("ban", size=15, color="var(--text-sub)"),
+                    rx.text("Exclude My Squad", font_size="0.85rem", color="var(--text-sub)", font_weight="600"),
+                    align="center",
+                    spacing="1",
+                ),
+                align="center",
+                spacing="2",
+            ),
+            rx.hstack(
+                rx.switch(
+                    checked=TransferMarketState.enable_betting,
+                    on_change=TransferMarketState.toggle_betting,
+                    color_scheme="green",
+                    size="1",
+                ),
+                rx.hstack(
+                    rx.icon("bar-chart-2", size=15, color="var(--text-sub)"),
+                    rx.text("Apply Betting Odds", font_size="0.85rem", color="var(--text-sub)", font_weight="600"),
+                    align="center",
+                    spacing="1",
+                ),
+                align="center",
+                spacing="2",
+            ),
+            width="100%",
+            align="center",
+            padding_top="0.5rem",
+            wrap="wrap",
+            gap="1.25rem",
+        ),
+        width="100%",
+        spacing="3",
+        padding="1rem",
+        background="var(--gray-2)",
+        border="1px solid var(--border-color)",
+        border_radius="10px",
+        margin_bottom="1.25rem",
+    )
+
+
+def transfer_market_page() -> rx.Component:
+    """Renders the Transfer Market tab view."""
+    return rx.box(
+        # Page Title & Guide
+        rx.hstack(
+            rx.hstack(
+                rx.box(
+                    width="4px",
+                    height="32px",
+                    background="var(--accent-9)",
+                    border_radius="2px",
+                    margin_right="0.5rem",
+                ),
+                rx.vstack(
+                    rx.text("Transfer Target Finder", class_name="section-header-title"),
+                    rx.text(
+                        "Identify high-EV incoming transfer targets ranked by projected points and value efficiency",
+                        class_name="section-header-sub",
+                    ),
+                    align="start",
+                    spacing="1",
+                ),
+                align="center",
+            ),
+            rx.hstack(
+                guide_popover(
+                    title="Transfer Target Finder",
+                    subtitle="Identify high-EV incoming transfer targets ranked by projected points and value efficiency",
+                    items=[
+                        {
+                            "badge": "Hybrid xP",
+                            "title": "Projected Points (Proj xP)",
+                            "desc": "Hybrid projection blending baseline statistical rates, betting market implied goals, and sharp line velocity.",
+                            "color": "#38bdf8",
+                        },
+                        {
+                            "badge": "xP / £M",
+                            "title": "Points Value Efficiency",
+                            "desc": "Expected points generated per million pounds spent. Highlights budget gems that liberate bank budget for premiums.",
+                            "color": "#10b981",
+                        },
+                        {
+                            "badge": "Price Trends",
+                            "title": "Nightly Price Dynamics",
+                            "desc": "Identifies players with rising/falling price predictions driven by official FPL net transfer velocity.",
+                            "color": "#f59e0b",
+                        },
+                        {
+                            "badge": "Budget Cap",
+                            "title": "Max Price Slider",
+                            "desc": "Set your exact bank constraints to display the highest projected replacements within your price range.",
+                            "color": "#818cf8",
+                        },
+                        {
+                            "badge": "Exclude Squad",
+                            "title": "Ownership Filter",
+                            "desc": "Automatically hides players already in your current squad so you only evaluate genuine replacement targets.",
+                            "color": "#f59e0b",
+                        },
+                    ],
+                    tip="Sort by xP / £M within your exact price ceiling to find under-the-radar enablers with favorable upcoming runs.",
+                ),
+                rx.button(
+                    rx.hstack(
+                        rx.icon("refresh-cw", size=14),
+                        rx.text("Refresh"),
+                        align="center",
+                        spacing="1",
+                    ),
+                    on_click=TransferMarketState.refresh_data,
+                    variant="outline",
+                    size="2",
+                    color_scheme="gray",
+                ),
+                align="center",
+                spacing="2",
             ),
             width="100%",
             align="center",
@@ -228,152 +231,71 @@ def transfer_market_page() -> rx.Component:
             wrap="wrap",
             gap="1rem",
         ),
-        padding="4",
-        border="1px solid #e2e8f0",
-        border_radius="md",
-        background_color="white",
-        box_shadow="sm"
-    )
-
-def transfer_market_page() -> rx.Component:
-    return rx.box(
-        rx.vstack(
-            rx.heading("Transfer Target Finder", size="6"),
-            rx.text("Identify high-EV incoming transfer targets ranked by projected points and value efficiency", color="gray", margin_bottom="4"),
-            
-        # Top Targets Cards
-        rx.cond(
-            TransferMarketState.top_cards.length() > 0,
-            rx.hstack(
-                rx.input(placeholder="Search Player / Club...", on_change=TransferMarketState.set_search, width="300px"),
-                rx.select(["All", "GKP", "DEF", "MID", "FWD"], value=TransferMarketState.pos_filter, on_change=TransferMarketState.set_pos_filter),
-                rx.select(["Projected Points (xP)", "Value Efficiency (xP / £M)", "Current Form", "Total Season Points", "Price (Low to High)"], value=TransferMarketState.sort_by, on_change=TransferMarketState.set_sort_by),
-                spacing="4"
-                rx.foreach(
-                    TransferMarketState.top_cards,
-                    lambda c: metric_card(c["Player"], rx.concat("£", c["Price"], "m"), c["Team"], "blue", rx.concat(c["Proj_xP"], " xP · ", c["Fixture"])),
-                ),
-                width="100%",
-                spacing="3",
-                wrap="wrap",
-                margin_bottom="1.25rem",
-            ),
-            
-            rx.box(),
-        ),
 
         # Filter Bar
-        filter_bar(
-            rx.box(
-                search_input(
-                    value=TransferMarketState.search_query,
-                    on_change=TransferMarketState.set_search,
-                    placeholder="Search market target...",
-                ),
-                width="240px",
-            ),
-            filter_select(
-                "Position:",
-                ["All", "GKP", "DEF", "MID", "FWD"],
-                TransferMarketState.pos_filter,
-                TransferMarketState.set_pos_filter,
-            ),
-            filter_select(
-                "Sort by:",
-                [
-                    "Projected Points (xP)",
-                    "Value for Money (xP/£m)",
-                    "Form",
-                    "Easiest Fixture",
-                ],
-                TransferMarketState.sort_by,
-                TransferMarketState.set_sort_by,
-            ),
-            rx.hstack(
-                rx.vstack(
-                    rx.text("Target Max Price (£M)", size="2"),
-                    rx.slider(default_value=[15], min=4, max=15, on_value_commit=TransferMarketState.set_max_price, width="200px"),
-                rx.switch(
-                    checked=TransferMarketState.exclude_my_squad,
-                    on_change=TransferMarketState.toggle_exclude,
-                    size="1",
-                ),
-                rx.checkbox("Exclude My Squad", checked=TransferMarketState.exclude_my_squad, on_change=TransferMarketState.toggle_exclude),
-                rx.checkbox("Apply Betting Odds", checked=TransferMarketState.enable_betting, on_change=TransferMarketState.toggle_betting),
-                rx.button("Apply Filters", on_click=TransferMarketState.apply_filters),
-                spacing="4",
-                align_items="center"
-                rx.text("Exclude My Squad", font_size="0.8rem", color="var(--text-sub)"),
-                align="center",
-                spacing="2",
-            ),
-            
-            rx.cond(
-                TransferMarketState.is_loading,
-                rx.spinner(),
-                rx.vstack(
-                    rx.grid(
-                        rx.foreach(TransferMarketState.top_cards, render_target_card),
-                        columns="4",
-                        spacing="4",
-                        width="100%",
-                        margin_top="4"
-                    ),
-                    rx.box(
-                        rx.data_table(
-                            data=TransferMarketState.table_data,
-                            columns=TransferMarketState.columns,
-                            pagination=True,
-                            search=True,
-                            sort=True,
-            rx.hstack(
-                rx.switch(
-                    checked=TransferMarketState.enable_betting,
-                    on_change=TransferMarketState.toggle_betting,
-                    size="1",
-                ),
-                rx.text("Betting Odds Blending", font_size="0.8rem", color="var(--text-sub)"),
-                align="center",
-                spacing="2",
-            ),
-        ),
+        market_controls(),
 
-        # Data Table
+        # Top Targets Highlight Cards (isolated)
+        market_metric_cards(),
+
+        # Data Table with Player Avatars, Price Trends, and Streamlit Columns
         data_table(
             headers=TransferMarketState.columns,
             rows=TransferMarketState.table_data,
             row_render_func=lambda row: rx.table.row(
-                rx.table.cell(rx.text(row["Player"], font_weight="600")),
-                rx.table.cell(rx.badge(row["Team"], variant="surface", color_scheme="gray", size="1")),
-                rx.table.cell(rx.text(row["Pos"], font_size="0.8rem")),
-                rx.table.cell(rx.text(rx.concat("£", row["Price"], "m"))),
-                rx.table.cell(rx.text(row["Fixture"])),
+                # Target Player (with Avatar)
                 rx.table.cell(
-                    rx.cond(
-                        row["FDR"].to(int) <= 2,
-                        rx.badge(row["FDR"].to_string(), variant="soft", color_scheme="green", size="1"),
-                        rx.cond(
-                            row["FDR"].to(int) == 3,
-                            rx.badge(row["FDR"].to_string(), variant="surface", color_scheme="gray", size="1"),
-                            rx.badge(row["FDR"].to_string(), variant="soft", color_scheme="red", size="1"),
+                    rx.hstack(
+                        rx.avatar(
+                            src=row["img_url"],
+                            fallback=row["Pos"],
+                            size="1",
+                            radius="full",
                         ),
-                        margin_top="6",
-                        width="100%"
+                        rx.text(row["Player"], font_weight="600"),
+                        align="center",
+                        spacing="2",
                     ),
-                    width="100%"
-                )
-            )
+                    text_align="left",
+                    padding_left="1rem",
+                ),
+                # Club
+                rx.table.cell(rx.text(row["Team"], font_size="0.85rem")),
+                # Pos
+                rx.table.cell(rx.badge(row["Pos"], variant="outline", color_scheme=row["Pos_Color"], size="1")),
+                # Price
+                rx.table.cell(rx.text(row["Price_Display"], font_weight="600")),
+                # Price Trend (increasing/decreasing badge)
+                rx.table.cell(
+                    rx.badge(
+                        row["Price_Trend_Label"],
+                        variant="surface",
+                        color_scheme=row["Price_Trend_Color"],
+                        size="1",
+                        font_weight="600",
                     )
                 ),
-                rx.table.cell(rx.text(row["Proj_xP"], font_weight="700", color="#60a5fa")),
-                rx.table.cell(rx.badge(row["xP_per_Mil"], variant="soft", color_scheme="purple", size="1")),
+                # GW Fixture
+                rx.table.cell(rx.text(row["Fixture"])),
+                # FDR
+                rx.table.cell(
+                    rx.badge(row["FDR"], variant="surface", color_scheme=row["FDR_Color"], size="1", font_weight="700")
+                ),
+                # Proj xP
+                rx.table.cell(
+                    rx.badge(row["Proj_xP"], variant="surface", color_scheme="green", size="1", font_weight="700")
+                ),
+                # xP / £M
+                rx.table.cell(rx.text(row["xP_per_Mil"], font_weight="700")),
+                # Form
                 rx.table.cell(rx.text(row["Form"])),
-                rx.table.cell(rx.text(row["Total_Points"], font_weight="600")),
+                # Own %
+                rx.table.cell(rx.text(row["Own_Pct"])),
+                # Season Pts
+                rx.table.cell(rx.text(row["Season_Points"])),
             ),
             is_loading=TransferMarketState.is_loading,
         ),
-        padding="6",
-        on_mount=TransferMarketState.load_data
         width="100%",
+        on_mount=TransferMarketState.load_data,
     )
-

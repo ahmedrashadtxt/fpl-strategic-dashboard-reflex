@@ -1,12 +1,11 @@
-"""Top navigation header for FPL Strategic Dashboard."""
+"""Top navigation header for FPL Strategic Dashboard — brand row only."""
 
 import reflex as rx
-from fpl_strategic_dashboard_reflex.state import AppState
 from fpl_strategic_dashboard_reflex.states.base import AppState
 
 
 def header() -> rx.Component:
-    """Pure presentation top navbar."""
+    """Pure presentation top navbar — title, GW badge, manager button, theme toggle."""
     return rx.box(
         rx.hstack(
             # Brand & Subtitle
@@ -42,35 +41,21 @@ def header() -> rx.Component:
                 spacing="1",
             ),
             rx.spacer(),
-            # Actions: Gameweek Filter, Manager ID Button, Theme Toggle
+            # Actions: Manager ID Button, Theme Toggle
             rx.hstack(
-                # Gameweek Select
-                rx.hstack(
-                    rx.text("GW:", font_size="0.8rem", color="var(--text-sub)", font_weight="600"),
-                    rx.select(
-                        [str(gw) for gw in range(1, 39)],
-                        AppState.available_gameweeks,
-                        value=AppState.selected_gw.to_string(),
-                        on_change=AppState.set_selected_gw,
-                        size="2",
-                        variant="surface",
-                    ),
-                    align="center",
-                    spacing="2",
-                ),
-                # Manager ID Action Button
                 rx.button(
                     AppState.badge_label,
                     on_click=AppState.open_id_dialog,
                     variant="surface",
                     color_scheme="blue",
                     class_name="manager-badge-btn",
+                    cursor="pointer",
                 ),
-                # Theme Toggle
                 rx.color_mode.button(
                     variant="surface",
                     size="2",
                     radius="large",
+                    cursor="pointer",
                 ),
                 align="center",
                 spacing="3",
@@ -82,9 +67,7 @@ def header() -> rx.Component:
             wrap="wrap",
             gap="1rem",
         ),
-        padding_y="1rem",
-        border_bottom="1px solid var(--border-color)",
-        margin_bottom="1.25rem",
+        padding_y="1.25rem",
+        margin_bottom="0",
         width="100%",
     )
-

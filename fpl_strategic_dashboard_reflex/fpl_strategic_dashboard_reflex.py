@@ -1,11 +1,9 @@
 """Main entry point and core shell for the FPL Strategic Dashboard Reflex App."""
 
 import reflex as rx
-from fpl_strategic_dashboard_reflex.state import AppState
 
 from fpl_strategic_dashboard_reflex.states import (
     AppState,
-    DashboardMetricsState,
     SquadAnalyzerState,
     TransferAnalyzerState,
     SimulatorState,
@@ -14,21 +12,12 @@ from fpl_strategic_dashboard_reflex.states import (
     RollingFormState,
     FixtureTickerState,
     TransferMarketState,
-    AuditJournalState,
 )
 from fpl_strategic_dashboard_reflex.components import (
     header,
+    global_stats_panel,
     id_dialog,
-    
-
-    expected_stats_tab,
-    defensive_stats_tab,
-    rolling_form_tab,
-    transfer_market_tab,
-    audit_journal_tab,
-    metrics_bar,
 )
-from fpl_strategic_dashboard_reflex.pages import transfer_market_page, TransferMarketState, fixture_ticker_page, FixtureTickerState, squad_analyzer_page, SquadAnalyzerState, transfer_analyzer_page, TransferAnalyzerState, defensive_stats_page, DefensiveStatsState, expected_stats_page, ExpectedStatsState, rolling_form_page, RollingFormState, audit_journal_page, AuditJournalState
 from fpl_strategic_dashboard_reflex.pages import (
     squad_analyzer_page,
     transfer_analyzer_page,
@@ -38,77 +27,10 @@ from fpl_strategic_dashboard_reflex.pages import (
     rolling_form_page,
     fixture_ticker_page,
     transfer_market_page,
-    audit_journal_page,
 )
 from fpl_strategic_dashboard_reflex.styles.theme import (
-    MAX_CONTENT_WIDTH,
-    PAGE_PADDING_X,
     PAGE_PADDING_Y,
 )
-
-
-def _on_tab_change(tab: str):
-    """Event sequence triggered upon tab navigation."""
-    return [
-        AppState.set_tab(tab),
-        rx.cond(
-            tab == "fixture_ticker",
-            FixtureTickerState.on_tab_visible(),
-            tab == "squad_analyzer",
-            SquadAnalyzerState.load_squad(),
-            rx.cond(
-                tab == "squad_analyzer",
-                SquadAnalyzerState.load_squad(),
-                tab == "transfer_solver",
-                TransferAnalyzerState.analyze(),
-                rx.cond(
-                    tab == "transfer_solver",
-                    TransferAnalyzerState.analyze(),
-                    tab == "match_simulator",
-                    SimulatorState.run_simulation(),
-                    rx.cond(
-                        tab == "defensive_stats",
-                        DefensiveStatsState.load_data(),
-                        tab == "expected_stats",
-                        ExpectedStatsState.load_data(),
-                        rx.cond(
-                            tab == "expected_stats",
-                            ExpectedStatsState.load_data(),
-                            tab == "defensive_stats",
-                            DefensiveStatsState.load_data(),
-                            rx.cond(
-                                tab == "rolling_form",
-                                RollingFormState.load_data(),
-                                rx.cond(
-                                    tab == "audit_journal",
-                                    AuditJournalState.load_data(),
-                                    tab == "fixture_ticker",
-                                    FixtureTickerState.on_tab_visible(),
-                                    rx.cond(
-                                        tab == "transfer_market",
-                                        TransferMarketState.load_data(),
-                                        rx.noop()
-                                    )
-                                )
-                            )
-                        )
-                    )
-                )
-            )
-                                        rx.cond(
-                                            tab == "audit_journal",
-                                            AuditJournalState.load_data(),
-                                            rx.noop(),
-                                        ),
-                                    ),
-                                ),
-                            ),
-                        ),
-                    ),
-                ),
-            ),
-        ),
-    ]
 
 
 def index() -> rx.Component:
@@ -116,8 +38,7 @@ def index() -> rx.Component:
     return rx.box(
         rx.container(
             header(),
-            
-            metrics_bar(),
+            global_stats_panel(),
             rx.tabs.root(
                 rx.tabs.list(
                     rx.tabs.trigger("Squad Analyzer", value="squad_analyzer", class_name="tabs-trigger-custom"),
@@ -128,9 +49,6 @@ def index() -> rx.Component:
                     rx.tabs.trigger("Rolling Form", value="rolling_form", class_name="tabs-trigger-custom"),
                     rx.tabs.trigger("Fixture Ticker", value="fixture_ticker", class_name="tabs-trigger-custom"),
                     rx.tabs.trigger("Transfer Market", value="transfer_market", class_name="tabs-trigger-custom"),
-                    rx.tabs.trigger("🤖 Journey & Social", value="audit_journal", class_name="tabs-trigger-custom"),
-                    rx.tabs.trigger("Audit Journal", value="audit_journal", class_name="tabs-trigger-custom"),
-                    border_bottom="1px solid var(--border-color)",
                     margin_bottom="1.5rem",
                     overflow_x="auto",
                 ),
@@ -142,20 +60,16 @@ def index() -> rx.Component:
                 rx.tabs.content(rolling_form_page(), value="rolling_form"),
                 # ── Live Fixture Ticker (migrated) ──────────────────────────
                 rx.tabs.content(fixture_ticker_page(), value="fixture_ticker"),
-                # ── Remaining placeholders ──────────────────────────────────
+                # ── Transfer Market ─────────────────────────────────────────
                 rx.tabs.content(transfer_market_page(), value="transfer_market"),
-                rx.tabs.content(audit_journal_page(), value="audit_journal"),
                 value=AppState.selected_tab,
-                on_change=_on_tab_change,
+                on_change=AppState.set_tab,
                 width="100%",
             ),
-            id_dialog(on_save_handler=_on_tab_change),
-            max_width="1240px",
-            padding_x="1rem",
-            max_width=MAX_CONTENT_WIDTH,
-            padding_x=PAGE_PADDING_X,
+            id_dialog(),
+            max_width="1600px",
+            padding_x="2rem",
             padding_top="0.5rem",
-            padding_bottom="3rem",
             padding_bottom=PAGE_PADDING_Y,
         ),
         min_height="100vh",
@@ -173,11 +87,9 @@ app = rx.App(
 
 app.add_page(
     index,
-    title="FPL Optimizer · Strategic Analytics & Squad Optimizer",
-    on_load=AppState.on_load,
+    title="fpl optimizer · Strategic Analytics & Squad Optimizer",
     on_load=[
         AppState.on_load,
-        DashboardMetricsState.load_metrics,
         SquadAnalyzerState.load_squad,
     ],
 )

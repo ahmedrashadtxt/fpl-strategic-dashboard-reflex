@@ -12,7 +12,6 @@ from .defensive import DefensiveStatsState
 from .rolling import RollingFormState
 from .fixtures import FixtureTickerState
 from .market import TransferMarketState
-from .audit import AuditJournalState
 
 __all__ = [
     "AppState",
@@ -25,6 +24,5 @@ __all__ = [
     "RollingFormState",
     "FixtureTickerState",
     "TransferMarketState",
-    "AuditJournalState",
 ]
 

@@ -1,10 +1,54 @@
 
+/* ── CSS CUSTOM PROPERTIES ── */
+:root {
+    --app-bg: #0a0a0a;
+    --card-bg: #141414;
+    --card-bg-alt: #1a1a1a;
+    --border-color: #222222;
+    --border-subtle: #2e2e2e;
+    --text-main: #ffffff;
+    --text-sub: #94a3b8;
+    --text-muted: #64748b;
+    --input-bg: #141414;
+    --tab-active-bg: #27272a;
+    --tab-inactive-color: #94a3b8;
+    --filter-bar-bg: rgba(255, 255, 255, 0.02);
+    --segmented-bg: rgba(255, 255, 255, 0.03);
+    --table-header-bg: rgba(255, 255, 255, 0.04);
+    --row-hover-bg: rgba(255, 255, 255, 0.03);
+    --row-alt-bg: rgba(255, 255, 255, 0.015);
+    --skeleton-base: #141414;
+    --skeleton-shimmer: rgba(255, 255, 255, 0.06);
+}
+
+/* Light Mode overrides */
+[data-theme="light"], .light, .chakra-ui-light {
+    --app-bg: #f1f5f9;
+    --card-bg: #ffffff;
+    --card-bg-alt: #f8fafc;
+    --border-color: #e2e8f0;
+    --border-subtle: #cbd5e1;
+    --text-main: #0f172a;
+    --text-sub: #475569;
+    --text-muted: #64748b;
+    --input-bg: #ffffff;
+    --tab-active-bg: #ffffff;
+    --tab-inactive-color: #64748b;
+    --filter-bar-bg: rgba(0, 0, 0, 0.02);
+    --segmented-bg: rgba(0, 0, 0, 0.04);
+    --table-header-bg: rgba(0, 0, 0, 0.03);
+    --row-hover-bg: rgba(0, 0, 0, 0.025);
+    --row-alt-bg: rgba(0, 0, 0, 0.012);
+    --skeleton-base: #e2e8f0;
+    --skeleton-shimmer: rgba(0, 0, 0, 0.06);
+}
 
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800;900&family=Inter:wght@400;500;600;700;800&display=swap');
 
-html, body, [class*="css"] {
+html, body {
     font-family: 'Inter', sans-serif;
-    color: #ffffff !important;
+    color: var(--text-main);
+    background-color: var(--app-bg);
 }
 
 .stApp {
@@ -421,10 +465,155 @@ div[data-testid="column"] div[data-testid="stButton"] button:hover {
     100% { transform: rotate(360deg); }
 }
 
+@keyframes spin-reverse {
+    0% { transform: rotate(360deg); }
+    100% { transform: rotate(0deg); }
+}
+
 @keyframes shimmer {
     0% { background-position: -200% 0; }
     100% { background-position: 200% 0; }
 }
+
+@keyframes pulse-glow {
+    0%, 100% {
+        box-shadow: 0 0 15px rgba(59, 130, 246, 0.4), inset 0 0 15px rgba(16, 185, 129, 0.2);
+        transform: scale(1);
+    }
+    50% {
+        box-shadow: 0 0 30px rgba(59, 130, 246, 0.7), inset 0 0 25px rgba(16, 185, 129, 0.4);
+        transform: scale(1.04);
+    }
+}
+
+@keyframes scan-sweep {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(200%); }
+}
+
+@keyframes pulse-live {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(0.85); }
+}
+
+/* ── MODERN TACTICAL HUD LOADER ── */
+.tactical-loader-wrap {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 3.5rem 2rem !important;
+    width: 100% !important;
+    max-width: 620px !important;
+    margin: 1.5rem auto !important;
+    background: linear-gradient(180deg, rgba(15, 23, 42, 0.8) 0%, rgba(10, 15, 28, 0.95) 100%) !important;
+    border: 1px solid rgba(59, 130, 246, 0.25) !important;
+    border-radius: 16px !important;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05) !important;
+    backdrop-filter: blur(16px) !important;
+    -webkit-backdrop-filter: blur(16px) !important;
+    position: relative !important;
+    overflow: hidden !important;
+}
+
+[data-theme="light"] .tactical-loader-wrap,
+.light .tactical-loader-wrap {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0%, rgba(241, 245, 249, 0.98) 100%) !important;
+    border-color: rgba(37, 99, 235, 0.25) !important;
+    box-shadow: 0 12px 32px rgba(15, 23, 42, 0.08), 0 0 0 1px rgba(0, 0, 0, 0.04) !important;
+}
+
+.tactical-radar-orb {
+    position: relative !important;
+    width: 72px !important;
+    height: 72px !important;
+    border-radius: 50% !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    margin-bottom: 1.25rem !important;
+    animation: pulse-glow 2.5s ease-in-out infinite !important;
+    background: radial-gradient(circle, rgba(37, 99, 235, 0.15) 0%, rgba(16, 185, 129, 0.05) 70%, transparent 100%) !important;
+}
+
+.tactical-radar-outer {
+    position: absolute !important;
+    inset: 0 !important;
+    border-radius: 50% !important;
+    border: 2px dashed rgba(59, 130, 246, 0.6) !important;
+    animation: spin 8s linear infinite !important;
+}
+
+.tactical-radar-inner {
+    position: absolute !important;
+    inset: 6px !important;
+    border-radius: 50% !important;
+    border: 2px solid transparent !important;
+    border-top: 2px solid #10b981 !important;
+    border-bottom: 2px solid #3b82f6 !important;
+    animation: spin-reverse 2s cubic-bezier(0.4, 0, 0.2, 1) infinite !important;
+}
+
+.tactical-radar-core {
+    width: 32px !important;
+    height: 32px !important;
+    border-radius: 50% !important;
+    background: linear-gradient(135deg, #2563eb, #10b981) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    color: #ffffff !important;
+    box-shadow: 0 0 12px rgba(37, 99, 235, 0.8) !important;
+}
+
+.tactical-pulse-badge {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    padding: 3px 10px !important;
+    border-radius: 9999px !important;
+    background: rgba(16, 185, 129, 0.12) !important;
+    border: 1px solid rgba(16, 185, 129, 0.3) !important;
+    font-size: 0.68rem !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.08em !important;
+    text-transform: uppercase !important;
+    color: #34d399 !important;
+    margin-bottom: 0.5rem !important;
+}
+
+.tactical-pulse-dot {
+    width: 6px !important;
+    height: 6px !important;
+    border-radius: 50% !important;
+    background-color: #10b981 !important;
+    box-shadow: 0 0 8px #10b981 !important;
+    animation: pulse-live 1.2s ease-in-out infinite !important;
+}
+
+.tactical-scan-track {
+    width: 220px !important;
+    height: 3px !important;
+    background: rgba(255, 255, 255, 0.08) !important;
+    border-radius: 2px !important;
+    margin-top: 1.2rem !important;
+    overflow: hidden !important;
+    position: relative !important;
+}
+
+[data-theme="light"] .tactical-scan-track,
+.light .tactical-scan-track {
+    background: rgba(0, 0, 0, 0.08) !important;
+}
+
+.tactical-scan-bar {
+    width: 40% !important;
+    height: 100% !important;
+    border-radius: 2px !important;
+    background: linear-gradient(90deg, transparent, #3b82f6, #10b981, transparent) !important;
+    animation: scan-sweep 1.4s ease-in-out infinite !important;
+}
+
 
 .optimizer-loader {
     display: flex !important;
@@ -547,5 +736,701 @@ ul[role="listbox"] li {
 }
 
 
-.rt-BaseDialogOverlay { background-color: rgba(0, 0, 0, 0.6) !important; backdrop-filter: blur(4px); }
+.rt-BaseDialogOverlay {
+    background-color: rgba(0, 0, 0, 0.25) !important;
+    backdrop-filter: blur(4px) !important;
+    -webkit-backdrop-filter: blur(4px) !important;
+}
 
+/* ── CURSOR: POINTER ON ALL INTERACTIVE ELEMENTS ── */
+button,
+a,
+[role="tab"],
+[role="button"],
+[role="link"],
+[role="menuitem"],
+[role="option"],
+[role="checkbox"],
+[role="radio"],
+[role="switch"],
+input[type="checkbox"],
+input[type="radio"],
+input[type="range"],
+input[type="submit"],
+input[type="button"],
+select,
+label[for],
+.rt-TabsTrigger,
+.rt-Button,
+.rt-BaseButton,
+.rt-CheckboxButton,
+.rt-RadioGroupItem,
+.rt-SwitchRoot,
+.rt-SliderRoot,
+.rt-SelectTrigger,
+.tabs-trigger-custom,
+.manager-badge-btn,
+[data-radix-collection-item] {
+    cursor: pointer !important;
+}
+
+/* ── PITCH TOOLTIP OVERFLOW FIX ── */
+/* Radix tabs content must not clip the absolutely-positioned pitch tooltips */
+.rt-TabsContent,
+[data-radix-tabs-content] {
+    overflow: visible !important;
+}
+
+/* ── MODERN PILL-STYLE TAB BAR (MATCHING SCREENSHOT) ── */
+.rt-TabsList {
+    background: transparent !important;
+    border-bottom: none !important;
+    padding: 0 !important;
+    gap: 4px !important;
+    overflow-x: auto !important;
+    scrollbar-width: none !important;
+    flex-wrap: nowrap !important;
+    margin-bottom: 1.5rem !important;
+    justify-content: flex-start !important;
+    width: auto !important;
+    max-width: 100% !important;
+}
+
+.rt-TabsList::-webkit-scrollbar {
+    display: none !important;
+}
+
+/* Tab triggers */
+.rt-TabsTrigger,
+.tabs-trigger-custom {
+    border-radius: 8px !important;
+    padding: 0.45rem 0.85rem !important;
+    font-size: 0.84rem !important;
+    font-weight: 500 !important;
+    font-family: 'Inter', sans-serif !important;
+    color: var(--tab-inactive-color, #94a3b8) !important;
+    background: transparent !important;
+    border: none !important;
+    transition: all 0.15s ease !important;
+    white-space: nowrap !important;
+    flex-shrink: 0 !important;
+}
+
+/* Hover on inactive tab */
+.rt-TabsTrigger:hover:not([data-state="active"]),
+.tabs-trigger-custom:hover:not([data-state="active"]) {
+    color: var(--text-main, #ffffff) !important;
+    background: rgba(128, 128, 128, 0.08) !important;
+}
+
+/* Active tab — pill matching screenshot */
+.rt-TabsTrigger[data-state="active"],
+.tabs-trigger-custom[data-state="active"] {
+    background: var(--tab-active-bg, #27272a) !important;
+    color: var(--text-main, #ffffff) !important;
+    font-weight: 600 !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4) !important;
+}
+
+/* Remove Radix line indicator */
+.rt-TabsListIndicator,
+.rt-TabsTrigger::after,
+.rt-TabsList::after {
+    display: none !important;
+}
+
+/* Header typography */
+.top-nav-title {
+    font-size: 2.2rem !important;
+    font-weight: 800 !important;
+    letter-spacing: -0.03em !important;
+}
+
+/* ── RANK DELTA HIGHLIGHT BADGES ── */
+.rank-delta-badge-green {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 4px !important;
+    background: rgba(34, 197, 94, 0.16) !important;
+    color: #4ade80 !important;
+    -webkit-text-fill-color: #4ade80 !important;
+    border: 1px solid rgba(34, 197, 94, 0.35) !important;
+    border-radius: 6px !important;
+    padding: 2px 8px !important;
+    font-size: 0.88rem !important;
+    font-weight: 700 !important;
+    margin-top: 4px !important;
+}
+
+.rank-delta-badge-red {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 4px !important;
+    background: rgba(239, 68, 68, 0.16) !important;
+    color: #f87171 !important;
+    -webkit-text-fill-color: #f87171 !important;
+    border: 1px solid rgba(239, 68, 68, 0.35) !important;
+    border-radius: 6px !important;
+    padding: 2px 8px !important;
+    font-size: 0.88rem !important;
+    font-weight: 700 !important;
+    margin-top: 4px !important;
+}
+
+.rank-delta-badge-gray {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 4px !important;
+    background: rgba(255, 255, 255, 0.05) !important;
+    color: #94a3b8 !important;
+    -webkit-text-fill-color: #94a3b8 !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-radius: 6px !important;
+    padding: 2px 8px !important;
+    font-size: 0.88rem !important;
+    font-weight: 700 !important;
+    margin-top: 4px !important;
+}
+
+/* ── HERO GW CARD PERFORMANCE THEMES & CSS TRANSITIONS ── */
+.hero-gw-card {
+    border-radius: 14px !important;
+    padding: 1.35rem 1.65rem !important;
+    width: 100% !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25) !important;
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+    background: rgba(28, 28, 33, 0.75) !important;
+    transition: background 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.hero-gw-card .hero-label {
+    font-size: 0.82rem !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.02em !important;
+    color: #94a3b8 !important;
+    -webkit-text-fill-color: #94a3b8 !important;
+    transition: color 0.3s ease !important;
+}
+
+.hero-gw-card .hero-pts {
+    font-size: 2.9rem !important;
+    font-weight: 800 !important;
+    line-height: 1 !important;
+    font-family: 'Outfit', sans-serif !important;
+    letter-spacing: -0.02em !important;
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+    transition: color 0.3s ease !important;
+}
+
+.hero-gw-card .hero-icon {
+    color: #94a3b8 !important;
+    transition: color 0.3s ease !important;
+}
+
+/* Green Performance (Beats Average) */
+.hero-card-perf-green {
+    background: rgba(16, 44, 22, 0.75) !important;
+    border-color: rgba(34, 197, 94, 0.3) !important;
+}
+.hero-card-perf-green .hero-label {
+    color: #4ade80 !important;
+    -webkit-text-fill-color: #4ade80 !important;
+}
+.hero-card-perf-green .hero-pts {
+    color: #22c55e !important;
+    -webkit-text-fill-color: #22c55e !important;
+}
+.hero-card-perf-green .hero-icon {
+    color: #22c55e !important;
+}
+
+/* Red Performance (Below Average) */
+.hero-card-perf-red {
+    background: rgba(45, 18, 18, 0.75) !important;
+    border-color: rgba(239, 68, 68, 0.35) !important;
+}
+.hero-card-perf-red .hero-label {
+    color: #f87171 !important;
+    -webkit-text-fill-color: #f87171 !important;
+}
+.hero-card-perf-red .hero-pts {
+    color: #ef4444 !important;
+    -webkit-text-fill-color: #ef4444 !important;
+}
+.hero-card-perf-red .hero-icon {
+    color: #ef4444 !important;
+}
+
+/* Gray Performance (Default / Equal) */
+.hero-card-perf-gray {
+    background: rgba(28, 28, 33, 0.75) !important;
+    border-color: rgba(255, 255, 255, 0.12) !important;
+}
+.hero-card-perf-gray .hero-label {
+    color: #94a3b8 !important;
+    -webkit-text-fill-color: #94a3b8 !important;
+}
+.hero-card-perf-gray .hero-pts {
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+}
+.hero-card-perf-gray .hero-icon {
+    color: #94a3b8 !important;
+}
+
+/* ── MATCH CENTER BANNER CSS TRANSITIONS ── */
+.match-banner-card {
+    padding: 1rem 1.25rem !important;
+    background: rgba(255, 255, 255, 0.02) !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: 10px !important;
+    margin-bottom: 1rem !important;
+    width: 100% !important;
+    transition: background 0.25s ease, border-color 0.25s ease !important;
+}
+
+.match-banner-icon-green {
+    background: rgba(34, 197, 94, 0.12) !important;
+    color: #22c55e !important;
+}
+.match-banner-icon-red {
+    background: rgba(239, 68, 68, 0.12) !important;
+    color: #ef4444 !important;
+}
+.match-banner-icon-blue {
+    background: rgba(56, 189, 248, 0.12) !important;
+    color: #38bdf8 !important;
+}
+
+/* ── COMPACT SEGMENTED VIEW TOGGLE (CLIENT-SIDE) ── */
+.segmented-view-tabs .rt-TabsList {
+    background: rgba(255, 255, 255, 0.03) !important;
+    padding: 3px !important;
+    border-radius: 8px !important;
+    border: 1px solid var(--border-color) !important;
+    gap: 2px !important;
+    margin-bottom: 0 !important;
+    display: inline-flex !important;
+}
+
+.segmented-view-tabs .rt-TabsTrigger {
+    border-radius: 6px !important;
+    padding: 0.35rem 0.75rem !important;
+    font-size: 0.82rem !important;
+    font-weight: 500 !important;
+    color: var(--text-sub) !important;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    cursor: pointer !important;
+    transition: all 0.15s ease !important;
+}
+
+.segmented-view-tabs .rt-TabsTrigger:hover:not([data-state="active"]) {
+    background: rgba(255, 255, 255, 0.05) !important;
+    color: #ffffff !important;
+}
+
+.segmented-view-tabs .rt-TabsTrigger[data-state="active"] {
+    background: #16a34a !important;
+    color: #ffffff !important;
+    font-weight: 700 !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3) !important;
+}
+
+.segmented-view-tabs-blue .rt-TabsTrigger[data-state="active"] {
+    background: #2563eb !important;
+    color: #ffffff !important;
+    font-weight: 700 !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* ── SECTION HEADER TYPOGRAPHY ── */
+.section-header-title {
+    font-family: 'Outfit', sans-serif !important;
+    font-size: 0.92rem !important;
+    font-weight: 600 !important;
+    color: #f8fafc !important;
+    -webkit-text-fill-color: #f8fafc !important;
+    letter-spacing: -0.01em !important;
+    line-height: 1.25 !important;
+    margin: 0 !important;
+}
+
+.section-header-sub {
+    font-family: 'Inter', sans-serif !important;
+    font-size: 0.78rem !important;
+    font-weight: 400 !important;
+    color: #94a3b8 !important;
+    -webkit-text-fill-color: #94a3b8 !important;
+    line-height: 1.35 !important;
+    margin: 0 !important;
+}
+
+
+/* ══════════════════════════════════════════════════
+   LIGHT THEME — Full component overrides
+   All hardcoded dark colors switch to light-friendly
+   ══════════════════════════════════════════════════ */
+
+/* App background */
+[data-theme="light"] body,
+[data-theme="light"] html,
+.light body,
+.light html {
+    background-color: var(--app-bg) !important;
+    color: var(--text-main) !important;
+}
+
+/* Main wrapper */
+[data-theme="light"] [data-testid="rx-app"],
+.light [data-testid="rx-app"],
+[data-theme="light"] .rx-app,
+.light .rx-app {
+    background: var(--app-bg) !important;
+}
+
+/* ── Tab bar (Radix Tabs) ── */
+[data-theme="light"] .rt-TabsList,
+.light .rt-TabsList {
+    background: var(--card-bg) !important;
+    border-bottom: 1px solid var(--border-color) !important;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06) !important;
+}
+
+[data-theme="light"] .rt-TabsTrigger,
+.light .rt-TabsTrigger,
+[data-theme="light"] .tabs-trigger-custom,
+.light .tabs-trigger-custom {
+    color: var(--text-sub) !important;
+}
+
+[data-theme="light"] .rt-TabsTrigger:hover:not([data-state="active"]),
+.light .rt-TabsTrigger:hover:not([data-state="active"]),
+[data-theme="light"] .tabs-trigger-custom:hover:not([data-state="active"]),
+.light .tabs-trigger-custom:hover:not([data-state="active"]) {
+    color: var(--text-main) !important;
+    background: rgba(0, 0, 0, 0.04) !important;
+}
+
+[data-theme="light"] .rt-TabsTrigger[data-state="active"],
+.light .rt-TabsTrigger[data-state="active"],
+[data-theme="light"] .tabs-trigger-custom[data-state="active"],
+.light .tabs-trigger-custom[data-state="active"] {
+    background: var(--tab-active-bg) !important;
+    color: var(--text-main) !important;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1) !important;
+}
+
+/* ── Section header title / sub ── */
+[data-theme="light"] .section-header-title,
+.light .section-header-title {
+    color: var(--text-main) !important;
+    -webkit-text-fill-color: var(--text-main) !important;
+}
+
+[data-theme="light"] .section-header-sub,
+.light .section-header-sub {
+    color: var(--text-sub) !important;
+    -webkit-text-fill-color: var(--text-sub) !important;
+}
+
+/* ── Top nav brand ── */
+[data-theme="light"] .top-nav-title,
+.light .top-nav-title {
+    color: var(--text-main) !important;
+    -webkit-text-fill-color: var(--text-main) !important;
+}
+
+[data-theme="light"] .top-nav-sub,
+.light .top-nav-sub {
+    color: var(--text-sub) !important;
+    -webkit-text-fill-color: var(--text-sub) !important;
+}
+
+/* ── List cards ── */
+[data-theme="light"] .list-card,
+.light .list-card {
+    background: var(--card-bg) !important;
+    border-color: var(--border-color) !important;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06) !important;
+}
+
+[data-theme="light"] .list-card-title,
+.light .list-card-title {
+    color: var(--text-main) !important;
+    -webkit-text-fill-color: var(--text-main) !important;
+}
+
+[data-theme="light"] .list-card-meta,
+.light .list-card-meta {
+    color: var(--text-sub) !important;
+}
+
+[data-theme="light"] .list-card-meta span,
+.light .list-card-meta span {
+    color: var(--text-muted) !important;
+}
+
+/* ── Section card (left-border accent) ── */
+[data-theme="light"] .section-card h3,
+.light .section-card h3 {
+    color: var(--text-main) !important;
+    -webkit-text-fill-color: var(--text-main) !important;
+}
+
+[data-theme="light"] .section-card .section-desc,
+.light .section-card .section-desc {
+    color: var(--text-sub) !important;
+    -webkit-text-fill-color: var(--text-sub) !important;
+}
+
+/* ── Hero GW Card ── */
+[data-theme="light"] .hero-gw-card,
+.light .hero-gw-card {
+    background: rgba(255, 255, 255, 0.9) !important;
+    border-color: var(--border-color) !important;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08) !important;
+}
+
+[data-theme="light"] .hero-gw-card .hero-label,
+.light .hero-gw-card .hero-label {
+    color: var(--text-sub) !important;
+    -webkit-text-fill-color: var(--text-sub) !important;
+}
+
+[data-theme="light"] .hero-gw-card .hero-pts,
+.light .hero-gw-card .hero-pts {
+    color: var(--text-main) !important;
+    -webkit-text-fill-color: var(--text-main) !important;
+}
+
+[data-theme="light"] .hero-card-perf-green,
+.light .hero-card-perf-green {
+    background: rgba(220, 252, 231, 0.9) !important;
+    border-color: rgba(34, 197, 94, 0.35) !important;
+}
+
+[data-theme="light"] .hero-card-perf-red,
+.light .hero-card-perf-red {
+    background: rgba(254, 226, 226, 0.9) !important;
+    border-color: rgba(239, 68, 68, 0.35) !important;
+}
+
+[data-theme="light"] .hero-card-perf-gray,
+.light .hero-card-perf-gray {
+    background: rgba(248, 250, 252, 0.9) !important;
+    border-color: var(--border-color) !important;
+}
+
+/* ── GW badge ── */
+[data-theme="light"] .gw-badge,
+.light .gw-badge {
+    background: rgba(37, 99, 235, 0.08) !important;
+    color: #2563eb !important;
+    border-color: rgba(37, 99, 235, 0.25) !important;
+}
+
+/* ── Radix table ── */
+[data-theme="light"] .rt-TableRoot,
+.light .rt-TableRoot,
+[data-theme="light"] table,
+.light table {
+    background: var(--card-bg) !important;
+    border-color: var(--border-color) !important;
+}
+
+[data-theme="light"] .rt-TableHeader,
+.light .rt-TableHeader,
+[data-theme="light"] thead,
+[data-theme="light"] th,
+.light thead,
+.light th {
+    background: var(--table-header-bg) !important;
+    color: var(--text-sub) !important;
+    -webkit-text-fill-color: var(--text-sub) !important;
+    border-color: var(--border-color) !important;
+}
+
+[data-theme="light"] .rt-TableRow,
+.light .rt-TableRow,
+[data-theme="light"] tr,
+.light tr {
+    border-color: var(--border-color) !important;
+}
+
+[data-theme="light"] .rt-TableCell,
+.light .rt-TableCell,
+[data-theme="light"] td,
+.light td {
+    color: var(--text-main) !important;
+    -webkit-text-fill-color: var(--text-main) !important;
+    border-color: var(--border-color) !important;
+    background: transparent !important;
+}
+
+[data-theme="light"] .rt-TableRow:hover .rt-TableCell,
+.light .rt-TableRow:hover .rt-TableCell,
+[data-theme="light"] tr:hover td,
+.light tr:hover td {
+    background: var(--row-hover-bg) !important;
+}
+
+/* ── Radix Select / Dropdown ── */
+[data-theme="light"] .rt-SelectTrigger,
+.light .rt-SelectTrigger,
+[data-theme="light"] [data-radix-select-trigger],
+.light [data-radix-select-trigger] {
+    background: var(--card-bg) !important;
+    border-color: var(--border-subtle) !important;
+    color: var(--text-main) !important;
+    -webkit-text-fill-color: var(--text-main) !important;
+}
+
+[data-theme="light"] .rt-SelectContent,
+.light .rt-SelectContent {
+    background: var(--card-bg) !important;
+    border-color: var(--border-color) !important;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.1) !important;
+}
+
+[data-theme="light"] .rt-SelectItem,
+.light .rt-SelectItem {
+    color: var(--text-main) !important;
+    -webkit-text-fill-color: var(--text-main) !important;
+}
+
+[data-theme="light"] .rt-SelectItem:hover,
+.light .rt-SelectItem:hover,
+[data-theme="light"] .rt-SelectItem[data-highlighted],
+.light .rt-SelectItem[data-highlighted] {
+    background: var(--row-hover-bg) !important;
+    color: var(--text-main) !important;
+}
+
+/* ── Radix Slider ── */
+[data-theme="light"] .rt-SliderRoot,
+.light .rt-SliderRoot {
+    --slider-track-bg: #e2e8f0;
+}
+
+[data-theme="light"] .rt-SliderTrack,
+.light .rt-SliderTrack {
+    background: #e2e8f0 !important;
+}
+
+/* ── Radix Switch ── */
+[data-theme="light"] .rt-SwitchRoot:not([data-state="checked"]),
+.light .rt-SwitchRoot:not([data-state="checked"]) {
+    background: #cbd5e1 !important;
+}
+
+/* ── Input field ── */
+[data-theme="light"] .rt-TextFieldInput,
+.light .rt-TextFieldInput,
+[data-theme="light"] input[type="text"],
+.light input[type="text"],
+[data-theme="light"] input[type="number"],
+.light input[type="number"] {
+    background: var(--input-bg) !important;
+    color: var(--text-main) !important;
+    -webkit-text-fill-color: var(--text-main) !important;
+    border-color: var(--border-subtle) !important;
+}
+
+[data-theme="light"] .rt-TextFieldRoot,
+.light .rt-TextFieldRoot {
+    background: var(--input-bg) !important;
+    border-color: var(--border-subtle) !important;
+}
+
+/* ── Segmented view tabs ── */
+[data-theme="light"] .segmented-view-tabs .rt-TabsList,
+.light .segmented-view-tabs .rt-TabsList {
+    background: var(--segmented-bg) !important;
+    border-color: var(--border-color) !important;
+}
+
+[data-theme="light"] .segmented-view-tabs .rt-TabsTrigger,
+.light .segmented-view-tabs .rt-TabsTrigger {
+    color: var(--text-sub) !important;
+}
+
+[data-theme="light"] .segmented-view-tabs .rt-TabsTrigger:hover:not([data-state="active"]),
+.light .segmented-view-tabs .rt-TabsTrigger:hover:not([data-state="active"]) {
+    background: rgba(0, 0, 0, 0.05) !important;
+    color: var(--text-main) !important;
+}
+
+/* ── Filter bar ── */
+[data-theme="light"] .filter-bar,
+.light .filter-bar {
+    background: var(--filter-bar-bg) !important;
+    border-color: var(--border-color) !important;
+}
+
+/* ── Rank delta badges in light mode ── */
+[data-theme="light"] .rank-delta-badge-gray,
+.light .rank-delta-badge-gray {
+    background: rgba(0, 0, 0, 0.04) !important;
+    color: var(--text-sub) !important;
+    -webkit-text-fill-color: var(--text-sub) !important;
+    border-color: var(--border-color) !important;
+}
+
+/* ── Optimizer loader ── */
+[data-theme="light"] .optimizer-loader,
+.light .optimizer-loader {
+    background: var(--card-bg) !important;
+    border-color: var(--border-color) !important;
+}
+
+[data-theme="light"] .optimizer-loader-title,
+.light .optimizer-loader-title {
+    color: var(--text-main) !important;
+    -webkit-text-fill-color: var(--text-main) !important;
+}
+
+[data-theme="light"] .optimizer-loader-subtext,
+.light .optimizer-loader-subtext {
+    color: var(--text-sub) !important;
+    -webkit-text-fill-color: var(--text-sub) !important;
+}
+
+/* ── Skeleton in light ── */
+[data-theme="light"] .skeleton-line,
+.light .skeleton-line,
+[data-theme="light"] .skeleton-avatar,
+.light .skeleton-avatar {
+    background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%) !important;
+    background-size: 200% 100% !important;
+}
+
+/* ── Match banner in light ── */
+[data-theme="light"] .match-banner-card,
+.light .match-banner-card {
+    background: rgba(0, 0, 0, 0.02) !important;
+    border-color: var(--border-color) !important;
+}
+
+/* ── Generic text elements ── */
+[data-theme="light"] p,
+.light p,
+[data-theme="light"] span:not([class*="tag"]):not([class*="badge"]):not([class*="gw"]):not([class*="hero"]),
+.light span:not([class*="tag"]):not([class*="badge"]):not([class*="gw"]):not([class*="hero"]) {
+    color: var(--text-main);
+}
+
+/* ── Ensure Radix box/card backgrounds ── */
+[data-theme="light"] .rt-Card,
+.light .rt-Card {
+    background: var(--card-bg) !important;
+    border-color: var(--border-color) !important;
+}
+
+[data-theme="light"] .rt-Box,
+.light .rt-Box {
+    border-color: var(--border-color);
+}

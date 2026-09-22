@@ -20,10 +20,10 @@ def section_header(title: str, description: str = "") -> rx.Component:
     )
 
 
-def placeholder_card(icon: str, title: str, description: str, tab_id: str) -> rx.Component:
+def placeholder_card(icon_name: str, title: str, description: str, tab_id: str) -> rx.Component:
     return rx.vstack(
         rx.box(
-            rx.text(icon, font_size="2rem"),
+            rx.icon(icon_name, size=32, color="var(--accent-9)"),
             class_name="placeholder-icon",
         ),
         rx.text(title, class_name="placeholder-title"),
@@ -62,6 +62,7 @@ def squad_analyzer_tab() -> rx.Component:
         ),
         placeholder_card(
             "⚽",
+            "layout-grid",
             "Squad Analyzer",
             "Evaluate your 15-man squad against upcoming fixtures. Calculate probabilistic projected points (xP) and solve for your starting XI and bench order.",
             "squad_analyzer",
@@ -79,6 +80,7 @@ def transfer_solver_tab() -> rx.Component:
         ),
         placeholder_card(
             "🔄",
+            "arrow-left-right",
             "Transfer Solver",
             "Multi-GW heuristic solver finding the highest-gain moves within your budget, accounting for chip horizons and price movements.",
             "transfer_solver",
@@ -96,6 +98,7 @@ def expected_stats_tab() -> rx.Component:
         ),
         placeholder_card(
             "📊",
+            "bar-chart-2",
             "Expected Stats (xG / xA)",
             "Detailed breakdown of expected goals and expected assists across all Premier League players with position and price filters.",
             "expected_stats",
@@ -113,6 +116,7 @@ def defensive_stats_tab() -> rx.Component:
         ),
         placeholder_card(
             "🛡️",
+            "shield",
             "Defensive Contributions",
             "Analysis of defensive assets, clean sheet potential, expected goals conceded, and value goalkeepers.",
             "defensive_stats",
@@ -130,6 +134,7 @@ def rolling_form_tab() -> rx.Component:
         ),
         placeholder_card(
             "📈",
+            "trending-up",
             "Rolling Form Analyzer",
             "Calculates rolling window metrics from player match histories to highlight emerging value and dipping assets.",
             "rolling_form",
@@ -147,6 +152,7 @@ def fixture_ticker_tab() -> rx.Component:
         ),
         placeholder_card(
             "🗓️",
+            "calendar",
             "Fixture Ticker",
             "Upcoming schedule matrix for all 20 Premier League clubs, highlighting green fixture swings and blank/double gameweeks.",
             "fixture_ticker",
@@ -164,8 +170,10 @@ def transfer_market_tab() -> rx.Component:
         ),
         placeholder_card(
             "💹",
+            "line-chart",
             "Transfer Market & Price Rises",
             "Predicts nightly price rises (🚀) and falls (⚠️) based on ownership volume thresholds, flags, and net transfers.",
+            "Predicts nightly price rises and falls based on ownership volume thresholds, flags, and net transfers.",
             "transfer_market",
         ),
         width="100%",
@@ -177,10 +185,12 @@ def audit_journal_tab() -> rx.Component:
     return rx.vstack(
         section_header(
             "🤖 Journey, Audit Journal & Community",
+            "Journey, Audit Journal & Community",
             "Track historical model predictions vs actual match outcomes and review your gameweek decisions.",
         ),
         placeholder_card(
             "🤖",
+            "clipboard-list",
             "Audit Journal & Social",
             "Log pre-gameweek snapshots, compare actual points against xP predictions, and calculate model variance.",
             "audit_journal",

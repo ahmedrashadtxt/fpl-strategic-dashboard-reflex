@@ -1,356 +1,104 @@
-"""
-Fixture Ticker page — Reflex migration of tabs/fixture_ticker.py.
-"""Fixture Ticker Page - Pure presentation view for 5-GW forward fixture difficulty matrix."""
-
-Data flow:
-  - On load / when filters change, FixtureTickerState fetches:
-      1. fixtures table: event, Home_Team, Away_Team, Home_Diff, Away_Diff
-      2. teams table: id, code, short_name, name
-      3. player-team lookup (for fuzzy search & squad-only filter)
-      4. (optional) manager squad IDs via FPL API
-  - RapidFuzz powers the player/club search entirely on the Python side.
-  - The processed list[dict] is stored in State and rendered
-    via rx.foreach over a styled rx.table.
-"""
+"""Fixture Ticker Page - 5-GW forward fixture difficulty matrix with club crests and squad visibility."""
 
 import reflex as rx
 from fpl_strategic_dashboard_reflex.states.fixtures import FixtureTickerState
 from fpl_strategic_dashboard_reflex.components import (
     guide_popover,
     search_input,
-    filter_bar,
 )
 from fpl_strategic_dashboard_reflex.styles.theme import TABLE_CONTAINER_STYLE
 
-from backend.fixture_logic import _build_ticker_rows
-from fpl_strategic_dashboard_reflex.state import AppState
 
-
-# ── Data helpers ─────────────────────────────────────────────────────────────
-
-def _fdr_badge_style(diff: int, is_blank: bool) -> dict:
-    """Returns an inline-style dict for the FDR badge based on difficulty."""
-    base = {
-        "display": "block",
-        "text_align": "center",
-        "padding": "0.3rem 0.5rem",
-        "border_radius": "6px",
-        "font_size": "0.78rem",
-        "font_weight": "600",
-        "white_space": "nowrap",
-        "min_width": "80px",
-    }
-    if is_blank:
-        return {**base, "background": "rgba(15,23,42,0.5)", "color": "#64748b", "font_style": "italic"}
-    palette = {
-        2: {"background": "rgba(34,197,94,0.22)", "color": "#4ade80"},
-        3: {"background": "rgba(100,116,139,0.16)", "color": "#cbd5e1"},
-        4: {"background": "rgba(249,115,22,0.24)", "color": "#fb923c", "font_weight": "700"},
-        5: {"background": "rgba(239,68,68,0.28)", "color": "#f87171", "font_weight": "800"},
-    }
-    return {**base, **palette.get(diff, palette[5])}
-
-
-def _total_color(total: int) -> str:
-    if total <= 11:
-        return "#22c55e"
-    if total <= 14:
-        return "#eab308"
-    return "#ef4444"
-
-
-
-class FixtureTickerState(AppState):
-    """State for the Fixture Ticker tab."""
-
-    # Filter controls
-    search_query: str = ""
-    only_my_squad: bool = False
-
-    # Processed data — flat list[dict] (no nested lists)
-    ticker_rows: list[dict] = []
-    is_loading: bool = False
-
-    @rx.var
-    def gw_columns(self) -> list[int]:
-        return list(range(self.current_gw, self.current_gw + 5))
-
-    @rx.var
-    def gw_column_labels(self) -> list[str]:
-        return [f"GW {gw}" for gw in range(self.current_gw, self.current_gw + 5)]
-
-    @rx.var
-    def section_title(self) -> str:
-        end = self.current_gw + 4
-        return f"Fixture Difficulty · GW{self.current_gw}–{end}"
-
-    @rx.var
-    def has_rows(self) -> bool:
-        return len(self.ticker_rows) > 0
-
-    @rx.var
-    def show_no_id_warning(self) -> bool:
-        return self.only_my_squad and not self.manager_id
-
-    # ── Event handlers ──────────────────────────────────────────────────
-
-    def load_ticker(self):
-        """Re-compute ticker rows from the DB with current filters."""
-        self.is_loading = True
-        yield
-        try:
-            rows = _build_ticker_rows(
-                current_gw=self.current_gw,
-                search_query=self.search_query,
-                only_my_squad=self.only_my_squad,
-                manager_id=self.manager_id,
-            )
-            self.ticker_rows = rows
-        except Exception as ex:
-            print(f"FixtureTickerState.load_ticker error: {ex}")
-            self.ticker_rows = []
-        finally:
-            self.is_loading = False
-
-    def set_search(self, value: str):
-        self.search_query = value
-        return FixtureTickerState.load_ticker
-
-    def toggle_only_my_squad(self, value: bool):
-        self.only_my_squad = value
-        return FixtureTickerState.load_ticker
-
-    def on_tab_visible(self):
-        """Called when user navigates to this tab — ensures data is loaded."""
-        if not self.ticker_rows and not self.is_loading:
-            return FixtureTickerState.load_ticker
-
-
-# ── Helper UI components ──────────────────────────────────────────────────────
-
-def _fdr_badge(diff: int | rx.Var, label: str | rx.Var, is_blank: bool | rx.Var) -> rx.Component:
-    """Renders a single FDR colour-coded badge using rx.cond for runtime styling."""
-    bg_color = rx.cond(
-        is_blank, "rgba(15,23,42,0.5)",
-        rx.cond(diff == 2, "rgba(34,197,94,0.22)",
-            rx.cond(diff == 3, "rgba(100,116,139,0.16)",
-                rx.cond(diff == 4, "rgba(249,115,22,0.24)", "rgba(239,68,68,0.28)"))),
-    )
-    txt_color = rx.cond(
-        is_blank, "#64748b",
-        rx.cond(diff == 2, "#4ade80",
-            rx.cond(diff == 3, "#cbd5e1",
-                rx.cond(diff == 4, "#fb923c", "#f87171"))),
-    )
-    fw = rx.cond(is_blank, "500", rx.cond((diff == 4) | (diff == 5), "700", "600"))
-    return rx.table.cell(
-        rx.box(
-            rx.text(label, font_size="0.78rem", font_weight=fw),
-            background=bg_color,
-            color=txt_color,
-            border_radius="6px",
-            padding="0.3rem 0.5rem",
-            text_align="center",
-            white_space="nowrap",
-            min_width="80px",
-            font_style=rx.cond(is_blank, "italic", "normal"),
-        ),
-        padding="0.4rem 0.5rem",
-        text_align="center",
-    )
-
-
-def _total_cell(row: dict) -> rx.Component:
-    total = row["difficulty_rating"]
-    # Use explicit equality chains — ObjectItemOperation doesn't support <= with int literals
-    color = rx.cond(
-        (total == 10) | (total == 11) | (total == 9) | (total == 8) | (total == 7) | (total == 6) | (total == 5),
-        "#22c55e",
 def _fdr_badge(diff_var, label_var, blank_var) -> rx.Component:
+    """Renders a styled fixture pill reflecting fixture difficulty."""
     d = diff_var.to(int)
     return rx.cond(
         blank_var,
-        rx.badge("Blank", variant="surface", color_scheme="gray", size="2"),
+        rx.badge("Blank", variant="surface", color_scheme="gray", size="2", width="100%", justify="center"),
         rx.cond(
-            (total == 12) | (total == 13) | (total == 14),
-            "#eab308",
-            "#ef4444",
-        ),
-    )
-    return rx.table.cell(
-        rx.text(total.to_string(), font_weight="800", font_size="0.92rem", color=color),
-        text_align="center",
-        padding="0.4rem 0.6rem",
-    )
-
-
-def _club_cell(row: dict) -> rx.Component:
-    return rx.table.row_header_cell(
-        rx.hstack(
-            rx.box(
-                rx.el.img(
-                    src="https://resources.premierleague.com/premierleague/badges/50/t"
-                        + row["code"].to_string() + ".png",
-                    style={"width": "22px", "height": "22px", "objectFit": "contain", "flexShrink": "0"},
             d <= 2,
-            rx.badge(label_var, variant="soft", color_scheme="green", size="2"),
+            rx.badge(label_var, variant="surface", color_scheme="green", size="2", font_weight="600", width="100%", justify="center"),
             rx.cond(
                 d == 3,
-                rx.badge(label_var, variant="surface", color_scheme="gray", size="2"),
+                rx.badge(label_var, variant="surface", color_scheme="gray", size="2", font_weight="600", width="100%", justify="center"),
                 rx.cond(
                     d == 4,
-                    rx.badge(label_var, variant="soft", color_scheme="amber", size="2"),
-                    rx.badge(label_var, variant="soft", color_scheme="red", size="2"),
+                    rx.badge(label_var, variant="surface", color_scheme="orange", size="2", font_weight="700", width="100%", justify="center"),
+                    rx.badge(label_var, variant="surface", color_scheme="red", size="2", font_weight="800", width="100%", justify="center"),
                 ),
-                width="22px",
-                height="22px",
-                flex_shrink="0",
             ),
-            rx.text(
-                row["full_name"], " (", row["short_name"], ")",
-                font_weight="600",
-                font_size="0.85rem",
-                white_space="nowrap",
-                color="var(--text-main)",
-            ),
-            align="center",
-            spacing="2",
-        ),
-        padding="0.5rem 0.75rem",
-        min_width="200px",
-    )
-
-
-def _ticker_table_row(row: dict) -> rx.Component:
-    return rx.table.row(
-        _club_cell(row),
-        rx.cond(
-            FixtureTickerState.only_my_squad,
-            rx.table.cell(
-                rx.text(
-                    row["my_players"],
-                    font_size="0.82rem",
-                    font_weight="600",
-                    color="#9BBEED",
-                    white_space="nowrap",
-                ),
-                padding="0.5rem 0.6rem",
-            ),
-            rx.fragment(),
-        ),
-        # Directly render 5 GW slots from flat fields (avoids nested foreach type error)
-        _fdr_badge(row["gw0_diff"], row["gw0_label"], row["gw0_blank"]),
-        _fdr_badge(row["gw1_diff"], row["gw1_label"], row["gw1_blank"]),
-        _fdr_badge(row["gw2_diff"], row["gw2_label"], row["gw2_blank"]),
-        _fdr_badge(row["gw3_diff"], row["gw3_label"], row["gw3_blank"]),
-        _fdr_badge(row["gw4_diff"], row["gw4_label"], row["gw4_blank"]),
-        _total_cell(row),
-        _hover_style={"background": "rgba(255,255,255,0.02)"},
-    )
-
-
-def _guide_popover() -> rx.Component:
-    return rx.popover.root(
-        rx.popover.trigger(
-            rx.button(
-                "📖 Guide",
-                variant="surface",
-                color_scheme="gray",
-                size="2",
-                cursor="pointer",
-            )
-        ),
-        rx.popover.content(
-            rx.vstack(
-                rx.text("Fixture Ticker Guide", font_weight="700", font_size="1rem", font_family="'Outfit', sans-serif"),
-                rx.separator(width="100%"),
-                rx.text("Difficulty Rating: Sum of official FDR scores across the next 5 gameweeks.", font_size="0.85rem"),
-                rx.text("(H) vs. (A): Designates Home or Away fixtures.", font_size="0.85rem"),
-                rx.hstack(
-                    rx.box(width="12px", height="12px", background="rgba(34,197,94,0.22)", border_radius="3px", flex_shrink="0"),
-                    rx.text("FDR 2 — Easy (prime targets)", font_size="0.82rem", color="#4ade80"),
-                    align="center", spacing="2",
-                ),
-                rx.hstack(
-                    rx.box(width="12px", height="12px", background="rgba(100,116,139,0.16)", border_radius="3px", flex_shrink="0"),
-                    rx.text("FDR 3 — Neutral", font_size="0.82rem", color="#94a3b8"),
-                    align="center", spacing="2",
-                ),
-                rx.hstack(
-                    rx.box(width="12px", height="12px", background="rgba(249,115,22,0.24)", border_radius="3px", flex_shrink="0"),
-                    rx.text("FDR 4 — Tough", font_size="0.82rem", color="#fb923c"),
-                    align="center", spacing="2",
-                ),
-                rx.hstack(
-                    rx.box(width="12px", height="12px", background="rgba(239,68,68,0.28)", border_radius="3px", flex_shrink="0"),
-                    rx.text("FDR 5 — Very Tough (avoid buying)", font_size="0.82rem", color="#f87171"),
-                    align="center", spacing="2",
-                ),
-                rx.separator(width="100%"),
-                rx.text("🟢 Green Run (≤10 pts): Prime fixture swings.", font_size="0.82rem"),
-                rx.text("🔴 Tough Run (≥15 pts): Hold off buying assets.", font_size="0.82rem"),
-                spacing="3",
-                width="300px",
-            ),
-            background="var(--card-bg)",
-            border="1px solid var(--border-color)",
         ),
     )
 
 
 def fixture_ticker_page() -> rx.Component:
-    """Main Fixture Ticker tab component."""
-    return rx.vstack(
-        # ── Header row ────────────────────────────────────────────────────
-    """Renders the 5-GW forward Fixture Ticker view."""
+    """Renders the Fixture Ticker page view."""
     return rx.box(
         # Page Title & Guide
         rx.hstack(
-            rx.vstack(
-                rx.hstack(
-                    rx.box(
-                        width="3px",
-                        height="100%",
-                        background="#2563eb",
-                        border_radius="2px",
-                        align_self="stretch",
-                    ),
-                    rx.vstack(
-                        rx.text(
-                            FixtureTickerState.section_title,
-                            font_family="'Outfit', sans-serif",
-                            font_weight="700",
-                            font_size="1.2rem",
-                            color="var(--text-main)",
-                        ),
-                        rx.text(
-                            "Upcoming schedule ranked by difficulty",
-                            font_size="0.8rem",
-                            color="var(--text-sub)",
-                            font_weight="500",
-                        ),
-                        spacing="1",
-                        align="start",
-                    ),
-                    align="center",
-                    spacing="3",
+            rx.hstack(
+                rx.box(
+                    width="4px",
+                    height="32px",
+                    background="var(--accent-9)",
+                    border_radius="2px",
+                    margin_right="0.5rem",
                 ),
-                rx.text("Fixture Ticker & Schedule Matrix", class_name="section-header-title"),
-                rx.text("Evaluate fixture difficulty ratings (FDR) over the next 5 gameweeks to plan transfers and identify fixture swings.", class_name="section-header-sub"),
-                align="start",
-                spacing="1",
+                rx.vstack(
+                    rx.text(rx.concat("Fixture Difficulty · ", FixtureTickerState.horizon_label), class_name="section-header-title"),
+                    rx.text("Upcoming schedule ranked by difficulty", class_name="section-header-sub"),
+                    align="start",
+                    spacing="1",
+                ),
+                align="center",
             ),
-            rx.spacer(),
-            _guide_popover(),
-            guide_popover(
-                title="Fixture Ticker Guide",
-                subtitle="Upcoming schedule difficulty heatmaps",
-                items=[
-                    {"badge": "FDR 2", "title": "Easy Fixtures (Green)", "desc": "Ideal fixtures for attacking returns and clean sheets."},
-                    {"badge": "FDR 4-5", "title": "Tough Fixtures (Red/Orange)", "desc": "Potential rotation risk or lower expected points."},
-                    {"badge": "Total", "title": "Difficulty Sum", "desc": "Lower total rating indicates a more favorable schedule run."},
-                ],
-                tip="Use the search bar to fuzzy-search by player or team name (e.g. 'Palmer' or 'Arsenal').",
+            rx.hstack(
+                guide_popover(
+                    title="Fixture Difficulty Ticker",
+                    subtitle="Upcoming schedule ranked by official FDR and venue difficulty",
+                    items=[
+                        {
+                            "badge": "FDR Sum",
+                            "title": "Cumulative Difficulty Score",
+                            "desc": "Sum of official Premier League FDR scores across the upcoming 5 gameweeks (green = easy run, red = tough test).",
+                        },
+                        {
+                            "badge": "Venue",
+                            "title": "Home & Away Adjustments",
+                            "desc": "(H) vs. (A) tags show home pitch advantage and away fixture handicaps across the 5-match window.",
+                        },
+                        {
+                            "badge": "Swings",
+                            "title": "Fixture Swing Timing",
+                            "desc": "Identify key turning points where clubs swing from tough runs (FDR 15+) into prime attackable schedules (FDR <= 10).",
+                        },
+                        {
+                            "badge": "Squad Clubs",
+                            "title": "My Squad Club Filter",
+                            "desc": "Instantly filter the ticker to isolate the clubs represented in your current 15-player squad.",
+                        },
+                        {
+                            "badge": "Search",
+                            "title": "Club & Player Quick Lookup",
+                            "desc": "Search by player name or 3-letter club abbreviation to immediately locate specific club schedules.",
+                        },
+                    ],
+                    tip="Plan transfers 2 to 3 gameweeks ahead of major green fixture swings to beat transfer price rises and capture maximum haul windows.",
+                ),
+                rx.button(
+                    rx.hstack(
+                        rx.icon("refresh-cw", size=14),
+                        rx.text("Refresh"),
+                        align="center",
+                        spacing="1",
+                    ),
+                    on_click=FixtureTickerState.refresh_data,
+                    variant="outline",
+                    size="2",
+                    color_scheme="gray",
+                ),
+                align="center",
+                spacing="2",
             ),
             width="100%",
             align="center",
@@ -359,61 +107,64 @@ def fixture_ticker_page() -> rx.Component:
             gap="1rem",
         ),
 
-        # ── Filter controls ───────────────────────────────────────────────
+        # Filter Bar matching Streamlit layout
         rx.hstack(
-        # Filter Bar
-        filter_bar(
-            rx.box(
-                rx.input(
-                    placeholder="🔍  Search player or club… e.g. Saka, Arsenal, MCI",
+            rx.vstack(
+                rx.text("Search Player / Club", font_size="0.8rem", color="var(--text-sub)", font_weight="600"),
                 search_input(
                     value=FixtureTickerState.search_query,
                     on_change=FixtureTickerState.set_search,
-                    size="3",
-                    variant="surface",
-                    width="100%",
-                    placeholder="Search club or player name...",
+                    placeholder="e.g. Saka, Arsenal, Haaland, MCI...",
                 ),
-                flex="2",
-                width="280px",
+                align="start",
+                spacing="1",
+                width="340px",
             ),
+            rx.spacer(),
             rx.hstack(
                 rx.switch(
                     checked=FixtureTickerState.only_my_squad,
                     on_change=FixtureTickerState.toggle_only_my_squad,
-                    color_scheme="blue",
+                    color_scheme="green",
                     size="1",
                 ),
-                rx.text(
-                    "🎯 My Squad Clubs Only",
-                    font_size="0.85rem",
-                    font_weight="600",
-                    color="var(--text-main)",
-                    cursor="pointer",
-                    on_click=FixtureTickerState.toggle_only_my_squad(
-                        ~FixtureTickerState.only_my_squad
-                    ),
+                rx.hstack(
+                    rx.icon("crosshair", size=15, color="var(--text-sub)"),
+                    rx.text("Only My Squad Clubs", font_size="0.85rem", color="var(--text-sub)", font_weight="600"),
+                    align="center",
+                    spacing="1",
                 ),
-                rx.text("Only My Squad's Clubs", font_size="0.8rem", color="var(--text-sub)"),
                 align="center",
                 spacing="2",
+                padding_top="1.4rem",
             ),
             width="100%",
-            align="center",
-            spacing="4",
-            margin_bottom="1rem",
+            align="start",
+            margin_bottom="1.25rem",
+            wrap="wrap",
+            gap="1rem",
         ),
 
-        # ── No-ID warning banner ─────────────────────────────────────────
+        # Notice when squad filter active but no Team ID configured
         rx.cond(
-            FixtureTickerState.show_no_id_warning,
-            rx.callout.root(
-                rx.callout.icon(rx.icon("info", size=16)),
-                rx.callout.text(
-                    "Enter your FPL Team ID using the ",
-                    rx.text.strong("➕ Enter FPL ID"),
-                    " button in the top bar to filter by your squad.",
-                    font_size="0.85rem",
+            FixtureTickerState.needs_manager_id,
+            rx.box(
+                rx.hstack(
+                    rx.icon("info", size=16, color="#38bdf8"),
+                    rx.text("Enter your FPL Team ID in the top bar to filter by your squad.", font_size="0.85rem", color="#38bdf8", font_weight="500"),
+                    align="center",
+                    spacing="2",
+                ),
+                padding="0.75rem 1rem",
+                background="rgba(56, 189, 248, 0.08)",
+                border="1px solid rgba(56, 189, 248, 0.25)",
+                border_radius="8px",
+                margin_bottom="1rem",
+                width="100%",
+            ),
+            rx.box(),
+        ),
+
         # Fixture Matrix Table
         rx.box(
             rx.cond(
@@ -428,189 +179,93 @@ def fixture_ticker_page() -> rx.Component:
                     padding="3rem",
                     width="100%",
                 ),
-                color_scheme="blue",
-                variant="surface",
-                width="100%",
-                margin_bottom="0.75rem",
-            ),
-            rx.fragment(),
-        ),
-
-        # ── Loading spinner ───────────────────────────────────────────────
-        rx.cond(
-            FixtureTickerState.is_loading,
-            rx.hstack(
-                rx.spinner(size="3", color_scheme="blue"),
-                rx.text("Loading fixtures…", color="var(--text-sub)", font_size="0.88rem"),
-                align="center",
-                spacing="3",
-                padding="2rem",
-                justify="center",
-                width="100%",
-            ),
-            rx.fragment(),
-        ),
-
-        # ── Empty state ───────────────────────────────────────────────────
-        rx.cond(
-            ~FixtureTickerState.is_loading & ~FixtureTickerState.has_rows & ~FixtureTickerState.show_no_id_warning,
-            rx.vstack(
-                rx.icon("search_x", size=36, color="#64748b"),
-                rx.text(
-                    "No clubs found matching your search.",
-                    font_size="0.9rem",
-                    color="var(--text-sub)",
-                ),
-                align="center",
-                spacing="3",
-                padding="3rem",
-                width="100%",
-            ),
-            rx.fragment(),
-        ),
-
-        # ── FDR Table ─────────────────────────────────────────────────────
-        rx.cond(
-            ~FixtureTickerState.is_loading & FixtureTickerState.has_rows,
-            rx.box(
-                rx.table.root(
-                    rx.table.header(
-                        rx.table.row(
-                            rx.table.column_header_cell(
-                                "Club",
-                                padding_left="0.75rem",
-                                text_align="left",
-                                font_family="'Outfit', sans-serif",
-                                font_weight="600",
-                                font_size="0.78rem",
-                                color="var(--text-sub)",
-                                letter_spacing="0.04em",
-                                white_space="nowrap",
-                            ),
-                            rx.cond(
-                                FixtureTickerState.only_my_squad,
-                                rx.table.column_header_cell(
-                                    "My Players",
-                                    text_align="left",
-                                    font_family="'Outfit', sans-serif",
-                                    font_weight="600",
-                                    font_size="0.78rem",
-                                    color="var(--text-sub)",
-                                    letter_spacing="0.04em",
-                                ),
-                                rx.fragment(),
-                            ),
                 rx.cond(
                     FixtureTickerState.has_rows,
                     rx.table.root(
                         rx.table.header(
                             rx.table.row(
-                                rx.table.column_header_cell("Club", font_weight="700"),
-                                rx.table.column_header_cell("FDR Sum", font_weight="700"),
-                                rx.table.column_header_cell(FixtureTickerState.gw_col_labels[0], font_weight="700"),
-                                rx.table.column_header_cell(FixtureTickerState.gw_col_labels[1], font_weight="700"),
-                                rx.table.column_header_cell(FixtureTickerState.gw_col_labels[2], font_weight="700"),
-                                rx.table.column_header_cell(FixtureTickerState.gw_col_labels[3], font_weight="700"),
-                                rx.table.column_header_cell(FixtureTickerState.gw_col_labels[4], font_weight="700"),
-                                rx.table.column_header_cell("Squad Players", font_weight="700"),
+                                rx.table.column_header_cell("Club", font_weight="700", text_align="left", padding_left="1rem"),
+                                rx.cond(
+                                    FixtureTickerState.only_my_squad,
+                                    rx.table.column_header_cell("Squad Players", font_weight="700", text_align="left"),
+                                    rx.fragment(),
+                                ),
+                                rx.table.column_header_cell(FixtureTickerState.gw_col_labels[0], font_weight="700", text_align="center"),
+                                rx.table.column_header_cell(FixtureTickerState.gw_col_labels[1], font_weight="700", text_align="center"),
+                                rx.table.column_header_cell(FixtureTickerState.gw_col_labels[2], font_weight="700", text_align="center"),
+                                rx.table.column_header_cell(FixtureTickerState.gw_col_labels[3], font_weight="700", text_align="center"),
+                                rx.table.column_header_cell(FixtureTickerState.gw_col_labels[4], font_weight="700", text_align="center"),
+                                rx.table.column_header_cell("Total FDR (5 GW)", font_weight="700", text_align="center"),
                             )
                         ),
                         rx.table.body(
                             rx.foreach(
-                                FixtureTickerState.gw_columns,
-                                lambda gw: rx.table.column_header_cell(
-                                    "GW " + gw.to_string(),
-                                    text_align="center",
-                                    font_family="'Outfit', sans-serif",
-                                    font_weight="600",
-                                    font_size="0.78rem",
-                                    color="var(--text-sub)",
-                                    letter_spacing="0.04em",
-                                    white_space="nowrap",
-                                    min_width="95px",
                                 FixtureTickerState.rows,
                                 lambda row: rx.table.row(
+                                    # Club (Crest logo + Club name)
                                     rx.table.cell(
                                         rx.hstack(
-                                            rx.badge(row["short_name"], variant="surface", color_scheme="blue", size="1"),
-                                            rx.text(row["full_name"], font_weight="600"),
+                                            rx.image(
+                                                src=row["crest_url"],
+                                                width="24px",
+                                                height="24px",
+                                                object_fit="contain",
+                                                flex_shrink="0",
+                                            ),
+                                            rx.text(row["club_display"], font_weight="600"),
                                             align="center",
                                             spacing="2",
-                                        )
+                                        ),
+                                        text_align="left",
+                                        padding_left="1rem",
                                     ),
+                                    # Squad Players (only visible when My Squad is active)
+                                    rx.cond(
+                                        FixtureTickerState.only_my_squad,
+                                        rx.table.cell(
+                                            rx.text(
+                                                row["my_players"],
+                                                font_weight="600",
+                                                font_size="0.85rem",
+                                                color="#60a5fa",
+                                            ),
+                                            text_align="left",
+                                        ),
+                                        rx.fragment(),
+                                    ),
+                                    # 5 Gameweek Badges
+                                    rx.table.cell(_fdr_badge(row["gw0_diff"], row["gw0_label"], row["gw0_blank"]), text_align="center"),
+                                    rx.table.cell(_fdr_badge(row["gw1_diff"], row["gw1_label"], row["gw1_blank"]), text_align="center"),
+                                    rx.table.cell(_fdr_badge(row["gw2_diff"], row["gw2_label"], row["gw2_blank"]), text_align="center"),
+                                    rx.table.cell(_fdr_badge(row["gw3_diff"], row["gw3_label"], row["gw3_blank"]), text_align="center"),
+                                    rx.table.cell(_fdr_badge(row["gw4_diff"], row["gw4_label"], row["gw4_blank"]), text_align="center"),
+                                    # Total FDR (5 GW)
                                     rx.table.cell(
-                                        rx.badge(row["difficulty_rating"].to_string(), variant="surface", color_scheme="gray", size="2")
+                                        rx.text(
+                                            row["difficulty_rating"].to_string(),
+                                            font_weight="800",
+                                            font_size="0.95rem",
+                                            color=row["total_fdr_color"],
+                                        ),
+                                        text_align="center",
                                     ),
-                                    rx.table.cell(_fdr_badge(row["gw0_diff"], row["gw0_label"], row["gw0_blank"])),
-                                    rx.table.cell(_fdr_badge(row["gw1_diff"], row["gw1_label"], row["gw1_blank"])),
-                                    rx.table.cell(_fdr_badge(row["gw2_diff"], row["gw2_label"], row["gw2_blank"])),
-                                    rx.table.cell(_fdr_badge(row["gw3_diff"], row["gw3_label"], row["gw3_blank"])),
-                                    rx.table.cell(_fdr_badge(row["gw4_diff"], row["gw4_label"], row["gw4_blank"])),
-                                    rx.table.cell(rx.text(row["my_players"], font_size="0.75rem", color="var(--text-sub)")),
                                 ),
-                            ),
-                            rx.table.column_header_cell(
-                                "Total FDR",
-                                text_align="center",
-                                font_family="'Outfit', sans-serif",
-                                font_weight="600",
-                                font_size="0.78rem",
-                                color="var(--text-sub)",
-                                letter_spacing="0.04em",
-                                white_space="nowrap",
-                                min_width="80px",
-                            ),
                             )
                         ),
                         variant="surface",
                         size="2",
                         width="100%",
                     ),
-                    rx.table.body(
-                        rx.foreach(
-                            FixtureTickerState.ticker_rows,
-                            _ticker_table_row,
-                        ),
                     rx.center(
-                        rx.text("No clubs matched search query.", font_size="0.85rem", color="var(--text-sub)"),
+                        rx.text("No clubs matched search or squad criteria.", font_size="0.85rem", color="var(--text-sub)"),
                         padding="3rem",
                         width="100%",
                     ),
-                    variant="surface",
-                    size="2",
-                    width="100%",
                 ),
-                width="100%",
-                overflow_x="auto",
-                border="1px solid var(--border-color)",
-                border_radius="10px",
-                background="var(--card-bg)",
-                box_shadow="0 1px 4px rgba(0,0,0,0.08)",
             ),
-            rx.fragment(),
             style=TABLE_CONTAINER_STYLE,
+            width="100%",
         ),
-
-        # Footer hint
-        rx.cond(
-            FixtureTickerState.has_rows,
-            rx.hstack(
-                rx.icon("info", size=12, color="#64748b"),
-                rx.text(
-                    "Showing 5-GW FDR window · Sorted by total difficulty (easiest first)",
-                    font_size="0.74rem",
-                    color="#64748b",
-                    font_style="italic",
-                ),
-                align="center",
-                spacing="1",
-                margin_top="0.5rem",
-            ),
-            rx.fragment(),
-        ),
-
-        on_mount=FixtureTickerState.on_tab_visible,
         width="100%",
-        spacing="0",
-        align="start",
+        on_mount=FixtureTickerState.load_data,
     )
