@@ -18,8 +18,30 @@ def search_input(value: rx.Var, on_change, placeholder: str = "Search player or 
     )
 
 
-def filter_select(label: str, options: list[str], value: rx.Var, on_change) -> rx.Component:
+def filter_select(
+    label: str,
+    options: list[str],
+    value: rx.Var,
+    on_change,
+    vertical: bool = False,
+    width: str = "auto",
+) -> rx.Component:
     """Standardized select dropdown with label."""
+    if vertical:
+        return rx.vstack(
+            rx.text(label, font_size="0.8rem", color="var(--text-sub)", font_weight="600"),
+            rx.select(
+                options,
+                value=value,
+                on_change=on_change,
+                size="2",
+                variant="surface",
+                width="100%",
+            ),
+            align="start",
+            spacing="1",
+            width=width,
+        )
     return rx.hstack(
         rx.text(label, font_size="0.8rem", color="var(--text-sub)", font_weight="600"),
         rx.select(

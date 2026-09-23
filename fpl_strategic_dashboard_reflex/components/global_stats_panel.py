@@ -5,69 +5,31 @@ Faithfully styled after the modern FPL Optimizer design system with hardware-acc
 
 import reflex as rx
 from fpl_strategic_dashboard_reflex.states.base import AppState
+from .motion import MotionDiv
 
 
 def _hero_gw_card() -> rx.Component:
     """Hero card: Active GW Points with CSS transitions and hardware-accelerated themes."""
     return rx.box(
-        rx.hstack(
-            rx.vstack(
+        rx.vstack(
+            rx.hstack(
                 rx.text(
                     AppState.active_gw_label,
                     class_name="hero-label",
                 ),
-                rx.text(
-                    AppState.active_gw_display,
-                    class_name="hero-pts",
-                ),
-                align="start",
-                spacing="2",
-            ),
-            rx.spacer(),
-            rx.box(
+                rx.spacer(),
                 rx.icon(
                     "pie-chart",
-                    size=42,
+                    size=20,
                     class_name="hero-icon",
+                    opacity="0.85",
                 ),
-                opacity="0.85",
-                padding_right="0.5rem",
-            ),
-            align="center",
-            width="100%",
-        ),
-        class_name=rx.cond(
-            AppState.hero_perf_status == "green",
-            "hero-gw-card hero-card-perf-green",
-            rx.cond(
-                AppState.hero_perf_status == "red",
-                "hero-gw-card hero-card-perf-red",
-                "hero-gw-card hero-card-perf-gray",
-            ),
-        ),
-        width="100%",
-    )
-
-
-def _avg_gw_card() -> rx.Component:
-    """Secondary hero element: Gameweek Average Points + comparison delta."""
-    return rx.box(
-        rx.vstack(
-            rx.text(
-                AppState.gw_avg_label,
-                font_size="0.82rem",
-                font_weight="500",
-                color="#94a3b8",
-                letter_spacing="0.02em",
+                align="center",
+                width="100%",
             ),
             rx.text(
-                AppState.gw_avg_display,
-                font_size="2.35rem",
-                font_weight="800",
-                color="#ffffff",
-                line_height="1.1",
-                font_family="'Outfit', sans-serif",
-                letter_spacing="-0.02em",
+                AppState.active_gw_display,
+                class_name="hero-pts",
             ),
             rx.cond(
                 AppState.gw_avg_diff_str != "",
@@ -83,38 +45,90 @@ def _avg_gw_card() -> rx.Component:
                         ),
                     ),
                 ),
-                rx.box(),
+                rx.text(
+                    "Gameweek Score",
+                    class_name="rank-delta-badge-gray",
+                ),
             ),
             align="start",
-            justify="center",
-            spacing="1",
+            justify="between",
+            spacing="2",
             height="100%",
         ),
-        padding="1rem 1.25rem",
+        class_name=rx.cond(
+            AppState.hero_perf_status == "green",
+            "hero-gw-card hero-card-perf-green",
+            rx.cond(
+                AppState.hero_perf_status == "red",
+                "hero-gw-card hero-card-perf-red",
+                "hero-gw-card hero-card-perf-gray",
+            ),
+        ),
+        width="100%",
+        height="100%",
+    )
+
+
+def _avg_gw_card() -> rx.Component:
+    """Primary card: Gameweek Average Points."""
+    return rx.box(
+        rx.vstack(
+            rx.hstack(
+                rx.text(
+                    AppState.gw_avg_label,
+                    class_name="metric-label",
+                ),
+                rx.spacer(),
+                rx.icon(
+                    "users",
+                    size=20,
+                    class_name="metric-icon",
+                    opacity="0.85",
+                ),
+                align="center",
+                width="100%",
+            ),
+            rx.text(
+                AppState.gw_avg_display,
+                class_name="metric-value",
+            ),
+            rx.text(
+                "League Average",
+                class_name="rank-delta-badge-gray",
+            ),
+            align="start",
+            justify="between",
+            spacing="2",
+            height="100%",
+        ),
+        class_name="top-metric-card",
         width="100%",
         height="100%",
     )
 
 
 def _rank_card() -> rx.Component:
-    """Secondary hero element: Overall Rank + rank-change delta."""
+    """Primary card: Overall Rank + rank delta badge."""
     return rx.box(
         rx.vstack(
-            rx.text(
-                "Overall rank",
-                font_size="0.82rem",
-                font_weight="500",
-                color="#94a3b8",
-                letter_spacing="0.02em",
+            rx.hstack(
+                rx.text(
+                    "Overall rank",
+                    class_name="metric-label",
+                ),
+                rx.spacer(),
+                rx.icon(
+                    "trophy",
+                    size=20,
+                    class_name="metric-icon",
+                    opacity="0.85",
+                ),
+                align="center",
+                width="100%",
             ),
             rx.text(
                 AppState.overall_rank_display,
-                font_size="2.35rem",
-                font_weight="800",
-                color="#ffffff",
-                line_height="1.1",
-                font_family="'Outfit', sans-serif",
-                letter_spacing="-0.02em",
+                class_name="metric-value",
             ),
             rx.cond(
                 AppState.rank_delta != "",
@@ -130,42 +144,49 @@ def _rank_card() -> rx.Component:
                         ),
                     ),
                 ),
-                rx.box(),
+                rx.text(
+                    "Global Standing",
+                    class_name="rank-delta-badge-gray",
+                ),
             ),
             align="start",
-            justify="center",
-            spacing="1",
+            justify="between",
+            spacing="2",
             height="100%",
         ),
-        padding="1rem 1.25rem",
+        class_name="top-metric-card",
         width="100%",
         height="100%",
     )
 
 
-def _secondary_stat(label: str, value: rx.Var | str) -> rx.Component:
-    """Flat secondary stat column — label + bold value matching screenshot."""
+def _secondary_stat(icon_name: str, label: str, value: rx.Var | str) -> rx.Component:
+    """Styled secondary portfolio metric card with icon, label, and clean value typography."""
     return rx.box(
         rx.vstack(
-            rx.text(
-                label,
-                font_size="0.82rem",
-                font_weight="500",
-                color="#94a3b8",
-                letter_spacing="0.01em",
+            rx.hstack(
+                rx.icon(
+                    icon_name,
+                    size=15,
+                    class_name="secondary-stat-icon",
+                ),
+                rx.text(
+                    label,
+                    class_name="secondary-stat-label",
+                ),
+                align="center",
+                spacing="2",
             ),
             rx.text(
                 value,
-                font_size="1.55rem",
-                font_weight="700",
-                color="#ffffff",
-                line_height="1.1",
-                font_family="'Outfit', sans-serif",
+                class_name="secondary-stat-value",
             ),
             align="start",
             spacing="1",
+            justify="center",
+            width="100%",
         ),
-        padding_y="0.35rem",
+        class_name="secondary-stat-card",
         width="100%",
     )
 
@@ -179,32 +200,38 @@ def global_stats_panel() -> rx.Component:
     """
     return rx.cond(
         AppState.has_data,
-        rx.vstack(
-            # Row A: Hero GW card + GW Average Card + Overall Rank Card
-            rx.grid(
-                _hero_gw_card(),
-                _avg_gw_card(),
-                _rank_card(),
-                columns=rx.breakpoints(initial="1", md="5fr 3.5fr 3.5fr"),
-                spacing="4",
-                align_items="center",
+        MotionDiv.create(
+            rx.vstack(
+                # Row 1: Hero GW card + GW Average Card + Overall Rank Card (1fr 1fr 1fr)
+                rx.grid(
+                    _hero_gw_card(),
+                    _avg_gw_card(),
+                    _rank_card(),
+                    columns=rx.breakpoints(initial="1", md="3"),
+                    spacing="3",
+                    align_items="stretch",
+                    width="100%",
+                ),
+                # Row 2: Secondary portfolio stats — Manager, Total Points, Squad Value, In the Bank
+                rx.grid(
+                    _secondary_stat("user", "Manager", AppState.display_title),
+                    _secondary_stat("award", "Total points", AppState.total_points.to_string()),
+                    _secondary_stat("trending-up", "Squad value", AppState.squad_value_display),
+                    _secondary_stat("wallet", "In the bank", AppState.bank_balance_display),
+                    columns=rx.breakpoints(initial="2", sm="4"),
+                    spacing="3",
+                    width="100%",
+                ),
+                spacing="3",
                 width="100%",
+                margin_top="0.75rem",
+                margin_bottom="1.5rem",
             ),
-            # Row B: Secondary stats — Manager, Total Points, Squad Value, In the Bank
-            rx.grid(
-                _secondary_stat("Manager", AppState.mgr_name),
-                _secondary_stat("Total points", AppState.total_points.to_string()),
-                _secondary_stat("Squad value", AppState.squad_value_display),
-                _secondary_stat("In the bank", AppState.bank_balance_display),
-                columns=rx.breakpoints(initial="2", sm="4"),
-                spacing="4",
-                width="100%",
-                padding_top="0.5rem",
-            ),
-            spacing="4",
+            layout="position",
+            initial={"opacity": 0, "y": -6},
+            animate={"opacity": 1, "y": 0},
+            transition={"duration": 0.3, "ease": [0.16, 1, 0.3, 1]},
             width="100%",
-            margin_top="0.75rem",
-            margin_bottom="1.75rem",
         ),
         rx.box(height="0.5rem"),
     )

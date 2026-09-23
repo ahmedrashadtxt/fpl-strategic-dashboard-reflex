@@ -7,86 +7,92 @@ from fpl_strategic_dashboard_reflex.components import (
     pitch_view,
     squad_list_view,
     loading_view,
+    MotionDiv,
 )
 
 
 def transfer_lineup_panel() -> rx.Component:
     """Renders current vs proposed squad lineup with client-side pitch/list toggle."""
-    return rx.tabs.root(
-        rx.hstack(
+    return MotionDiv.create(
+        rx.tabs.root(
             rx.hstack(
-                rx.icon("users", size=18, color="#60a5fa"),
-                rx.text(
-                    rx.cond(
-                        TransferAnalyzerState.has_solved,
-                        "Squad Lineup Comparison (Current vs Proposed)",
-                        "Current Squad Starting Lineup",
+                rx.hstack(
+                    rx.icon("users", size=18, color="#60a5fa"),
+                    rx.text(
+                        rx.cond(
+                            TransferAnalyzerState.has_solved,
+                            "Squad Lineup Comparison (Current vs Proposed)",
+                            "Current Squad Starting Lineup",
+                        ),
+                        font_size="1rem",
+                        font_weight="700",
+                        color="var(--text-main)",
                     ),
-                    font_size="1rem",
-                    font_weight="700",
-                    color="var(--text-main)",
+                    align="center",
+                    spacing="2",
                 ),
+                rx.spacer(),
+                # Segmented Pitch View / List View Toggle (Client-Side)
+                rx.tabs.list(
+                    rx.tabs.trigger(
+                        rx.hstack(
+                            rx.icon("layout-grid", size=14),
+                            rx.text("Pitch View"),
+                            align="center",
+                            spacing="1",
+                        ),
+                        value="pitch",
+                    ),
+                    rx.tabs.trigger(
+                        rx.hstack(
+                            rx.icon("list", size=14),
+                            rx.text("List View"),
+                            align="center",
+                            spacing="1",
+                        ),
+                        value="list",
+                    ),
+                ),
+                width="100%",
                 align="center",
-                spacing="2",
+                margin_bottom="1rem",
             ),
-            rx.spacer(),
-            # Segmented Pitch View / List View Toggle (Client-Side)
-            rx.tabs.list(
-                rx.tabs.trigger(
-                    rx.hstack(
-                        rx.icon("layout-grid", size=14),
-                        rx.text("Pitch View"),
-                        align="center",
-                        spacing="1",
+            # Pitch Content
+            rx.tabs.content(
+                rx.cond(
+                    TransferAnalyzerState.has_solved,
+                    rx.grid(
+                        pitch_view(TransferAnalyzerState.base_pitch_html, header_text="Current Squad Lineup"),
+                        pitch_view(TransferAnalyzerState.comp_pitch_html, header_text="Proposed Transfer Squad"),
+                        columns=rx.breakpoints(initial="1", md="2"),
+                        spacing="4",
+                        width="100%",
                     ),
-                    value="pitch",
-                ),
-                rx.tabs.trigger(
-                    rx.hstack(
-                        rx.icon("list", size=14),
-                        rx.text("List View"),
-                        align="center",
-                        spacing="1",
-                    ),
-                    value="list",
-                ),
-            ),
-            width="100%",
-            align="center",
-            margin_bottom="1rem",
-        ),
-        # Pitch Content
-        rx.tabs.content(
-            rx.cond(
-                TransferAnalyzerState.has_solved,
-                rx.grid(
                     pitch_view(TransferAnalyzerState.base_pitch_html, header_text="Current Squad Lineup"),
-                    pitch_view(TransferAnalyzerState.comp_pitch_html, header_text="Proposed Transfer Squad"),
-                    columns=rx.breakpoints(initial="1", md="2"),
-                    spacing="4",
-                    width="100%",
                 ),
-                pitch_view(TransferAnalyzerState.base_pitch_html, header_text="Current Squad Lineup"),
+                value="pitch",
             ),
-            value="pitch",
-        ),
-        # List Content
-        rx.tabs.content(
-            rx.cond(
-                TransferAnalyzerState.has_solved,
-                rx.grid(
+            # List Content
+            rx.tabs.content(
+                rx.cond(
+                    TransferAnalyzerState.has_solved,
+                    rx.grid(
+                        squad_list_view(TransferAnalyzerState.base_starters, TransferAnalyzerState.base_bench, header_text="Current Squad Lineup"),
+                        squad_list_view(TransferAnalyzerState.trans_starters, TransferAnalyzerState.trans_bench, header_text="Proposed Transfer Squad"),
+                        columns=rx.breakpoints(initial="1", md="2"),
+                        spacing="4",
+                        width="100%",
+                    ),
                     squad_list_view(TransferAnalyzerState.base_starters, TransferAnalyzerState.base_bench, header_text="Current Squad Lineup"),
-                    squad_list_view(TransferAnalyzerState.trans_starters, TransferAnalyzerState.trans_bench, header_text="Proposed Transfer Squad"),
-                    columns=rx.breakpoints(initial="1", md="2"),
-                    spacing="4",
-                    width="100%",
                 ),
-                squad_list_view(TransferAnalyzerState.base_starters, TransferAnalyzerState.base_bench, header_text="Current Squad Lineup"),
+                value="list",
             ),
-            value="list",
+            default_value="pitch",
+            class_name="segmented-view-tabs",
+            width="100%",
         ),
-        default_value="pitch",
-        class_name="segmented-view-tabs",
+        layout="position",
+        transition={"duration": 0.35, "ease": [0.16, 1, 0.3, 1]},
         width="100%",
     )
 
@@ -95,8 +101,9 @@ def transfer_solution_panel() -> rx.Component:
     """Renders solved strategy metrics and transfer swap cards."""
     return rx.cond(
         TransferAnalyzerState.has_solved,
-        rx.vstack(
-            # Row of 4 Metric Cards
+        MotionDiv.create(
+            rx.vstack(
+                # Row of 4 Metric Cards
             rx.grid(
                 # Metric 1: Starting XI xP
                 rx.vstack(
@@ -288,8 +295,14 @@ def transfer_solution_panel() -> rx.Component:
             width="100%",
             margin_bottom="1.25rem",
         ),
-        rx.box(),
-    )
+        layout="position",
+        initial={"opacity": 0, "y": 15},
+        animate={"opacity": 1, "y": 0},
+        transition={"duration": 0.35, "ease": [0.16, 1, 0.3, 1]},
+        width="100%",
+    ),
+    rx.box(),
+)
 
 
 def transfer_analyzer_page() -> rx.Component:
@@ -379,27 +392,28 @@ def transfer_analyzer_page() -> rx.Component:
                     margin_bottom="0.75rem",
                 ),
 
-                # Row 1: Evaluation Horizon, Free Transfers, Max Hits, Planned Moves
-                rx.grid(
-                    # Evaluation Horizon
-                    rx.vstack(
-                        rx.text("Evaluation Horizon", font_size="0.75rem", font_weight="600", color="var(--text-sub)"),
-                        rx.select(
-                            TransferAnalyzerState.horizon_options,
-                            value=TransferAnalyzerState.selected_horizon_label,
-                            on_change=TransferAnalyzerState.set_horizon_label,
-                            size="2",
-                            variant="surface",
+                # Row 1: Parameters Row (Regular Transfers = 4 cols, Wildcard/Free Hit = 2 cols)
+                rx.cond(
+                    TransferAnalyzerState.is_regular,
+                    # 4-Column Grid for Regular Transfers
+                    rx.grid(
+                        # 1. Evaluation Horizon
+                        rx.vstack(
+                            rx.text("Evaluation Horizon", font_size="0.75rem", font_weight="600", color="var(--text-sub)"),
+                            rx.select(
+                                TransferAnalyzerState.horizon_options,
+                                value=TransferAnalyzerState.selected_horizon_label,
+                                on_change=TransferAnalyzerState.set_horizon_label,
+                                size="2",
+                                variant="surface",
+                                width="100%",
+                            ),
+                            align="start",
+                            spacing="1",
                             width="100%",
                         ),
-                        align="start",
-                        spacing="1",
-                        width="100%",
-                    ),
 
-                    # Free Transfers (+/- Stepper)
-                    rx.cond(
-                        TransferAnalyzerState.is_regular,
+                        # 2. Free Transfers (+/- Stepper)
                         rx.vstack(
                             rx.text("Free Transfers", font_size="0.75rem", font_weight="600", color="var(--text-sub)"),
                             rx.hstack(
@@ -433,17 +447,14 @@ def transfer_analyzer_page() -> rx.Component:
                                 border="1px solid var(--border-color)",
                                 border_radius="8px",
                                 width="100%",
+                                height="32px",
                             ),
                             align="start",
                             spacing="1",
                             width="100%",
                         ),
-                        rx.box(),
-                    ),
 
-                    # Max Hits (-4) (+/- Stepper)
-                    rx.cond(
-                        TransferAnalyzerState.is_regular,
+                        # 3. Max Hits (-4) (+/- Stepper)
                         rx.vstack(
                             rx.text("Max Hits (-4)", font_size="0.75rem", font_weight="600", color="var(--text-sub)"),
                             rx.hstack(
@@ -477,68 +488,101 @@ def transfer_analyzer_page() -> rx.Component:
                                 border="1px solid var(--border-color)",
                                 border_radius="8px",
                                 width="100%",
+                                height="32px",
                             ),
                             align="start",
                             spacing="1",
                             width="100%",
                         ),
-                        rx.box(),
-                    ),
 
-                    # Planned Moves or Available Budget Card
-                    rx.vstack(
-                        rx.cond(
-                            TransferAnalyzerState.is_regular,
+                        # 4. Planned Moves Card
+                        rx.vstack(
                             rx.text("Planned Moves", font_size="0.75rem", font_weight="600", color="var(--text-sub)"),
-                            rx.text("Available Budget", font_size="0.75rem", font_weight="600", color="var(--text-sub)"),
-                        ),
-                        rx.hstack(
-                            rx.cond(
-                                TransferAnalyzerState.is_regular,
+                            rx.hstack(
                                 rx.text(
                                     TransferAnalyzerState.planned_moves_text,
-                                    font_size="1rem",
+                                    font_size="0.95rem",
                                     font_weight="700",
                                     color="var(--text-main)",
                                 ),
+                                rx.cond(
+                                    TransferAnalyzerState.has_hit_penalty,
+                                    rx.badge(
+                                        TransferAnalyzerState.hits_penalty_text,
+                                        color_scheme="red",
+                                        variant="surface",
+                                        size="1",
+                                    ),
+                                    rx.box(),
+                                ),
+                                align="center",
+                                spacing="2",
+                                padding="0.35rem 0.75rem",
+                                background="rgba(255, 255, 255, 0.03)",
+                                border="1px solid var(--border-color)",
+                                border_radius="8px",
+                                width="100%",
+                                height="32px",
+                            ),
+                            align="start",
+                            spacing="1",
+                            width="100%",
+                        ),
+
+                        columns=rx.breakpoints(initial="1", sm="2", md="4"),
+                        spacing="3",
+                        width="100%",
+                        align_items="end",
+                        margin_bottom="1rem",
+                    ),
+
+                    # 2-Column Grid for Wildcard & Free Hit
+                    rx.grid(
+                        # 1. Evaluation Horizon
+                        rx.vstack(
+                            rx.text("Evaluation Horizon", font_size="0.75rem", font_weight="600", color="var(--text-sub)"),
+                            rx.select(
+                                TransferAnalyzerState.horizon_options,
+                                value=TransferAnalyzerState.selected_horizon_label,
+                                on_change=TransferAnalyzerState.set_horizon_label,
+                                size="2",
+                                variant="surface",
+                                width="100%",
+                            ),
+                            align="start",
+                            spacing="1",
+                            width="100%",
+                        ),
+
+                        # 2. Available Budget Card
+                        rx.vstack(
+                            rx.text("Available Budget", font_size="0.75rem", font_weight="600", color="var(--text-sub)"),
+                            rx.hstack(
                                 rx.text(
                                     TransferAnalyzerState.team_val_display,
-                                    font_size="1rem",
+                                    font_size="0.95rem",
                                     font_weight="700",
                                     color="#4ade80",
                                 ),
+                                align="center",
+                                padding="0.35rem 0.75rem",
+                                background="rgba(255, 255, 255, 0.03)",
+                                border="1px solid var(--border-color)",
+                                border_radius="8px",
+                                width="100%",
+                                height="32px",
                             ),
-                            rx.cond(
-                                TransferAnalyzerState.has_hit_penalty,
-                                rx.badge(
-                                    TransferAnalyzerState.hits_penalty_text,
-                                    color_scheme="red",
-                                    variant="surface",
-                                    size="1",
-                                ),
-                                rx.box(),
-                            ),
-                            align="center",
-                            spacing="2",
+                            align="start",
+                            spacing="1",
+                            width="100%",
                         ),
-                        align="start",
-                        spacing="1",
-                        padding="0.35rem 0.75rem",
-                        background="rgba(255, 255, 255, 0.03)",
-                        border="1px solid var(--border-color)",
-                        border_radius="8px",
-                        width="100%",
-                    ),
 
-                    columns=rx.cond(
-                        TransferAnalyzerState.is_regular,
-                        rx.breakpoints(initial="1", sm="2", md="4"),
-                        rx.breakpoints(initial="1", sm="2"),
+                        columns=rx.breakpoints(initial="1", sm="2"),
+                        spacing="3",
+                        width="100%",
+                        align_items="end",
+                        margin_bottom="1rem",
                     ),
-                    spacing="3",
-                    width="100%",
-                    align_items="end",
-                    margin_bottom="1rem",
                 ),
 
                 # Chip Active Banners

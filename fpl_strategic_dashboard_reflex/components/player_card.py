@@ -1,11 +1,12 @@
 """Reusable Player Highlight Card component for analytic pages."""
 
 import reflex as rx
+from .motion import MotionDiv
 
 
 def player_highlight_card(c: dict) -> rx.Component:
     """Renders a single player highlight card with avatar, name, position, team, projection badge, and summary subtext."""
-    return rx.box(
+    return MotionDiv.create(
         rx.hstack(
             rx.avatar(
                 src=c["img_url"],
@@ -46,7 +47,10 @@ def player_highlight_card(c: dict) -> rx.Component:
         background="rgba(255, 255, 255, 0.03)",
         border="1px solid var(--border-color)",
         border_radius="10px",
-        flex="1 1 230px",
-        min_width="220px",
+        width="100%",
+        min_width="0",
+        layout="position",
+        while_hover={"y": -2, "transition": {"duration": 0.15}},
+        transition={"type": "spring", "stiffness": 400, "damping": 30},
     )
 

@@ -8,6 +8,7 @@ from fpl_strategic_dashboard_reflex.components import (
     pitch_view,
     squad_list_view,
     loading_view,
+    MotionDiv,
 )
 
 
@@ -277,36 +278,41 @@ def match_center_kpi_cards() -> rx.Component:
 
 
 def squad_lineup_tabs_content() -> rx.Component:
-    """Renders pitch and list views as client-side tabs content with zero round-trip latency."""
-    return rx.box(
-        rx.tabs.content(
-            rx.cond(
-                SquadAnalyzerState.enable_comparison,
-                rx.grid(
+    """Renders pitch and list views as client-side tabs content with zero round-trip latency and smooth layout gliding."""
+    return MotionDiv.create(
+        rx.box(
+            rx.tabs.content(
+                rx.cond(
+                    SquadAnalyzerState.enable_comparison,
+                    rx.grid(
+                        pitch_view(SquadAnalyzerState.base_pitch_html, header_text=SquadAnalyzerState.squad_header_text),
+                        pitch_view(SquadAnalyzerState.comp_pitch_html, header_text=SquadAnalyzerState.comp_header_text),
+                        columns=rx.breakpoints(initial="1", md="2"),
+                        spacing="4",
+                        width="100%",
+                    ),
                     pitch_view(SquadAnalyzerState.base_pitch_html, header_text=SquadAnalyzerState.squad_header_text),
-                    pitch_view(SquadAnalyzerState.comp_pitch_html, header_text=SquadAnalyzerState.comp_header_text),
-                    columns=rx.breakpoints(initial="1", md="2"),
-                    spacing="4",
-                    width="100%",
                 ),
-                pitch_view(SquadAnalyzerState.base_pitch_html, header_text=SquadAnalyzerState.squad_header_text),
+                value="pitch",
             ),
-            value="pitch",
-        ),
-        rx.tabs.content(
-            rx.cond(
-                SquadAnalyzerState.enable_comparison,
-                rx.grid(
+            rx.tabs.content(
+                rx.cond(
+                    SquadAnalyzerState.enable_comparison,
+                    rx.grid(
+                        squad_list_view(SquadAnalyzerState.starters, SquadAnalyzerState.bench, header_text=SquadAnalyzerState.squad_header_text),
+                        squad_list_view(SquadAnalyzerState.compare_starters, SquadAnalyzerState.compare_bench, header_text=SquadAnalyzerState.comp_header_text),
+                        columns=rx.breakpoints(initial="1", md="2"),
+                        spacing="4",
+                        width="100%",
+                    ),
                     squad_list_view(SquadAnalyzerState.starters, SquadAnalyzerState.bench, header_text=SquadAnalyzerState.squad_header_text),
-                    squad_list_view(SquadAnalyzerState.compare_starters, SquadAnalyzerState.compare_bench, header_text=SquadAnalyzerState.comp_header_text),
-                    columns=rx.breakpoints(initial="1", md="2"),
-                    spacing="4",
-                    width="100%",
                 ),
-                squad_list_view(SquadAnalyzerState.starters, SquadAnalyzerState.bench, header_text=SquadAnalyzerState.squad_header_text),
+                value="list",
             ),
-            value="list",
+            width="100%",
         ),
+        layout="position",
+        transition={"duration": 0.35, "ease": [0.16, 1, 0.3, 1]},
         width="100%",
     )
 
@@ -315,16 +321,23 @@ def squad_market_section() -> rx.Component:
     """Renders market divergence and velocity tables when betting overlay is enabled."""
     return rx.cond(
         SquadAnalyzerState.show_betting_controls & SquadAnalyzerState.enable_betting,
-        rx.vstack(
-            rx.grid(
-                model_vs_market_table(),
-                line_movement_table(),
-                columns=rx.breakpoints(initial="1", lg="2"),
-                spacing="4",
+        MotionDiv.create(
+            rx.vstack(
+                rx.grid(
+                    model_vs_market_table(),
+                    line_movement_table(),
+                    columns=rx.breakpoints(initial="1", lg="2"),
+                    spacing="4",
+                    width="100%",
+                ),
                 width="100%",
+                margin_top="1rem",
             ),
+            layout="position",
+            initial={"opacity": 0, "y": 15},
+            animate={"opacity": 1, "y": 0},
+            transition={"duration": 0.35, "ease": [0.16, 1, 0.3, 1]},
             width="100%",
-            margin_top="1rem",
         ),
         rx.box(),
     )
@@ -337,7 +350,6 @@ def squad_controls_bar() -> rx.Component:
             # Row 1: Gameweek Radio Selector & Refresh
             rx.hstack(
                 rx.vstack(
-                    rx.text("📅 Select Gameweek:", font_size="0.85rem", color="var(--text-primary)", font_weight="600"),
                     rx.hstack(
                         rx.icon("calendar", size=14, color="var(--accent-9)"),
                         rx.text("Select Gameweek:", font_size="0.85rem", color="var(--text-primary)", font_weight="600"),
@@ -418,21 +430,27 @@ def squad_controls_bar() -> rx.Component:
                 # Super Team Switch (Visible when Comparison is enabled)
                 rx.cond(
                     SquadAnalyzerState.enable_comparison,
-                    rx.hstack(
-                        rx.switch(
-                            checked=SquadAnalyzerState.super_team_mode,
-                            on_change=SquadAnalyzerState.set_super_team_mode,
-                            color_scheme="amber",
-                            size="2",
-                        ),
+                    MotionDiv.create(
                         rx.hstack(
-                            rx.icon("star", size=14, color="#f59e0b"),
-                            rx.text("Super Team", font_size="0.85rem", font_weight="600"),
+                            rx.switch(
+                                checked=SquadAnalyzerState.super_team_mode,
+                                on_change=SquadAnalyzerState.set_super_team_mode,
+                                color_scheme="amber",
+                                size="2",
+                            ),
+                            rx.hstack(
+                                rx.icon("star", size=14, color="#f59e0b"),
+                                rx.text("Super Team", font_size="0.85rem", font_weight="600"),
+                                align="center",
+                                spacing="1",
+                            ),
                             align="center",
-                            spacing="1",
+                            spacing="2",
                         ),
-                        align="center",
-                        spacing="2",
+                        layout="position",
+                        initial={"opacity": 0, "scale": 0.95},
+                        animate={"opacity": 1, "scale": 1},
+                        transition={"duration": 0.2},
                     ),
                     rx.box(),
                 ),

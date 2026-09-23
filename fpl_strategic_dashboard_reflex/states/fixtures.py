@@ -7,6 +7,8 @@ import reflex as rx
 from fpl_strategic_dashboard_reflex.states.base import AppState
 from fpl_strategic_dashboard_reflex.services.fixtures import _build_ticker_rows
 
+_fixtures_cache: Dict[str, List[Dict[str, Any]]] = {}
+
 
 class FixtureTickerState(AppState):
     """Sub-state managing the 5-GW forward fixture difficulty rating (FDR) matrix."""
@@ -42,11 +44,11 @@ class FixtureTickerState(AppState):
 
     def set_search(self, val: str):
         self.search_query = val
-        return FixtureTickerState.load_data(True)
+        return FixtureTickerState.load_data(False)
 
     def toggle_only_my_squad(self, val: bool):
         self.only_my_squad = val
-        return FixtureTickerState.load_data(True)
+        return FixtureTickerState.load_data(False)
 
     def on_tab_visible(self):
         return FixtureTickerState.load_data(False)
@@ -64,15 +66,17 @@ class FixtureTickerState(AppState):
             only_my_squad = self.only_my_squad
             manager_id = self.manager_id
 
-            if self.has_rows and not force_refresh and (
-                current_gw == self.last_loaded_gw
-                and manager_id == self.last_loaded_mgr
-                and search_query == self.last_search
-                and only_my_squad == self.last_only_squad
-            ):
+            cache_key = f"{current_gw}_{search_query}_{only_my_squad}_{manager_id}"
+
+            if not force_refresh and cache_key in _fixtures_cache:
+                self.rows = _fixtures_cache[cache_key]
+                self.is_loading = False
                 return
 
             self.is_loading = True
+
+        if force_refresh:
+            _fixtures_cache.clear()
 
         data = await asyncio.to_thread(
             _build_ticker_rows,
@@ -83,7 +87,9 @@ class FixtureTickerState(AppState):
         )
 
         async with self:
-            self.rows = data
+            if data is not None:
+                _fixtures_cache[cache_key] = data
+                self.rows = data
             self.last_loaded_gw = current_gw
             self.last_loaded_mgr = manager_id
             self.last_search = search_query

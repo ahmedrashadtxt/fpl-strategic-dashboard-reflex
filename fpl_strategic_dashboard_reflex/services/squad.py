@@ -823,6 +823,7 @@ def get_cached_league_eval_df(
     enable_betting: bool = False,
     market_weight: float = 0.35,
     factor_movement: bool = True,
+    only_available: bool = False,
 ) -> pd.DataFrame:
     adv_fix_df = pd.read_sql(
         """
@@ -835,9 +836,10 @@ def get_cached_league_eval_df(
         WHERE f.event >= ? AND f.event <= ?
         """,
         _conn,
-        params=[current_gw, max(19, selected_eval_gw)],
+        params=[min(current_gw, selected_eval_gw, 1), max(38, selected_eval_gw)],
     )
-    all_players_query = """
+    status_filter = "WHERE (p.status = 'a' OR p.chance_of_playing_next_round >= 75)" if only_available else ""
+    all_players_query = f"""
     SELECT p.id, p.code, p.photo, p.web_name AS Player, p.team AS team_id,
            t.short_name AS Team,
            CASE p.element_type WHEN 1 THEN 'GKP' WHEN 2 THEN 'DEF' WHEN 3 THEN 'MID' WHEN 4 THEN 'FWD' END AS Pos,
@@ -848,7 +850,7 @@ def get_cached_league_eval_df(
     FROM players p
     INNER JOIN teams t ON p.team = t.id
     INNER JOIN positions pos ON p.element_type = pos.id
-    WHERE (p.status = 'a' OR p.chance_of_playing_next_round >= 75)
+    {status_filter}
     """
     all_pl_df = pd.read_sql(all_players_query, _conn)
     hist_baselines_df = get_historical_player_baselines(_conn)
@@ -896,7 +898,7 @@ def get_cached_league_dream_15(
     factor_movement: bool = True,
 ):
     league_eval_df = get_cached_league_eval_df(
-        _conn, current_gw, selected_eval_gw, enable_betting, market_weight, factor_movement
+        _conn, current_gw, selected_eval_gw, enable_betting, market_weight, factor_movement, only_available=True
     )
     league_dream_15 = solve_budget_dream_15(league_eval_df, max_budget=total_budget)
     return solve_optimal_xi(league_dream_15)
@@ -911,7 +913,7 @@ def get_cached_league_super_15(
     factor_movement: bool = True,
 ):
     league_eval_df = get_cached_league_eval_df(
-        _conn, current_gw, selected_eval_gw, enable_betting, market_weight, factor_movement
+        _conn, current_gw, selected_eval_gw, enable_betting, market_weight, factor_movement, only_available=True
     )
     super_15 = solve_unconstrained_super_15(league_eval_df)
     return solve_optimal_xi(super_15)
@@ -1349,7 +1351,7 @@ def analyze_manager_squad(manager_id, current_gw, selected_eval_gw, chip, comp, 
             WHERE f.event >= ? AND f.event <= ?
             """,
             conn,
-            params=[current_gw, max(19, selected_eval_gw)],
+            params=[min(current_gw, selected_eval_gw, 1), max(38, selected_eval_gw)],
         )
         hist_baselines_df = get_historical_player_baselines(conn)
         market_cache = load_db_market_odds(conn) if betting else {}

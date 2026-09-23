@@ -2,7 +2,7 @@
 
 import reflex as rx
 from fpl_strategic_dashboard_reflex.states.simulator import SimulatorState
-from fpl_strategic_dashboard_reflex.components import guide_popover
+from fpl_strategic_dashboard_reflex.components import guide_popover, loading_view, MotionDiv
 from fpl_strategic_dashboard_reflex.styles.theme import (
     CARD_STYLE,
     FILTER_BAR_STYLE,
@@ -226,7 +226,11 @@ def simulator_page() -> rx.Component:
             rx.text("Target Gameweek", font_weight="700", font_size="0.95rem", color="var(--text-main)"),
             rx.select(
                 SimulatorState.available_sim_gws,
-                value=SimulatorState.target_sim_gw,
+                value=rx.cond(
+                    SimulatorState.target_sim_gw != "",
+                    SimulatorState.target_sim_gw,
+                    SimulatorState.current_gw.to_string(),
+                ),
                 on_change=SimulatorState.set_target_gw,
                 size="2",
                 variant="surface",
@@ -244,58 +248,58 @@ def simulator_page() -> rx.Component:
             rx.grid(
                 rx.button(
                     rx.hstack(
-                        rx.icon("user", size=15),
+                        rx.icon("user", size=14),
                         rx.text("My Active Squad", font_weight="600"),
                         align="center",
                         spacing="2",
                     ),
                     variant=rx.cond(SimulatorState.is_active_mode, "solid", "surface"),
                     color_scheme=rx.cond(SimulatorState.is_active_mode, "amber", "gray"),
-                    size="3",
+                    size="2",
                     width="100%",
                     on_click=lambda: SimulatorState.set_squad_mode("active"),
                 ),
                 rx.button(
                     rx.hstack(
-                        rx.icon("arrow-left-right", size=15),
+                        rx.icon("arrow-left-right", size=14),
                         rx.text("Post-Transfer Plan", font_weight="600"),
                         align="center",
                         spacing="2",
                     ),
                     variant=rx.cond(SimulatorState.is_transfer_plan_mode, "solid", "surface"),
                     color_scheme=rx.cond(SimulatorState.is_transfer_plan_mode, "cyan", "gray"),
-                    size="3",
+                    size="2",
                     width="100%",
                     on_click=lambda: SimulatorState.set_squad_mode("transfer_plan"),
                 ),
                 rx.button(
                     rx.hstack(
-                        rx.icon("star", size=15),
+                        rx.icon("star", size=14),
                         rx.text("Budget Dream 15", font_weight="600"),
                         align="center",
                         spacing="2",
                     ),
                     variant=rx.cond(SimulatorState.is_dream15_mode, "solid", "surface"),
                     color_scheme=rx.cond(SimulatorState.is_dream15_mode, "purple", "gray"),
-                    size="3",
+                    size="2",
                     width="100%",
                     on_click=lambda: SimulatorState.set_squad_mode("dream15"),
                 ),
                 rx.button(
                     rx.hstack(
-                        rx.icon("wrench", size=15),
-                        rx.text("Custom 15-Player Sandbox", font_weight="600"),
+                        rx.icon("wrench", size=14),
+                        rx.text("Custom Sandbox", font_weight="600", white_space="nowrap"),
                         align="center",
                         spacing="2",
                     ),
                     variant=rx.cond(SimulatorState.is_sandbox_mode, "solid", "surface"),
                     color_scheme=rx.cond(SimulatorState.is_sandbox_mode, "amber", "gray"),
-                    size="3",
+                    size="2",
                     width="100%",
                     on_click=lambda: SimulatorState.set_squad_mode("sandbox"),
                 ),
                 columns=rx.breakpoints(initial="1", sm="2", md="4"),
-                spacing="3",
+                spacing="2",
                 width="100%",
             ),
             align="start",
@@ -340,8 +344,9 @@ def simulator_page() -> rx.Component:
         # Custom Sandbox Wildcard Builder (visible when in sandbox mode)
         rx.cond(
             SimulatorState.is_sandbox_mode,
-            rx.box(
-                rx.vstack(
+            MotionDiv.create(
+                rx.box(
+                    rx.vstack(
                     rx.hstack(
                         rx.vstack(
                             rx.hstack(
@@ -356,11 +361,26 @@ def simulator_page() -> rx.Component:
                         ),
                         rx.spacer(),
                         rx.hstack(
-                            rx.button("Random 15", variant="surface", color_scheme="amber", size="2", on_click=SimulatorState.load_sandbox_random_15),
+                            rx.button(
+                                rx.hstack(rx.icon("arrow-left-right", size=13), rx.text("Load Post-Transfer"), align="center", spacing="1"),
+                                variant="surface",
+                                color_scheme="cyan",
+                                size="2",
+                                on_click=SimulatorState.load_sandbox_post_transfer_15,
+                            ),
+                            rx.button(
+                                rx.hstack(rx.icon("user", size=13), rx.text("Load My Squad"), align="center", spacing="1"),
+                                variant="surface",
+                                color_scheme="blue",
+                                size="2",
+                                on_click=SimulatorState.load_sandbox_my_squad,
+                            ),
                             rx.button("Load Budget 15", variant="surface", color_scheme="purple", size="2", on_click=SimulatorState.load_sandbox_budget_15),
+                            rx.button("Random 15", variant="surface", color_scheme="amber", size="2", on_click=SimulatorState.load_sandbox_random_15),
                             rx.button("Clear All", variant="surface", color_scheme="red", size="2", on_click=SimulatorState.clear_sandbox),
                             align="center",
                             spacing="2",
+                            wrap="wrap",
                         ),
                         width="100%",
                         align="center",
@@ -469,8 +489,10 @@ def simulator_page() -> rx.Component:
                             ),
                             style={
                                 **TABLE_CONTAINER_STYLE,
-                                "max_height": "280px",
+                                "max_height": "320px",
                                 "overflow_y": "auto",
+                                "overflow_x": "auto",
+                                "width": "100%",
                             },
                         ),
                     ),
@@ -483,8 +505,14 @@ def simulator_page() -> rx.Component:
                 },
                 width="100%",
             ),
-            rx.box(),
+            layout="position",
+            initial={"opacity": 0, "y": -10},
+            animate={"opacity": 1, "y": 0},
+            transition={"duration": 0.35, "ease": [0.16, 1, 0.3, 1]},
+            width="100%",
         ),
+        rx.box(),
+    ),
 
         # Main Content: 2-Column Split matching Reference Screenshot
         rx.grid(
@@ -553,6 +581,7 @@ def simulator_page() -> rx.Component:
                     width="100%",
                 ),
                 min_width="0",
+                max_width="100%",
                 width="100%",
             ),
 
@@ -561,20 +590,16 @@ def simulator_page() -> rx.Component:
                 rx.vstack(
                     rx.cond(
                         SimulatorState.is_loading,
-                        rx.center(
-                            rx.vstack(
-                                rx.spinner(size="3"),
-                                rx.text(SimulatorState.status_message, font_size="0.85rem", color="var(--text-sub)"),
-                                align="center",
-                                spacing="2",
-                            ),
-                            padding="6rem",
-                            width="100%",
+                        loading_view(
+                            status_message=SimulatorState.status_message,
+                            title="Monte Carlo Match Engine",
+                            badge_text="SIMULATION ENGINE",
                         ),
                         rx.cond(
                             SimulatorState.has_results,
-                            rx.vstack(
-                                # Header with Exec Time
+                            MotionDiv.create(
+                                rx.vstack(
+                                    # Header with Exec Time
                                 rx.hstack(
                                     rx.text("Simulation Results", font_size="1.25rem", font_weight="700", color="var(--text-main)"),
                                     rx.text(SimulatorState.exec_time_label, font_size="0.8rem", color="var(--text-sub)"),
@@ -592,6 +617,7 @@ def simulator_page() -> rx.Component:
                                             spacing="1",
                                         ),
                                         style=METRIC_CARD_STYLE,
+                                        min_width="0",
                                     ),
                                     rx.box(
                                         rx.vstack(
@@ -601,6 +627,7 @@ def simulator_page() -> rx.Component:
                                             spacing="1",
                                         ),
                                         style=METRIC_CARD_STYLE,
+                                        min_width="0",
                                     ),
                                     rx.box(
                                         rx.vstack(
@@ -610,6 +637,7 @@ def simulator_page() -> rx.Component:
                                             spacing="1",
                                         ),
                                         style=METRIC_CARD_STYLE,
+                                        min_width="0",
                                     ),
                                     rx.box(
                                         rx.vstack(
@@ -619,8 +647,9 @@ def simulator_page() -> rx.Component:
                                             spacing="1",
                                         ),
                                         style=METRIC_CARD_STYLE,
+                                        min_width="0",
                                     ),
-                                    columns=rx.breakpoints(initial="2", sm="4"),
+                                    columns=rx.breakpoints(initial="2", sm="2", xl="4"),
                                     spacing="3",
                                     width="100%",
                                 ),
@@ -661,6 +690,8 @@ def simulator_page() -> rx.Component:
                                     ),
                                     style=CARD_STYLE,
                                     width="100%",
+                                    min_width="0",
+                                    overflow_x="hidden",
                                 ),
 
                                 # Head-to-Head Comparison Banner (if enabled)
@@ -754,12 +785,22 @@ def simulator_page() -> rx.Component:
                                             width="100%",
                                         ),
                                         style=TABLE_CONTAINER_STYLE,
+                                        width="100%",
+                                        overflow_x="auto",
+                                        min_width="0",
                                     ),
                                     width="100%",
+                                    min_width="0",
                                 ),
                                 spacing="4",
                                 width="100%",
                             ),
+                            layout="position",
+                            initial={"opacity": 0, "y": 15},
+                            animate={"opacity": 1, "y": 0},
+                            transition={"duration": 0.35, "ease": [0.16, 1, 0.3, 1]},
+                            width="100%",
+                        ),
                             rx.center(
                                 rx.vstack(
                                     rx.icon("activity", size=36, color="var(--text-muted)"),
@@ -777,6 +818,7 @@ def simulator_page() -> rx.Component:
                     width="100%",
                 ),
                 min_width="0",
+                max_width="100%",
                 width="100%",
             ),
             columns=rx.breakpoints(initial="1", lg="5fr 7fr"),

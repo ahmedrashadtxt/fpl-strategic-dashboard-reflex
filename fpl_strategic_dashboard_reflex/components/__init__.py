@@ -26,6 +26,7 @@ from .filters import search_input, filter_select, filter_bar
 from .data_table import data_table
 from .utils import concat
 from .loading import loading_view
+from .motion import MotionDiv, AnimatePresence, motion_tab_content, motion_card
 
 __all__ = [
     "header",
@@ -51,5 +52,9 @@ __all__ = [
     "data_table",
     "concat",
     "loading_view",
+    "MotionDiv",
+    "AnimatePresence",
+    "motion_tab_content",
+    "motion_card",
 ]
 
