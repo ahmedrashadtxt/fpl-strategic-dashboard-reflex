@@ -79,7 +79,6 @@ def render_player_item(p: dict, is_bench: bool = False) -> rx.Component:
                     ),
                     rx.cond(
                         (p["News"] != "") & (p["News"] != None),
-                        rx.text("⚠ ", p["News"], font_size="0.75rem", color="#fb923c"),
                         rx.hstack(
                             rx.icon("triangle-alert", size=12, color="#fb923c"),
                             rx.text(p["News"], font_size="0.75rem", color="#fb923c"),
