@@ -29,7 +29,7 @@ METRIC_CARD_STYLE = {
     "border_radius": "10px",
     "padding": "0.75rem 1rem",
     "flex": "1",
-    "min_width": "150px",
+    "min_width": "0",
 }
 
 FILTER_BAR_STYLE = {

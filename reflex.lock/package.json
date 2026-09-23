@@ -11,6 +11,7 @@
     "isbot": "5.2.1",
     "lucide-react": "1.26.0",
     "mergician": "v2.0.2",
+    "motion": "12.4.7",
     "plotly.js": "3.7.0",
     "react": "19.2.8",
     "react-debounce-input": "3.3.0",

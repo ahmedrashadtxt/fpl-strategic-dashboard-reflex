@@ -7,6 +7,8 @@ import reflex as rx
 from fpl_strategic_dashboard_reflex.states.base import AppState
 from fpl_strategic_dashboard_reflex.services.market import run_market_analysis
 
+_market_cache: Dict[str, Dict[str, Any]] = {}
+
 
 class TransferMarketState(AppState):
     """Sub-state managing transfer targets and scout analysis."""
@@ -46,30 +48,30 @@ class TransferMarketState(AppState):
 
     def set_search(self, value: str):
         self.search_query = value
-        return TransferMarketState.load_data(True)
+        return TransferMarketState.load_data(False)
 
     def set_pos_filter(self, value: str):
         self.pos_filter = value
-        return TransferMarketState.load_data(True)
+        return TransferMarketState.load_data(False)
 
     def set_sort_by(self, value: str):
         self.sort_by = value
-        return TransferMarketState.load_data(True)
+        return TransferMarketState.load_data(False)
 
     def set_max_price(self, value: list[float]):
         try:
             self.max_price = float(value[0])
         except Exception:
             pass
-        return TransferMarketState.load_data(True)
+        return TransferMarketState.load_data(False)
 
     def toggle_exclude(self, value: bool):
         self.exclude_my_squad = value
-        return TransferMarketState.load_data(True)
+        return TransferMarketState.load_data(False)
 
     def toggle_betting(self, value: bool):
         self.enable_betting = value
-        return TransferMarketState.load_data(True)
+        return TransferMarketState.load_data(False)
 
     @rx.event
     def refresh_data(self):
@@ -88,19 +90,19 @@ class TransferMarketState(AppState):
             ems = self.exclude_my_squad
             eb = self.enable_betting
 
-            if self.has_data and not force_refresh and (
-                c_gw == self.last_loaded_gw
-                and mgr_id == self.last_loaded_mgr
-                and sq == self.last_sq
-                and pf == self.last_pf
-                and sb == self.last_sb
-                and mp == self.last_mp
-                and ems == self.last_ems
-                and eb == self.last_eb
-            ):
+            cache_key = f"{c_gw}_{mgr_id}_{sq}_{pf}_{sb}_{mp:.1f}_{ems}_{eb}"
+
+            if not force_refresh and cache_key in _market_cache:
+                result = _market_cache[cache_key]
+                self.top_cards = result.get("top_cards", result.get("cards", []))
+                self.table_data = result.get("table", [])
+                self.is_loading = False
                 return
 
             self.is_loading = True
+
+        if force_refresh:
+            _market_cache.clear()
 
         try:
             result = await asyncio.to_thread(
@@ -113,6 +115,7 @@ class TransferMarketState(AppState):
 
         async with self:
             if result:
+                _market_cache[cache_key] = result
                 self.top_cards = result.get("top_cards", result.get("cards", []))
                 self.table_data = result.get("table", [])
             self.last_loaded_gw = c_gw

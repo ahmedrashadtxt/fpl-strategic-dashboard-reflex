@@ -11,6 +11,7 @@ from fpl_strategic_dashboard_reflex.services.db import (
     get_connection,
     get_teams_fdr_map,
     get_historical_player_baselines,
+    get_fixture_for_team,
 )
 from fpl_strategic_dashboard_reflex.services.simulator import (
     build_odds_map,
@@ -27,13 +28,16 @@ from fpl_strategic_dashboard_reflex.services.squad import (
 )
 
 
+_simulation_results_cache: Dict[str, Any] = {}
+
+
 class SimulatorState(AppState):
     """Sub-state managing Monte Carlo simulations, flexible squad sources, and Head-to-Head stress-testing."""
 
     is_loading: bool = False
     status_message: str = "Running Monte Carlo iterations..."
 
-    target_sim_gw: str = "4"
+    target_sim_gw: str = ""
     # Squad Modes: "active", "transfer_plan", "dream15", "sandbox"
     squad_mode: str = "active"
     iterations: int = 5000
@@ -224,41 +228,53 @@ class SimulatorState(AppState):
                 or search in str(p.get("Team", "")).lower()
             ]
 
-        # Selected players first, then highest projected points
         selected_set = set(self.sandbox_selected_ids)
-        return sorted(
-            pool[:100],
-            key=lambda x: (x.get("id") in selected_set, float(x.get("Proj_Pts", 0.0))),
+
+        # 1. All selected players matching current filter (never truncate selected players)
+        selected_players = [p for p in pool if p.get("id") in selected_set]
+        selected_players.sort(
+            key=lambda x: float(x.get("Proj_Pts", 0.0)),
             reverse=True,
         )
+
+        # 2. Unselected players matching current filter, sorted by projected points
+        unselected_players = [p for p in pool if p.get("id") not in selected_set]
+        unselected_players.sort(
+            key=lambda x: float(x.get("Proj_Pts", 0.0)),
+            reverse=True,
+        )
+
+        # All selected players appear at top, followed by top unselected candidates
+        return selected_players + unselected_players[:150]
 
     # ── Action Methods ─────────────────────────────────────────────────────────
 
     @rx.event
     def refresh_simulation(self):
         """Explicitly re-runs Monte Carlo simulation bypassing caches."""
+        _simulation_results_cache.clear()
         return SimulatorState.run_simulation(True)
 
     def set_target_gw(self, gw: str):
         self.target_sim_gw = str(gw)
         if self.squad_mode == "sandbox":
             return SimulatorState.load_sandbox_pool
-        return SimulatorState.run_simulation(True)
+        return SimulatorState.run_simulation(False)
 
     def set_squad_mode(self, mode: str):
         self.squad_mode = mode
         if mode == "sandbox" and len(self.sandbox_pool) == 0:
             return SimulatorState.load_sandbox_pool
-        return SimulatorState.run_simulation(True)
+        return SimulatorState.run_simulation(False)
 
     def set_iterations(self, iters: int):
         self.iterations = iters
-        return SimulatorState.run_simulation(True)
+        return SimulatorState.run_simulation(False)
 
     def toggle_h2h(self):
         self.h2h_enabled = not self.h2h_enabled
         if self.h2h_enabled:
-            return SimulatorState.run_simulation(True)
+            return SimulatorState.run_simulation(False)
 
     def go_to_transfer_solver(self):
         self.selected_tab = "transfer_analyzer"
@@ -278,7 +294,7 @@ class SimulatorState(AppState):
 
         # Check limits before adding
         if len(cur_ids) >= 15:
-            return rx.toast("Cannot select more than 15 players.", status="warning")
+            return rx.toast.warning("Cannot select more than 15 players.")
 
         # Find player info
         p_info = next((p for p in self.sandbox_pool if p.get("id") == player_id), None)
@@ -290,19 +306,19 @@ class SimulatorState(AppState):
         cost = float(p_info.get("Cost", 0.0))
 
         if self.sandbox_total_cost + cost > 100.05:
-            return rx.toast(f"Budget exceeded: adding {p_info.get('Player')} would exceed £100.0m.", status="warning")
+            return rx.toast.warning(f"Budget exceeded: adding {p_info.get('Player')} would exceed £100.0m.")
 
         if pos == "GKP" and self.sandbox_gkp_count >= 2:
-            return rx.toast("Position limit reached: Max 2 Goalkeepers.", status="warning")
+            return rx.toast.warning("Position limit reached: Max 2 Goalkeepers.")
         if pos == "DEF" and self.sandbox_def_count >= 5:
-            return rx.toast("Position limit reached: Max 5 Defenders.", status="warning")
+            return rx.toast.warning("Position limit reached: Max 5 Defenders.")
         if pos == "MID" and self.sandbox_mid_count >= 5:
-            return rx.toast("Position limit reached: Max 5 Midfielders.", status="warning")
+            return rx.toast.warning("Position limit reached: Max 5 Midfielders.")
         if pos == "FWD" and self.sandbox_fwd_count >= 3:
-            return rx.toast("Position limit reached: Max 3 Forwards.", status="warning")
+            return rx.toast.warning("Position limit reached: Max 3 Forwards.")
 
         if self.sandbox_team_counts.get(team, 0) >= 3:
-            return rx.toast(f"Club limit reached: Max 3 players from {team}.", status="warning")
+            return rx.toast.warning(f"Club limit reached: Max 3 players from {team}.")
 
         cur_ids.add(player_id)
         self.sandbox_selected_ids = list(cur_ids)
@@ -325,9 +341,11 @@ class SimulatorState(AppState):
         async with self:
             if random_ids:
                 self.sandbox_selected_ids = random_ids
-                rx.toast("Loaded random 15-player squad within £100m budget!", status="success")
-            else:
-                rx.toast("Could not generate valid random squad. Try again.", status="warning")
+
+        if random_ids:
+            return rx.toast.success("Loaded random 15-player squad within £100m budget!")
+        else:
+            return rx.toast.warning("Could not generate valid random squad. Try again.")
 
     @rx.event(background=True)
     async def load_sandbox_budget_15(self):
@@ -354,8 +372,201 @@ class SimulatorState(AppState):
         async with self:
             if ids:
                 self.sandbox_selected_ids = ids
-                rx.toast("Loaded optimal Budget Dream 15 into Sandbox!", status="success")
             self.is_loading = False
+
+        if ids:
+            return rx.toast.success("Loaded optimal Budget Dream 15 into Sandbox!")
+        else:
+            return rx.toast.warning("Could not solve Budget Dream 15 squad.")
+
+    @rx.event(background=True)
+    async def load_sandbox_post_transfer_15(self):
+        async with self:
+            self.is_loading = True
+            self.status_message = "Loading Post-Transfer squad into Sandbox..."
+            mgr_id = self.manager_id
+            c_gw = self.current_gw
+            try:
+                t_gw = int(self.target_sim_gw) if self.target_sim_gw and int(self.target_sim_gw) > 0 else c_gw
+            except Exception:
+                t_gw = c_gw
+            if not self.target_sim_gw:
+                self.target_sim_gw = str(t_gw)
+            state_trans_squad = [dict(p) for p in (self.shared_trans_squad or [])]
+
+        def _fetch():
+            conn = get_connection()
+            try:
+                df = load_post_transfer_squad(conn, mgr_id, t_gw, state_trans_squad)
+                if df.empty or "id" not in df.columns:
+                    return [], []
+
+                fixtures_df = pd.read_sql(
+                    """
+                    SELECT f.event AS GW, f.team_h AS team_h_id, f.team_a AS team_a_id,
+                           th.short_name AS Home_Team, ta.short_name AS Away_Team,
+                           f.team_h_difficulty AS Home_Diff, f.team_a_difficulty AS Away_Diff
+                    FROM fixtures f
+                    INNER JOIN teams th ON f.team_h = th.id
+                    INNER JOIN teams ta ON f.team_a = ta.id
+                    WHERE f.event >= 1 AND f.event <= 38
+                    """,
+                    conn,
+                )
+                eval_df = get_cached_league_eval_df(
+                    conn, c_gw, t_gw, enable_betting=True, market_weight=0.35, factor_movement=True, only_available=False
+                )
+                eval_map = {int(r["id"]): r for _, r in eval_df.iterrows()} if not eval_df.empty else {}
+
+                ids = [int(x) for x in df["id"].tolist()]
+                records = []
+                for _, r in df.iterrows():
+                    photo_val = r.get("photo")
+                    if photo_val and str(photo_val).strip() != "" and "Photo-Missing" not in str(photo_val):
+                        photo_url = f"https://resources.premierleague.com/premierleague/photos/players/110x140/p{str(photo_val).replace('.jpg', '.png')}"
+                    else:
+                        photo_url = "https://fantasy.premierleague.com/dist/img/shirts/standard/shirt_0-66.webp"
+
+                    p_id = int(r["id"])
+                    if p_id in eval_map:
+                        ev = eval_map[p_id]
+                        opp = str(ev.get("Opponent", "Blank"))
+                        fdr = int(ev.get("FDR", 3))
+                        proj = round(float(ev.get("Proj_Pts", 0.0)), 1)
+                    else:
+                        t_id = int(r.get("team_id", 1))
+                        fix = get_fixture_for_team(fixtures_df, t_id, t_gw)
+                        opp = str(fix.get("opponent", "Blank"))
+                        fdr = int(fix.get("fdr", 3))
+                        proj = round(float(r.get("Form", 0.0) or 0.0), 1)
+
+                    records.append({
+                        "id": p_id,
+                        "Player": str(r.get("Player", "")),
+                        "Team": str(r.get("Club", r.get("Team", ""))),
+                        "Pos": str(r.get("Pos", "MID")),
+                        "Cost": float(r.get("Cost", 5.0)),
+                        "Proj_Pts": proj,
+                        "Opponent": opp,
+                        "FDR": fdr,
+                        "photo": photo_url,
+                        "minutes": int(r.get("minutes", 0) if pd.notna(r.get("minutes")) else 0),
+                        "xGI_per_90": float(r.get("xGI_per_90", 0.0) or 0.0),
+                    })
+                return ids, records
+            finally:
+                conn.close()
+
+        ids, records = await asyncio.to_thread(_fetch)
+        async with self:
+            if ids:
+                self.sandbox_selected_ids = ids
+                pool_id_to_idx = {p.get("id"): idx for idx, p in enumerate(self.sandbox_pool)}
+                for rec in records:
+                    if rec["id"] in pool_id_to_idx:
+                        self.sandbox_pool[pool_id_to_idx[rec["id"]]] = rec
+                    else:
+                        self.sandbox_pool.append(rec)
+            self.is_loading = False
+
+        if ids:
+            return rx.toast.success(f"Loaded Post-Transfer squad ({len(ids)} players) into Custom Sandbox!")
+        else:
+            return rx.toast.warning("No Post-Transfer Plan found. Solve transfers in the Transfer Solver tab first.")
+
+    @rx.event(background=True)
+    async def load_sandbox_my_squad(self):
+        async with self:
+            self.is_loading = True
+            self.status_message = "Loading Active Squad into Sandbox..."
+            mgr_id = self.manager_id
+            c_gw = self.current_gw
+            try:
+                t_gw = int(self.target_sim_gw) if self.target_sim_gw and int(self.target_sim_gw) > 0 else c_gw
+            except Exception:
+                t_gw = c_gw
+            if not self.target_sim_gw:
+                self.target_sim_gw = str(t_gw)
+
+        def _fetch():
+            conn = get_connection()
+            try:
+                df = load_active_squad(conn, mgr_id, t_gw)
+                if df.empty or "id" not in df.columns:
+                    return [], []
+
+                fixtures_df = pd.read_sql(
+                    """
+                    SELECT f.event AS GW, f.team_h AS team_h_id, f.team_a AS team_a_id,
+                           th.short_name AS Home_Team, ta.short_name AS Away_Team,
+                           f.team_h_difficulty AS Home_Diff, f.team_a_difficulty AS Away_Diff
+                    FROM fixtures f
+                    INNER JOIN teams th ON f.team_h = th.id
+                    INNER JOIN teams ta ON f.team_a = ta.id
+                    WHERE f.event >= 1 AND f.event <= 38
+                    """,
+                    conn,
+                )
+                eval_df = get_cached_league_eval_df(
+                    conn, c_gw, t_gw, enable_betting=True, market_weight=0.35, factor_movement=True, only_available=False
+                )
+                eval_map = {int(r["id"]): r for _, r in eval_df.iterrows()} if not eval_df.empty else {}
+
+                ids = [int(x) for x in df["id"].tolist()]
+                records = []
+                for _, r in df.iterrows():
+                    photo_val = r.get("photo")
+                    if photo_val and str(photo_val).strip() != "" and "Photo-Missing" not in str(photo_val):
+                        photo_url = f"https://resources.premierleague.com/premierleague/photos/players/110x140/p{str(photo_val).replace('.jpg', '.png')}"
+                    else:
+                        photo_url = "https://fantasy.premierleague.com/dist/img/shirts/standard/shirt_0-66.webp"
+
+                    p_id = int(r["id"])
+                    if p_id in eval_map:
+                        ev = eval_map[p_id]
+                        opp = str(ev.get("Opponent", "Blank"))
+                        fdr = int(ev.get("FDR", 3))
+                        proj = round(float(ev.get("Proj_Pts", 0.0)), 1)
+                    else:
+                        t_id = int(r.get("team_id", 1))
+                        fix = get_fixture_for_team(fixtures_df, t_id, t_gw)
+                        opp = str(fix.get("opponent", "Blank"))
+                        fdr = int(fix.get("fdr", 3))
+                        proj = round(float(r.get("Form", 0.0) or 0.0), 1)
+
+                    records.append({
+                        "id": p_id,
+                        "Player": str(r.get("Player", "")),
+                        "Team": str(r.get("Club", r.get("Team", ""))),
+                        "Pos": str(r.get("Pos", "MID")),
+                        "Cost": float(r.get("Cost", 5.0)),
+                        "Proj_Pts": proj,
+                        "Opponent": opp,
+                        "FDR": fdr,
+                        "photo": photo_url,
+                        "minutes": int(r.get("minutes", 0) if pd.notna(r.get("minutes")) else 0),
+                        "xGI_per_90": float(r.get("xGI_per_90", 0.0) or 0.0),
+                    })
+                return ids, records
+            finally:
+                conn.close()
+
+        ids, records = await asyncio.to_thread(_fetch)
+        async with self:
+            if ids:
+                self.sandbox_selected_ids = ids
+                pool_id_to_idx = {p.get("id"): idx for idx, p in enumerate(self.sandbox_pool)}
+                for rec in records:
+                    if rec["id"] in pool_id_to_idx:
+                        self.sandbox_pool[pool_id_to_idx[rec["id"]]] = rec
+                    else:
+                        self.sandbox_pool.append(rec)
+            self.is_loading = False
+
+        if ids:
+            return rx.toast.success(f"Loaded Active Squad ({len(ids)} players) into Custom Sandbox!")
+        else:
+            return rx.toast.warning("Could not load Active Squad. Make sure your Manager ID is entered.")
 
     @rx.event(background=True)
     async def load_sandbox_pool(self):
@@ -363,18 +574,33 @@ class SimulatorState(AppState):
             self.sandbox_is_loading_pool = True
             c_gw = self.current_gw
             try:
-                t_gw = int(self.target_sim_gw)
+                t_gw = int(self.target_sim_gw) if self.target_sim_gw and int(self.target_sim_gw) > 0 else c_gw
             except Exception:
                 t_gw = c_gw
+            if not self.target_sim_gw:
+                self.target_sim_gw = str(t_gw)
+            cur_selected_ids = list(self.sandbox_selected_ids)
 
         def _fetch():
             conn = get_connection()
             try:
+                fixtures_df = pd.read_sql(
+                    """
+                    SELECT f.event AS GW, f.team_h AS team_h_id, f.team_a AS team_a_id,
+                           th.short_name AS Home_Team, ta.short_name AS Away_Team,
+                           f.team_h_difficulty AS Home_Diff, f.team_a_difficulty AS Away_Diff
+                    FROM fixtures f
+                    INNER JOIN teams th ON f.team_h = th.id
+                    INNER JOIN teams ta ON f.team_a = ta.id
+                    WHERE f.event >= 1 AND f.event <= 38
+                    """,
+                    conn,
+                )
                 eval_df = get_cached_league_eval_df(
-                    conn, c_gw, t_gw, enable_betting=True, market_weight=0.35, factor_movement=True
+                    conn, c_gw, t_gw, enable_betting=True, market_weight=0.35, factor_movement=True, only_available=False
                 )
                 if eval_df.empty:
-                    return []
+                    eval_df = pd.DataFrame()
 
                 # Format photo URLs and opponent
                 records = []
@@ -398,6 +624,48 @@ class SimulatorState(AppState):
                         "minutes": int(r.get("minutes", 0)),
                         "xGI_per_90": float(r.get("xGI_per_90", 0.0) or 0.0),
                     })
+
+                # Check if any selected player IDs are missing from records
+                existing_ids = {rec["id"] for rec in records}
+                missing_ids = [pid for pid in cur_selected_ids if pid not in existing_ids]
+                if missing_ids:
+                    placeholders = ",".join(["?"] * len(missing_ids))
+                    missing_df = pd.read_sql_query(
+                        f"""
+                        SELECT p.id, p.code, p.photo, p.web_name AS Player, p.team AS team_id,
+                               t.short_name AS Team,
+                               CASE p.element_type WHEN 1 THEN 'GKP' WHEN 2 THEN 'DEF' WHEN 3 THEN 'MID' WHEN 4 THEN 'FWD' END AS Pos,
+                               p.now_cost / 10.0 AS Cost, p.minutes AS minutes,
+                               p.total_points AS Season_Points, p.form AS Form, p.points_per_game AS PPG,
+                               p.expected_goal_involvements_per_90 AS xGI_per_90
+                        FROM players p
+                        INNER JOIN teams t ON p.team = t.id
+                        WHERE p.id IN ({placeholders})
+                        """,
+                        conn,
+                        params=missing_ids,
+                    )
+                    for _, r in missing_df.iterrows():
+                        photo_val = r.get("photo")
+                        if pd.notna(photo_val) and str(photo_val).strip() != "" and "Photo-Missing" not in str(photo_val):
+                            photo_url = f"https://resources.premierleague.com/premierleague/photos/players/110x140/p{str(photo_val).replace('.jpg', '.png')}"
+                        else:
+                            photo_url = "https://fantasy.premierleague.com/dist/img/shirts/standard/shirt_0-66.webp"
+                        fix = get_fixture_for_team(fixtures_df, int(r.get("team_id", 1)), t_gw)
+                        records.append({
+                            "id": int(r["id"]),
+                            "Player": str(r.get("Player", "")),
+                            "Team": str(r.get("Team", "")),
+                            "Pos": str(r.get("Pos", "MID")),
+                            "Cost": float(r.get("Cost", 5.0)),
+                            "Proj_Pts": round(float(r.get("Form", 0.0) or 0.0), 1),
+                            "Opponent": str(fix.get("opponent", "Blank")),
+                            "FDR": int(fix.get("fdr", 3)),
+                            "photo": photo_url,
+                            "minutes": int(r.get("minutes", 0)),
+                            "xGI_per_90": float(r.get("xGI_per_90", 0.0) or 0.0),
+                        })
+
                 return records
             finally:
                 conn.close()
@@ -409,6 +677,49 @@ class SimulatorState(AppState):
 
     # ── Simulation Runner ──────────────────────────────────────────────────────
 
+    def _apply_simulation_result(self, res, mgr_id, t_gw, mode, n_sims, do_h2h, sandbox_ids):
+        if res and res[0] is not None:
+            stats, xi_list, h2h, cap_id, vc_id, has_tp = res
+            self.sim_mean = float(stats.get("mean", 0.0))
+            self.sim_median = float(stats.get("median", 0.0))
+            self.sim_p10 = float(stats.get("p10_floor", 0.0))
+            self.sim_p90 = float(stats.get("p90_ceiling", 0.0))
+            self.sim_std = float(stats.get("std_dev", 0.0))
+            self.exec_time_ms = float(stats.get("exec_time_ms", 0.0))
+            self.player_stats = stats.get("player_stats", [])
+            self.hist_data = stats.get("hist_data", [])
+            self.starting_xi = xi_list or []
+            self.captain_id = int(cap_id) if cap_id is not None else 0
+            self.vc_id = int(vc_id) if vc_id is not None else 0
+            self.has_transfer_plan = bool(has_tp)
+            self.last_sim_mgr = str(mgr_id)
+            self.last_sim_gw = int(t_gw)
+            self.last_sim_mode = str(mode)
+            self.last_sim_iters = int(n_sims)
+            self.last_sim_h2h = bool(do_h2h)
+            self.last_sim_sandbox_ids = [int(x) for x in sandbox_ids]
+
+            if h2h:
+                self.h2h_win_pct_a = float(h2h.get("win_pct_a", 0.0))
+                self.h2h_win_pct_b = float(h2h.get("win_pct_b", 0.0))
+                self.h2h_draw_pct = float(h2h.get("draw_pct", 0.0))
+                self.h2h_median_a = float(h2h.get("median_a", 0.0))
+                self.h2h_median_b = float(h2h.get("median_b", 0.0))
+                self.h2h_benchmark_name = str(h2h.get("benchmark_name", "Benchmark"))
+            else:
+                self.h2h_benchmark_name = ""
+        else:
+            has_tp = res[5] if (res and len(res) >= 6) else False
+            self.has_transfer_plan = has_tp
+            self.player_stats = []
+            self.starting_xi = []
+            self.hist_data = []
+            self.sim_mean = 0.0
+            self.sim_median = 0.0
+            self.sim_p10 = 0.0
+            self.sim_p90 = 0.0
+            self.sim_std = 0.0
+
     @rx.event(background=True)
     async def run_simulation(self, force_refresh: bool = False):
         state_trans_squad = []
@@ -416,23 +727,21 @@ class SimulatorState(AppState):
             mgr_id = self.manager_id
             c_gw = self.current_gw
             try:
-                t_gw = int(self.target_sim_gw) if int(self.target_sim_gw) > 0 else c_gw
+                t_gw = int(self.target_sim_gw) if self.target_sim_gw and int(self.target_sim_gw) > 0 else c_gw
             except Exception:
                 t_gw = c_gw
+            if not self.target_sim_gw:
+                self.target_sim_gw = str(t_gw)
             mode = self.squad_mode
             n_sims = self.iterations
             do_h2h = self.h2h_enabled
             sandbox_ids = list(self.sandbox_selected_ids)
 
-            # Fast return if simulation results already exist for these parameters
-            if self.has_results and not force_refresh and (
-                mgr_id == self.last_sim_mgr
-                and t_gw == self.last_sim_gw
-                and mode == self.last_sim_mode
-                and n_sims == self.last_sim_iters
-                and do_h2h == self.last_sim_h2h
-                and (mode != "sandbox" or sandbox_ids == self.last_sim_sandbox_ids)
-            ):
+            cache_key = f"{mgr_id}_{c_gw}_{t_gw}_{mode}_{n_sims}_{do_h2h}_{','.join(str(x) for x in sorted(sandbox_ids)) if mode == 'sandbox' else ''}"
+
+            if not force_refresh and cache_key in _simulation_results_cache:
+                self._apply_simulation_result(_simulation_results_cache[cache_key], mgr_id, t_gw, mode, n_sims, do_h2h, sandbox_ids)
+                self.is_loading = False
                 return
 
             self.is_loading = True
@@ -562,42 +871,6 @@ class SimulatorState(AppState):
 
         async with self:
             if res and res[0] is not None:
-                stats, xi_list, h2h, cap_id, vc_id, has_tp = res
-                self.sim_mean = float(stats.get("mean", 0.0))
-                self.sim_median = float(stats.get("median", 0.0))
-                self.sim_p10 = float(stats.get("p10_floor", 0.0))
-                self.sim_p90 = float(stats.get("p90_ceiling", 0.0))
-                self.sim_std = float(stats.get("std_dev", 0.0))
-                self.exec_time_ms = float(stats.get("exec_time_ms", 0.0))
-                self.player_stats = stats.get("player_stats", [])
-                self.hist_data = stats.get("hist_data", [])
-                self.starting_xi = xi_list or []
-                self.captain_id = int(cap_id) if cap_id is not None else 0
-                self.vc_id = int(vc_id) if vc_id is not None else 0
-                self.has_transfer_plan = bool(has_tp)
-                self.last_sim_mgr = str(mgr_id)
-                self.last_sim_gw = int(t_gw)
-                self.last_sim_mode = str(mode)
-                self.last_sim_iters = int(n_sims)
-                self.last_sim_h2h = bool(do_h2h)
-                self.last_sim_sandbox_ids = [int(x) for x in sandbox_ids]
-
-                if h2h:
-                    self.h2h_win_pct_a = float(h2h.get("win_pct_a", 0.0))
-                    self.h2h_win_pct_b = float(h2h.get("win_pct_b", 0.0))
-                    self.h2h_draw_pct = float(h2h.get("draw_pct", 0.0))
-                    self.h2h_median_a = float(h2h.get("median_a", 0.0))
-                    self.h2h_median_b = float(h2h.get("median_b", 0.0))
-                    self.h2h_benchmark_name = str(h2h.get("benchmark_name", "Benchmark"))
-            else:
-                has_tp = res[5] if (res and len(res) >= 6) else False
-                self.has_transfer_plan = has_tp
-                self.player_stats = []
-                self.starting_xi = []
-                self.hist_data = []
-                self.sim_mean = 0.0
-                self.sim_median = 0.0
-                self.sim_p10 = 0.0
-                self.sim_p90 = 0.0
-                self.sim_std = 0.0
+                _simulation_results_cache[cache_key] = res
+            self._apply_simulation_result(res, mgr_id, t_gw, mode, n_sims, do_h2h, sandbox_ids)
             self.is_loading = False

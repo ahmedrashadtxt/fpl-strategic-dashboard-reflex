@@ -13,6 +13,9 @@ from fpl_strategic_dashboard_reflex.services.audit import (
     get_audit_snapshot,
 )
 
+_audit_versions_cache: Dict[int, List[Dict[str, Any]]] = {}
+_audit_snapshot_cache: Dict[str, Dict[str, Any]] = {}
+
 
 class AuditJournalState(AppState):
     """Sub-state managing pre-gameweek model locks and post-gameweek prediction audits."""
@@ -31,20 +34,24 @@ class AuditJournalState(AppState):
     last_loaded_ver: str = ""
 
     @rx.var
+    def gw_options(self) -> list[str]:
+        return [str(i) for i in range(1, 39)]
+
+    @rx.var
     def version_options(self) -> list[str]:
-        return [str(v.get("version", "")) for v in self.versions]
+        return [f"v{v['version']} - {v['created_at'][:16]}" for v in self.versions]
 
     @rx.var
-    def snapshot_starters(self) -> list[dict]:
-        return self.snapshot_data.get("starters", []) if self.snapshot_data else []
-
-    @rx.var
-    def snapshot_bench(self) -> list[dict]:
-        return self.snapshot_data.get("bench", []) if self.snapshot_data else []
+    def has_versions(self) -> bool:
+        return len(self.versions) > 0
 
     @rx.var
     def has_snapshot(self) -> bool:
-        return bool(self.snapshot_data)
+        return bool(self.snapshot_data and len(self.snapshot_data.get("players", [])) > 0)
+
+    @rx.var
+    def snapshot_players(self) -> list[Dict[str, Any]]:
+        return self.snapshot_data.get("players", [])
 
     @rx.var
     def total_proj_str(self) -> str:
@@ -69,15 +76,17 @@ class AuditJournalState(AppState):
 
     def set_audit_gw(self, val: str):
         self.selected_audit_gw = str(val)
-        return AuditJournalState.load_data(True)
+        return AuditJournalState.load_data(False)
 
     def set_version(self, val: str):
         self.selected_version = val
-        return AuditJournalState.load_snapshot(True)
+        return AuditJournalState.load_snapshot(False)
 
     @rx.event
     def refresh_data(self):
         """Explicitly re-fetches audit data bypassing caches."""
+        _audit_versions_cache.clear()
+        _audit_snapshot_cache.clear()
         return AuditJournalState.load_data(True)
 
     @rx.event(background=True)
@@ -91,7 +100,14 @@ class AuditJournalState(AppState):
                 c_gw = self.current_gw - 1
                 self.selected_audit_gw = str(c_gw)
 
-            if len(self.versions) > 0 and not force_refresh and c_gw == self.last_loaded_gw:
+            if not force_refresh and c_gw in _audit_versions_cache:
+                result = _audit_versions_cache[c_gw]
+                self.versions = result
+                self.selected_version = str(result[0]["version"]) if result else ""
+                self.last_loaded_gw = c_gw
+                self.is_loading = False
+                if self.selected_version:
+                    return AuditJournalState.load_snapshot(False)
                 return
 
             self.is_loading = True
@@ -107,6 +123,7 @@ class AuditJournalState(AppState):
 
         async with self:
             if result:
+                _audit_versions_cache[c_gw] = result
                 self.versions = result
                 self.selected_version = str(result[0]["version"])
             else:
@@ -127,7 +144,12 @@ class AuditJournalState(AppState):
             except Exception:
                 c_gw, c_ver = 1, None
 
-            if self.has_snapshot and not force_refresh and c_gw == self.last_loaded_gw and str(c_ver) == self.last_loaded_ver:
+            snap_key = f"{c_gw}_{c_ver}"
+
+            if not force_refresh and snap_key in _audit_snapshot_cache:
+                self.snapshot_data = _audit_snapshot_cache[snap_key]
+                self.last_loaded_ver = str(c_ver) if c_ver else ""
+                self.is_loading = False
                 return
 
             self.is_loading = True
@@ -149,7 +171,11 @@ class AuditJournalState(AppState):
         result = await asyncio.to_thread(_fetch, c_gw, c_ver)
 
         async with self:
-            self.snapshot_data = result if result else {}
+            if result:
+                _audit_snapshot_cache[snap_key] = result
+                self.snapshot_data = result
+            else:
+                self.snapshot_data = {}
             self.last_loaded_ver = str(c_ver) if c_ver else ""
             self.is_loading = False
 
@@ -178,6 +204,8 @@ class AuditJournalState(AppState):
             self.is_loading = False
             self.status_message = f"Version {msg} locked successfully" if success else f"Error: {msg}"
 
+        _audit_versions_cache.clear()
+        _audit_snapshot_cache.clear()
         return AuditJournalState.load_data(True)
 
     @rx.event(background=True)
@@ -204,4 +232,5 @@ class AuditJournalState(AppState):
             self.is_loading = False
             self.status_message = "Settled successfully" if success else f"Error: {err}"
 
+        _audit_snapshot_cache.clear()
         return AuditJournalState.load_snapshot(True)

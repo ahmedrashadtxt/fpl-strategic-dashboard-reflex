@@ -8,6 +8,7 @@ from fpl_strategic_dashboard_reflex.components import (
     data_table,
     search_input,
     filter_select,
+    MotionDiv,
 )
 
 
@@ -15,13 +16,18 @@ def rolling_metric_cards() -> rx.Component:
     """Isolated player highlight cards component matching Streamlit layout."""
     return rx.cond(
         RollingFormState.has_data,
-        rx.grid(
-            rx.foreach(
-                RollingFormState.top_cards,
-                player_highlight_card,
+        MotionDiv.create(
+            rx.grid(
+                rx.foreach(
+                    RollingFormState.top_cards,
+                    player_highlight_card,
+                ),
+                columns=rx.breakpoints(initial="1", sm="2", lg="4"),
+                spacing="3",
+                width="100%",
             ),
-            columns=rx.breakpoints(initial="1", sm="2", lg="4"),
-            spacing="3",
+            layout="position",
+            transition={"duration": 0.35, "ease": [0.16, 1, 0.3, 1]},
             width="100%",
             margin_bottom="1.25rem",
         ),
@@ -32,7 +38,7 @@ def rolling_metric_cards() -> rx.Component:
 def rolling_form_controls() -> rx.Component:
     """Filter controls matching the Streamlit Rolling Form interface."""
     return rx.vstack(
-        # Row 1: Search, Match Window, Position, Min Matches, Min Avg Mins, Rank By
+        # Row 1: Search, Position, Rank By, Squad Filter
         rx.grid(
             # Search
             rx.vstack(
@@ -46,6 +52,63 @@ def rolling_form_controls() -> rx.Component:
                 spacing="1",
                 width="100%",
             ),
+            # Position select
+            filter_select(
+                "Position",
+                ["All", "GKP", "DEF", "MID", "FWD"],
+                RollingFormState.position_filter,
+                RollingFormState.set_pos,
+                vertical=True,
+                width="100%",
+            ),
+            # Rank By select
+            filter_select(
+                "Rank By",
+                [
+                    "Projected Form xP / Match",
+                    "Rolling Avg Points",
+                    "Rolling Sum xGI",
+                    "Rolling xGI / 90",
+                    "Upcoming Fixture Ease",
+                    "Rolling Avg Minutes",
+                    "Price",
+                ],
+                RollingFormState.sort_by,
+                RollingFormState.set_sort,
+                vertical=True,
+                width="100%",
+            ),
+            # Squad toggle
+            rx.vstack(
+                rx.text("Squad Filter", font_size="0.8rem", color="var(--text-sub)", font_weight="600"),
+                rx.hstack(
+                    rx.switch(
+                        checked=RollingFormState.only_my_squad,
+                        on_change=RollingFormState.set_only_squad,
+                        color_scheme="green",
+                        size="1",
+                    ),
+                    rx.hstack(
+                        rx.icon("crosshair", size=14, color="var(--text-sub)"),
+                        rx.text("Only My Squad Players", font_size="0.8rem", color="var(--text-sub)", font_weight="600"),
+                        align="center",
+                        spacing="1",
+                    ),
+                    align="center",
+                    spacing="2",
+                    height="32px",
+                ),
+                align="start",
+                spacing="1",
+                width="100%",
+            ),
+            columns=rx.breakpoints(initial="1", sm="2", md="4"),
+            spacing="3",
+            width="100%",
+            align_items="start",
+        ),
+        # Row 2: Match Window, Min Matches, Min Avg Mins, Max Price sliders
+        rx.grid(
             # Match Window slider
             rx.vstack(
                 rx.hstack(
@@ -59,26 +122,25 @@ def rolling_form_controls() -> rx.Component:
                     align="center",
                     spacing="2",
                 ),
-                rx.slider(
-                    min=1,
-                    max=10,
-                    step=1,
-                    value=[RollingFormState.window_size],
-                    on_value_commit=RollingFormState.set_window,
-                    color_scheme="blue",
-                    size="1",
+                rx.box(
+                    rx.slider(
+                        min=1,
+                        max=10,
+                        step=1,
+                        value=[RollingFormState.window_size],
+                        on_value_commit=RollingFormState.set_window,
+                        color_scheme="blue",
+                        size="1",
+                        width="100%",
+                    ),
                     width="100%",
+                    height="32px",
+                    display="flex",
+                    align_items="center",
                 ),
                 align="start",
                 spacing="1",
                 width="100%",
-            ),
-            # Position select
-            filter_select(
-                "Position",
-                ["All", "GKP", "DEF", "MID", "FWD"],
-                RollingFormState.position_filter,
-                RollingFormState.set_pos,
             ),
             # Min Matches slider
             rx.vstack(
@@ -93,15 +155,21 @@ def rolling_form_controls() -> rx.Component:
                     align="center",
                     spacing="2",
                 ),
-                rx.slider(
-                    min=1,
-                    max=10,
-                    step=1,
-                    value=[RollingFormState.min_matches],
-                    on_value_commit=RollingFormState.set_min_matches,
-                    color_scheme="green",
-                    size="1",
+                rx.box(
+                    rx.slider(
+                        min=1,
+                        max=10,
+                        step=1,
+                        value=[RollingFormState.min_matches],
+                        on_value_commit=RollingFormState.set_min_matches,
+                        color_scheme="green",
+                        size="1",
+                        width="100%",
+                    ),
                     width="100%",
+                    height="32px",
+                    display="flex",
+                    align_items="center",
                 ),
                 align="start",
                 spacing="1",
@@ -120,42 +188,27 @@ def rolling_form_controls() -> rx.Component:
                     align="center",
                     spacing="2",
                 ),
-                rx.slider(
-                    min=0,
-                    max=90,
-                    step=15,
-                    value=[RollingFormState.min_avg_mins],
-                    on_value_commit=RollingFormState.set_min_mins,
-                    color_scheme="green",
-                    size="1",
+                rx.box(
+                    rx.slider(
+                        min=0,
+                        max=90,
+                        step=15,
+                        value=[RollingFormState.min_avg_mins],
+                        on_value_commit=RollingFormState.set_min_mins,
+                        color_scheme="green",
+                        size="1",
+                        width="100%",
+                    ),
                     width="100%",
+                    height="32px",
+                    display="flex",
+                    align_items="center",
                 ),
                 align="start",
                 spacing="1",
                 width="100%",
             ),
-            # Rank By select
-            filter_select(
-                "Rank By",
-                [
-                    "Projected Form xP / Match",
-                    "Rolling Avg Points",
-                    "Rolling Sum xGI",
-                    "Rolling xGI / 90",
-                    "Upcoming Fixture Ease",
-                    "Rolling Avg Minutes",
-                    "Price",
-                ],
-                RollingFormState.sort_by,
-                RollingFormState.set_sort,
-            ),
-            columns=rx.breakpoints(initial="1", sm="2", md="3", lg="6"),
-            spacing="3",
-            width="100%",
-            align_items="end",
-        ),
-        # Row 2: Max Price slider & Squad toggle
-        rx.hstack(
+            # Filter Max Price slider
             rx.vstack(
                 rx.hstack(
                     rx.text("Filter Max Price (£M)", font_size="0.8rem", color="var(--text-sub)", font_weight="600"),
@@ -168,41 +221,30 @@ def rolling_form_controls() -> rx.Component:
                     align="center",
                     spacing="2",
                 ),
-                rx.slider(
-                    min=4.0,
-                    max=15.5,
-                    step=0.5,
-                    value=[RollingFormState.max_price],
-                    on_value_commit=RollingFormState.set_price,
-                    color_scheme="green",
-                    size="1",
-                    width="260px",
+                rx.box(
+                    rx.slider(
+                        min=4.0,
+                        max=15.5,
+                        step=0.5,
+                        value=[RollingFormState.max_price],
+                        on_value_commit=RollingFormState.set_price,
+                        color_scheme="green",
+                        size="1",
+                        width="100%",
+                    ),
+                    width="100%",
+                    height="32px",
+                    display="flex",
+                    align_items="center",
                 ),
                 align="start",
                 spacing="1",
+                width="100%",
             ),
-            rx.spacer(),
-            rx.hstack(
-                rx.switch(
-                    checked=RollingFormState.only_my_squad,
-                    on_change=RollingFormState.set_only_squad,
-                    color_scheme="green",
-                    size="1",
-                ),
-                rx.hstack(
-                    rx.icon("crosshair", size=14, color="var(--text-sub)"),
-                    rx.text("Only My Squad Players", font_size="0.8rem", color="var(--text-sub)", font_weight="600"),
-                    align="center",
-                    spacing="1",
-                ),
-                align="center",
-                spacing="2",
-            ),
+            columns=rx.breakpoints(initial="1", sm="2", md="4"),
+            spacing="3",
             width="100%",
-            align="center",
-            padding_top="0.5rem",
-            wrap="wrap",
-            gap="1rem",
+            align_items="start",
         ),
         width="100%",
         spacing="3",
@@ -211,6 +253,7 @@ def rolling_form_controls() -> rx.Component:
         border="1px solid var(--border-color)",
         border_radius="10px",
         margin_bottom="1.25rem",
+        overflow="hidden",
     )
 
 
@@ -306,6 +349,7 @@ def rolling_form_page() -> rx.Component:
                     width="100%",
                 ),
                 width="100%",
+                min_width="0",
                 background="rgba(15, 23, 42, 0.4)",
                 border="1px solid var(--border-color)",
                 border_radius="10px",

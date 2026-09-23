@@ -11,6 +11,10 @@ from fpl_strategic_dashboard_reflex.services.transfer import (
 )
 
 
+_transfer_planner_cache: Dict[str, Dict[str, Any]] = {}
+_transfer_solve_cache: Dict[str, Dict[str, Any]] = {}
+
+
 class TransferAnalyzerState(AppState):
     """Sub-state managing multi-gameweek transfer optimization, budget, and swaps."""
 
@@ -258,6 +262,57 @@ class TransferAnalyzerState(AppState):
 
     # ── Actions & Event Handlers ───────────────────────────────────────────────
 
+    def _apply_planner_result(self, result: Dict[str, Any], manager_id: str, horizon: int):
+        if not result:
+            return
+        self.last_loaded_manager_id = manager_id
+        self.last_loaded_horizon = horizon
+        self.next_gw = result.get("next_gw", self.next_gw)
+        self.pos_options = result.get("pos_options", [])
+        self.neg_options = result.get("neg_options", [])
+        self.bank_balance = result.get("bank_balance", 0.0)
+        self.squad_sell = result.get("squad_sell", 100.0)
+        self.team_value = result.get("team_val", 100.0)
+        self.base_starters = result.get("base_starters", [])
+        self.base_bench = result.get("base_bench", [])
+        self.base_pitch_html = result.get("base_pitch_html", "")
+
+        gw = self.next_gw
+        if self.strategy_mode == "Wildcard":
+            valid_lens = [3, 5, 8]
+        elif self.strategy_mode == "Free Hit":
+            valid_lens = [1]
+        else:
+            valid_lens = [1, 2, 3, 5]
+
+        if self.horizon_len not in valid_lens:
+            self.horizon_len = 5 if 5 in valid_lens else valid_lens[-1]
+
+        self.selected_horizon_label = (
+            f"Next {self.horizon_len} Gameweek{'s' if self.horizon_len > 1 else ''} (GW{gw}–GW{gw + self.horizon_len - 1})"
+        )
+
+        calc_ft = result.get("calc_ft", 1)
+        if self.ft_count == 1 and calc_ft > 1:
+            self.ft_count = calc_ft
+
+    def _apply_solve_result(self, result: Dict[str, Any]):
+        if not result:
+            return
+        self.swaps = result.get("swaps", [])
+        self.base_starters = result.get("base_starters", self.base_starters)
+        self.base_bench = result.get("base_bench", self.base_bench)
+        self.trans_starters = result.get("trans_starters", [])
+        self.trans_bench = result.get("trans_bench", [])
+        self.base_pitch_html = result.get("base_pitch_html", self.base_pitch_html)
+        self.comp_pitch_html = result.get("comp_pitch_html", "")
+        self.metrics = result.get("metrics", self.metrics)
+        self.has_solved = True
+        self.shared_trans_squad = (
+            [dict(p) for p in self.trans_starters]
+            + [dict(p) for p in self.trans_bench]
+        )
+
     def set_strategy_mode(self, mode: str):
         self.strategy_mode = mode
         gw = self.next_gw
@@ -270,7 +325,7 @@ class TransferAnalyzerState(AppState):
         else:
             self.horizon_len = 5
             self.selected_horizon_label = f"Next 5 Gameweeks (GW{gw}–GW{gw + 4})"
-        return TransferAnalyzerState.load_planner_data(True)
+        return TransferAnalyzerState.load_planner_data(False)
 
     def set_horizon_label(self, label: str):
         self.selected_horizon_label = label
@@ -280,7 +335,7 @@ class TransferAnalyzerState(AppState):
                 self.horizon_len = int(parts[1])
             except ValueError:
                 self.horizon_len = 1
-        return TransferAnalyzerState.load_planner_data(True)
+        return TransferAnalyzerState.load_planner_data(False)
 
     def increment_fts(self):
         if self.ft_count < 5:
@@ -303,6 +358,7 @@ class TransferAnalyzerState(AppState):
 
     def set_enable_betting(self, val: bool):
         self.enable_betting = val
+        return TransferAnalyzerState.load_planner_data(False)
 
     def set_market_weight_drag(self, val: list[float]):
         if val:
@@ -311,10 +367,12 @@ class TransferAnalyzerState(AppState):
     def set_market_weight(self, val: list[float]):
         if val:
             self.market_weight = round(float(val[0]) / 100.0, 2)
+        return TransferAnalyzerState.load_planner_data(False)
 
     def set_min_mins(self, val: list[float] | list[int]):
         if val:
             self.min_mins = int(val[0])
+        return TransferAnalyzerState.load_planner_data(False)
 
     def set_pos_search(self, val: str):
         self.pos_search = val
@@ -358,22 +416,7 @@ class TransferAnalyzerState(AppState):
         async with self:
             if not self.manager_id:
                 return
-            has_valid_display = (
-                self.has_data
-                and len(self.base_starters) > 0
-                and "Opponent_Display" in self.base_starters[0]
-                and "Cost_Display" in self.base_starters[0]
-                and "photo_url" in self.base_starters[0]
-            )
-            if (
-                has_valid_display
-                and not force_refresh
-                and self.manager_id == self.last_loaded_manager_id
-                and self.horizon_len == self.last_loaded_horizon
-            ):
-                return
-            self.is_loading = True
-            self.status_message = "Loading transfer planner & market options..."
+
             manager_id = self.manager_id
             current_gw = self.current_gw
             horizon = self.horizon_len
@@ -381,8 +424,21 @@ class TransferAnalyzerState(AppState):
             weight = self.market_weight
             mins = self.min_mins
 
-        if (force_refresh or not has_valid_display) and hasattr(fetch_transfer_planner_data, "clear_cache"):
-            fetch_transfer_planner_data.clear_cache()
+            planner_key = f"{manager_id}_{current_gw}_{horizon}_{betting}_{weight:.2f}_{mins}"
+
+            if not force_refresh and planner_key in _transfer_planner_cache:
+                self._apply_planner_result(_transfer_planner_cache[planner_key], manager_id, horizon)
+                self.is_loading = False
+                return
+
+            self.is_loading = True
+            self.status_message = "Loading transfer planner & market options..."
+
+        if force_refresh:
+            _transfer_planner_cache.clear()
+            _transfer_solve_cache.clear()
+            if hasattr(fetch_transfer_planner_data, "clear_cache"):
+                fetch_transfer_planner_data.clear_cache()
 
         result = await asyncio.to_thread(
             fetch_transfer_planner_data,
@@ -391,37 +447,8 @@ class TransferAnalyzerState(AppState):
 
         async with self:
             if result:
-                self.last_loaded_manager_id = manager_id
-                self.last_loaded_horizon = horizon
-                self.next_gw = result.get("next_gw", self.next_gw)
-                self.pos_options = result.get("pos_options", [])
-                self.neg_options = result.get("neg_options", [])
-                self.bank_balance = result.get("bank_balance", 0.0)
-                self.squad_sell = result.get("squad_sell", 100.0)
-                self.team_value = result.get("team_val", 100.0)
-                self.base_starters = result.get("base_starters", [])
-                self.base_bench = result.get("base_bench", [])
-                self.base_pitch_html = result.get("base_pitch_html", "")
-
-                gw = self.next_gw
-                if self.strategy_mode == "Wildcard":
-                    valid_lens = [3, 5, 8]
-                elif self.strategy_mode == "Free Hit":
-                    valid_lens = [1]
-                else:
-                    valid_lens = [1, 2, 3, 5]
-
-                if self.horizon_len not in valid_lens:
-                    self.horizon_len = 5 if 5 in valid_lens else valid_lens[-1]
-
-                self.selected_horizon_label = (
-                    f"Next {self.horizon_len} Gameweek{'s' if self.horizon_len > 1 else ''} (GW{gw}–GW{gw + self.horizon_len - 1})"
-                )
-
-                calc_ft = result.get("calc_ft", 1)
-                if self.ft_count == 1 and calc_ft > 1:
-                    self.ft_count = calc_ft
-
+                _transfer_planner_cache[planner_key] = result
+                self._apply_planner_result(result, manager_id, horizon)
             self.is_loading = False
 
     @rx.event(background=True)
@@ -429,8 +456,6 @@ class TransferAnalyzerState(AppState):
         async with self:
             if not self.manager_id:
                 return
-            self.is_solving = True
-            self.status_message = "Solving optimal transfer path..."
 
             manager_id = self.manager_id
             current_gw = self.current_gw
@@ -440,9 +465,19 @@ class TransferAnalyzerState(AppState):
             betting = self.enable_betting
             weight = self.market_weight
             mins = self.min_mins
-            pos_sel = self.selected_positive
-            neg_sel = self.selected_negative
+            pos_sel = list(self.selected_positive)
+            neg_sel = list(self.selected_negative)
             chip_mode = self.strategy_mode
+
+            solve_key = f"{manager_id}_{current_gw}_{horizon}_{ft}_{hits}_{betting}_{weight:.2f}_{mins}_{','.join(sorted(pos_sel))}_{','.join(sorted(neg_sel))}_{chip_mode}"
+
+            if solve_key in _transfer_solve_cache:
+                self._apply_solve_result(_transfer_solve_cache[solve_key])
+                self.is_solving = False
+                return
+
+            self.is_solving = True
+            self.status_message = "Solving optimal transfer path..."
 
         result = await asyncio.to_thread(
             analyze_transfers,
@@ -451,21 +486,8 @@ class TransferAnalyzerState(AppState):
 
         async with self:
             if result:
-                self.swaps = result.get("swaps", [])
-                self.base_starters = result.get("base_starters", self.base_starters)
-                self.base_bench = result.get("base_bench", self.base_bench)
-                self.trans_starters = result.get("trans_starters", [])
-                self.trans_bench = result.get("trans_bench", [])
-                self.base_pitch_html = result.get("base_pitch_html", self.base_pitch_html)
-                self.comp_pitch_html = result.get("comp_pitch_html", "")
-                self.metrics = result.get("metrics", self.metrics)
-                self.has_solved = True
-                # Populate shared squad so SimulatorState can load Post-Transfer Plan
-                # without needing cross-state get_state() in a background task
-                self.shared_trans_squad = (
-                    [dict(p) for p in self.trans_starters]
-                    + [dict(p) for p in self.trans_bench]
-                )
+                _transfer_solve_cache[solve_key] = result
+                self._apply_solve_result(result)
             self.is_solving = False
 
     @rx.event(background=True)

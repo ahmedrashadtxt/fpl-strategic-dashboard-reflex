@@ -2,6 +2,7 @@
 
 import reflex as rx
 from fpl_strategic_dashboard_reflex.styles.theme import METRIC_CARD_STYLE
+from .motion import MotionDiv
 
 
 def metric_card(
@@ -14,7 +15,7 @@ def metric_card(
     delta_color: rx.Var | str = "green",
 ) -> rx.Component:
     """Pure presentation metric card."""
-    return rx.box(
+    return MotionDiv.create(
         rx.hstack(
             rx.vstack(
                 rx.text(label, class_name="metric-card-label", font_size="0.75rem", color="var(--text-sub)"),
@@ -42,5 +43,8 @@ def metric_card(
             width="100%",
         ),
         style=METRIC_CARD_STYLE,
+        layout="position",
+        while_hover={"y": -2, "transition": {"duration": 0.15}},
+        transition={"type": "spring", "stiffness": 400, "damping": 30},
     )
 

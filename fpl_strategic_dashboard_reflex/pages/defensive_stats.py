@@ -8,6 +8,7 @@ from fpl_strategic_dashboard_reflex.components import (
     data_table,
     search_input,
     filter_select,
+    MotionDiv,
 )
 
 
@@ -15,13 +16,18 @@ def defensive_metric_cards() -> rx.Component:
     """Isolated player highlight cards component matching Streamlit layout."""
     return rx.cond(
         DefensiveStatsState.has_data,
-        rx.grid(
-            rx.foreach(
-                DefensiveStatsState.top_cards,
-                player_highlight_card,
+        MotionDiv.create(
+            rx.grid(
+                rx.foreach(
+                    DefensiveStatsState.top_cards,
+                    player_highlight_card,
+                ),
+                columns=rx.breakpoints(initial="1", sm="2", lg="4"),
+                spacing="3",
+                width="100%",
             ),
-            columns=rx.breakpoints(initial="1", sm="2", lg="4"),
-            spacing="3",
+            layout="position",
+            transition={"duration": 0.35, "ease": [0.16, 1, 0.3, 1]},
             width="100%",
             margin_bottom="1.25rem",
         ),
@@ -47,7 +53,6 @@ def defensive_stats_controls() -> rx.Component:
             ),
             rx.vstack(
                 rx.hstack(
-                    rx.text("⏱ Min Avg Mins / GW", font_size="0.8rem", color="var(--text-sub)", font_weight="600"),
                     rx.icon("clock", size=14, color="var(--text-sub)"),
                     rx.text("Min Avg Mins / GW", font_size="0.8rem", color="var(--text-sub)", font_weight="600"),
                     rx.badge(DefensiveStatsState.min_avg_mins, variant="surface", color_scheme="green", size="1"),

@@ -248,7 +248,7 @@ def compute_active_solver_squad(conn, manager_id: str, target_gw: int, current_g
     INNER JOIN teams ta ON f.team_a = ta.id
     WHERE f.event >= ? AND f.event <= ?
     """
-    adv_fix_df = pd.read_sql(adv_fixtures_query, conn, params=[current_gw, max(19, target_gw)])
+    adv_fix_df = pd.read_sql(adv_fixtures_query, conn, params=[min(current_gw, target_gw, 1), max(38, target_gw)])
     hist_baselines_df = get_historical_player_baselines(conn)
 
     squad_eval_list = []

@@ -324,6 +324,7 @@ def run_rolling_analysis(*args, **kwargs):
             paper_bgcolor="rgba(15, 23, 42, 0.0)",
             margin=dict(l=20, r=20, t=50, b=20),
             height=450,
+            autosize=True,
             xaxis=dict(gridcolor="rgba(255, 255, 255, 0.08)", zeroline=False),
             yaxis=dict(gridcolor="rgba(255, 255, 255, 0.08)", zeroline=False),
         )
