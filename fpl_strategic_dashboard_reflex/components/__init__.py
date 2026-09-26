@@ -9,18 +9,7 @@ from .global_stats_panel import global_stats_panel
 from .id_dialog import id_dialog
 from .metric_card import metric_card
 from .player_card import player_highlight_card
-from .metrics_bar import metrics_bar
-from .tab_placeholders import (
-    squad_analyzer_tab,
-    transfer_solver_tab,
-    expected_stats_tab,
-    defensive_stats_tab,
-    rolling_form_tab,
-    fixture_ticker_tab,
-    transfer_market_tab,
-)
 from .pitch import pitch_view, squad_list_view
-from .guide_popover import guide_popover
 from .filters import search_input, filter_select, filter_bar
 from .data_table import data_table
 from .utils import concat
@@ -41,6 +30,8 @@ from .motion import (
     rating_ring,
 )
 from .count_up import CountUp, count_up
+from .tour import tour_driver, tour_button
+from .tour_config import TOUR_STEPS_BY_TAB
 
 __all__ = [
     "header",
@@ -48,17 +39,8 @@ __all__ = [
     "id_dialog",
     "metric_card",
     "player_highlight_card",
-    "metrics_bar",
-    "squad_analyzer_tab",
-    "transfer_solver_tab",
-    "expected_stats_tab",
-    "defensive_stats_tab",
-    "rolling_form_tab",
-    "fixture_ticker_tab",
-    "transfer_market_tab",
     "pitch_view",
     "squad_list_view",
-    "guide_popover",
     "search_input",
     "filter_select",
     "filter_bar",
@@ -84,6 +66,4 @@ __all__ = [
     "tour_button",
     "TOUR_STEPS_BY_TAB",
 ]
-from .tour import tour_driver, tour_button
-from .tour_config import TOUR_STEPS_BY_TAB
 

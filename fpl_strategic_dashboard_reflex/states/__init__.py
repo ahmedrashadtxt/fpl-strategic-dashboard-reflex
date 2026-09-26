@@ -3,7 +3,6 @@ Domain-partitioned rx.State classes.
 """
 
 from .base import AppState
-from .metrics import DashboardMetricsState
 from .squad import SquadAnalyzerState
 from .transfer import TransferAnalyzerState
 from .simulator import SimulatorState
@@ -15,7 +14,6 @@ from .market import TransferMarketState
 
 __all__ = [
     "AppState",
-    "DashboardMetricsState",
     "SquadAnalyzerState",
     "TransferAnalyzerState",
     "SimulatorState",
