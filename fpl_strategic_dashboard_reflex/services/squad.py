@@ -4,11 +4,6 @@ import os
 import pandas as pd
 import requests
 
-try:
-    from fpl_strategic_dashboard_reflex.services.audit import save_pre_gw_snapshot, get_snapshot
-except ImportError:
-    pass
-
 from fpl_strategic_dashboard_reflex.services.cache import ttl_cache
 
 from fpl_strategic_dashboard_reflex.services.betting import (
