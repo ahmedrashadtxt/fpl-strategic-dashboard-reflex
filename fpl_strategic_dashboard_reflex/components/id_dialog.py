@@ -8,15 +8,27 @@ def id_dialog(on_save_handler=None) -> rx.Component:
     """Pure presentation modal dialog for setting user's FPL manager ID."""
     return rx.dialog.root(
         rx.dialog.content(
-            rx.dialog.title("Enter FPL Team ID", font_family="'Outfit', sans-serif"),
+            rx.dialog.title(
+                "Enter FPL Team ID",
+                font_family="'Outfit', sans-serif",
+                font_size="1.25rem",
+                font_weight="700",
+                color="var(--text-main)",
+            ),
             rx.dialog.description(
                 "Sync your live squad, bank balance, and free transfers directly from the official FPL API.",
                 size="2",
-                color_scheme="gray",
+                color="var(--text-sub)",
                 margin_bottom="1rem",
+                style={"textWrap": "pretty"},
             ),
             rx.vstack(
-                rx.text("FPL Team ID", font_weight="600", font_size="0.85rem"),
+                rx.text(
+                    "FPL Team ID",
+                    font_weight="600",
+                    font_size="0.82rem",
+                    color="var(--text-sub)",
+                ),
                 rx.input(
                     value=AppState.temp_manager_id,
                     on_change=AppState.set_temp_id,
@@ -29,17 +41,17 @@ def id_dialog(on_save_handler=None) -> rx.Component:
                 rx.box(
                     rx.vstack(
                         rx.hstack(
-                            rx.icon("info", size=14, color="var(--accent-9, #60a5fa)"),
+                            rx.icon("info", size=14, color="var(--color-interactive, #38bdf8)"),
                             rx.text(
                                 "How to find your Team ID:",
-                                font_weight="700",
-                                color="var(--text-main)",
+                                font_weight="600",
+                                color="var(--color-interactive, #38bdf8)",
                                 font_size="0.82rem",
                             ),
                             align="center",
                             spacing="2",
                         ),
-                        # Step 1 — wrapped properly
+                        # Step 1 — wrapped cleanly with text-wrap: pretty and no orphan
                         rx.hstack(
                             rx.text(
                                 "1.",
@@ -49,11 +61,11 @@ def id_dialog(on_save_handler=None) -> rx.Component:
                                 font_weight="600",
                             ),
                             rx.text(
-                                "Log into fantasy.premierleague.com and click Points or Pick Team.",
+                                "Log into fantasy.premierleague.com and click Points or Pick\u00a0Team.",
                                 font_size="0.78rem",
                                 color="var(--text-sub)",
                                 white_space="normal",
-                                word_break="break-word",
+                                style={"textWrap": "pretty"},
                             ),
                             align="start",
                             spacing="2",
@@ -72,23 +84,24 @@ def id_dialog(on_save_handler=None) -> rx.Component:
                                 "Check the URL in your browser's address bar:",
                                 font_size="0.78rem",
                                 color="var(--text-sub)",
+                                style={"textWrap": "pretty"},
                             ),
                             align="center",
                             spacing="2",
                             width="100%",
                         ),
-                        # URL example box — wraps cleanly, dynamic GW
+                        # URL example box — Level-1 filled surface with interactive blue accent
                         rx.box(
                             rx.text(
                                 "fantasy.premierleague.com/entry/",
                                 rx.el.span(
                                     "1234567",
-                                    style={"color": "#4ade80", "font_weight": "700"},
+                                    style={"color": "var(--color-interactive, #38bdf8)", "font_weight": "700"},
                                 ),
                                 "/event/",
                                 rx.el.span(
                                     AppState.example_url_gw,
-                                    style={"color": "#4ade80", "font_weight": "700"},
+                                    style={"color": "var(--color-interactive, #38bdf8)", "font_weight": "700"},
                                 ),
                                 font_family="monospace",
                                 font_size="0.74rem",
@@ -97,11 +110,11 @@ def id_dialog(on_save_handler=None) -> rx.Component:
                                 white_space="normal",
                                 line_height="1.6",
                             ),
-                            padding="6px 10px",
+                            padding="7px 12px",
                             border_radius="6px",
-                            background="rgba(0, 0, 0, 0.4)",
+                            background="var(--surface-1, rgba(255, 255, 255, 0.035))",
+                            border="1px solid var(--border-level-1, rgba(255, 255, 255, 0.05))",
                             width="100%",
-                            border="1px solid rgba(37, 99, 235, 0.35)",
                         ),
                         # Live / Completed GW badge
                         rx.hstack(
@@ -121,6 +134,7 @@ def id_dialog(on_save_handler=None) -> rx.Component:
                                 "The number right after /entry/ is your Team ID.",
                                 font_size="0.78rem",
                                 color="var(--text-sub)",
+                                style={"textWrap": "pretty"},
                             ),
                             align="center",
                             spacing="2",
@@ -131,8 +145,8 @@ def id_dialog(on_save_handler=None) -> rx.Component:
                     ),
                     padding="12px 14px",
                     border_radius="8px",
-                    background="rgba(255, 255, 255, 0.03)",
-                    border="1px solid var(--border-color)",
+                    background="rgba(255, 255, 255, 0.02)",
+                    border="1px solid var(--border-overlay, rgba(255, 255, 255, 0.12))",
                     width="100%",
                     margin_y="0.75rem",
                 ),
@@ -158,10 +172,12 @@ def id_dialog(on_save_handler=None) -> rx.Component:
                 spacing="3",
                 width="100%",
             ),
-            max_width="450px",
-            background="var(--card-bg)",
-            border="1px solid var(--border-color)",
+            max_width="480px",
+            background="var(--surface-overlay, rgba(18, 18, 22, 0.90))",
+            backdrop_filter="blur(16px)",
+            border="1px solid var(--border-overlay, rgba(255, 255, 255, 0.12))",
             border_radius="12px",
+            box_shadow="var(--shadow-modal)",
             padding="1.5rem",
         ),
         open=AppState.is_id_dialog_open,

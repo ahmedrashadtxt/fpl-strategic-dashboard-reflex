@@ -24,7 +24,7 @@ def guide_popover(title: str, subtitle: str, items: list[dict], tip: str = None)
                     rx.text(subtitle, font_size="0.8rem", color="var(--text-sub)"),
                     align="start",
                     spacing="1",
-                    border_bottom="1px solid var(--border-color)",
+                    border_bottom="1px solid var(--border-overlay, rgba(255, 255, 255, 0.12))",
                     padding_bottom="0.5rem",
                     width="100%",
                 ),
@@ -75,6 +75,6 @@ def guide_popover(title: str, subtitle: str, items: list[dict], tip: str = None)
                 max_width="400px",
                 spacing="3",
             ),
-            style={"max_width": "420px", "padding": "1rem", "background": "var(--card-bg)"},
+            style={"max_width": "420px", "padding": "1rem"},
         ),
     )

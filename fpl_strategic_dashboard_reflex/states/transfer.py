@@ -205,6 +205,10 @@ class TransferAnalyzerState(AppState):
         return f"{self.market_weight:.2f}"
 
     @rx.var
+    def min_mins_list(self) -> list[int]:
+        return [self.min_mins]
+
+    @rx.var
     def filtered_pos_options(self) -> List[Dict[str, str]]:
         if not self.pos_search:
             return self.pos_options[:45]
@@ -356,6 +360,13 @@ class TransferAnalyzerState(AppState):
     def set_pitch_view(self, val: bool):
         self.pitch_view = bool(val)
 
+    def set_view_mode(self, val: str | list[str]):
+        if isinstance(val, list):
+            mode = val[0] if val else "pitch"
+        else:
+            mode = val
+        self.pitch_view = (mode == "pitch")
+
     def set_enable_betting(self, val: bool):
         self.enable_betting = val
         return TransferAnalyzerState.load_planner_data(False)
@@ -369,7 +380,11 @@ class TransferAnalyzerState(AppState):
             self.market_weight = round(float(val[0]) / 100.0, 2)
         return TransferAnalyzerState.load_planner_data(False)
 
-    def set_min_mins(self, val: list[float] | list[int]):
+    def set_min_mins_drag(self, val: list[float]):
+        if val:
+            self.min_mins = int(val[0])
+
+    def set_min_mins(self, val: list[float]):
         if val:
             self.min_mins = int(val[0])
         return TransferAnalyzerState.load_planner_data(False)

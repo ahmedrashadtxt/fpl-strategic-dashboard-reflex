@@ -2,7 +2,7 @@
 
 import reflex as rx
 from fpl_strategic_dashboard_reflex.states.simulator import SimulatorState
-from fpl_strategic_dashboard_reflex.components import guide_popover, loading_view, MotionDiv
+from fpl_strategic_dashboard_reflex.components import tour_button, loading_view, MotionDiv
 from fpl_strategic_dashboard_reflex.styles.theme import (
     CARD_STYLE,
     FILTER_BAR_STYLE,
@@ -185,20 +185,9 @@ def simulator_page() -> rx.Component:
                 ),
                 align="center",
             ),
+            rx.spacer(),
             rx.hstack(
-                guide_popover(
-                    title="Monte Carlo Simulator Guide",
-                    subtitle="Probabilistic outcome modelling and variance testing",
-                    items=[
-                        {"badge": "Target GW", "title": "Fixture Target", "desc": "Select any future gameweek to simulate based on bookmaker clean sheet and anytime goalscorer odds.", "color": "#38bdf8"},
-                        {"badge": "Squad Source", "title": "Flexible Squad Selection", "desc": "Test your active FPL squad, post-transfer plan, Budget Dream 15, or build a custom 15-player team.", "color": "#10b981"},
-                        {"badge": "Iterations", "title": "Monte Carlo Precision", "desc": "Simulate 1,000 to 20,000 probabilistic iterations to model player goal distributions and variance tails.", "color": "#818cf8"},
-                        {"badge": "Sandbox", "title": "Custom 15-Player Sandbox", "desc": "Build hypothetical wildcard teams with live budget tracking, club limit enforcement, and auto-picks.", "color": "#f59e0b"},
-                        {"badge": "Benchmark", "title": "Head-to-Head Comparison", "desc": "Directly compare point distributions and win probability between your team and a benchmark squad.", "color": "#38bdf8"},
-                        {"badge": "Risk Metrics", "title": "Percentile Ranges", "desc": "Assess 10th percentile floor safety when protecting rank, and 90th percentile ceiling when chasing.", "color": "#10b981"},
-                    ],
-                    tip="Focus on 10th percentile floor projections when defending a mini-league lead, and 90th percentile ceiling when chasing aggressive rank swings.",
-                ),
+                tour_button("match_simulator"),
                 rx.button(
                     rx.hstack(
                         rx.icon("refresh-cw", size=14),
@@ -240,6 +229,8 @@ def simulator_page() -> rx.Component:
             spacing="1",
             margin_bottom="1.25rem",
             width="100%",
+            id="tour-sim-gw",
+            custom_attrs={"data-tour-id": "tour-sim-gw"},
         ),
 
         # Squad Source Section (4 buttons matching reference layout)
@@ -306,6 +297,8 @@ def simulator_page() -> rx.Component:
             spacing="2",
             margin_bottom="1.5rem",
             width="100%",
+            id="tour-sim-squad",
+            custom_attrs={"data-tour-id": "tour-sim-squad"},
         ),
 
         # Notice when in Post-Transfer Plan mode without a transfer plan
@@ -576,6 +569,8 @@ def simulator_page() -> rx.Component:
                         ),
                         style=CARD_STYLE,
                         width="100%",
+                        id="tour-sim-iterations",
+                        custom_attrs={"data-tour-id": "tour-sim-iterations"},
                     ),
                     spacing="3",
                     width="100%",
@@ -820,6 +815,8 @@ def simulator_page() -> rx.Component:
                 min_width="0",
                 max_width="100%",
                 width="100%",
+                id="tour-sim-results",
+                custom_attrs={"data-tour-id": "tour-sim-results"},
             ),
             columns=rx.breakpoints(initial="1", lg="5fr 7fr"),
             spacing="4",

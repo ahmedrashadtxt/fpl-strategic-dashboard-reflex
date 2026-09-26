@@ -2,11 +2,16 @@
 
 import reflex as rx
 from fpl_strategic_dashboard_reflex.states.base import AppState
+from fpl_strategic_dashboard_reflex.components.motion import MotionDiv
 
 
 def header() -> rx.Component:
-    """Pure presentation top navbar — title, GW badge, manager button, theme toggle."""
-    return rx.box(
+    """Pure presentation top navbar — title, GW badge, manager button, theme toggle.
+
+    Phase 0 motion demo: slides down from y=-8 + opacity 0 on first mount.
+    Spring stiffness=350, damping=28 → tight, non-bouncy settle in ~220ms.
+    """
+    return MotionDiv.create(
         rx.hstack(
             # Brand & Subtitle
             rx.vstack(
@@ -67,7 +72,16 @@ def header() -> rx.Component:
             wrap="wrap",
             gap="1rem",
         ),
+        # Phase 0 demo: entrance animation — slides down from -8px + fades in
+        initial={"opacity": 0, "y": -8},
+        animate={"opacity": 1, "y": 0},
+        transition={
+            "type": "spring",
+            "stiffness": 350,
+            "damping": 28,
+        },
         padding_y="1.25rem",
         margin_bottom="0",
         width="100%",
     )
+
