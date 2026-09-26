@@ -3,7 +3,7 @@
 import reflex as rx
 from fpl_strategic_dashboard_reflex.states.fixtures import FixtureTickerState
 from fpl_strategic_dashboard_reflex.components import (
-    guide_popover,
+    tour_button,
     search_input,
 )
 from fpl_strategic_dashboard_reflex.styles.theme import TABLE_CONTAINER_STYLE
@@ -31,6 +31,44 @@ def _fdr_badge(diff_var, label_var, blank_var) -> rx.Component:
     )
 
 
+def ticker_header_cell(
+    label: str | rx.Var[str],
+    sort_key: str,
+    align: str = "center",
+    padding_left: str | None = None,
+) -> rx.Component:
+    """Renders a sortable table column header cell for Fixture Ticker."""
+    return rx.table.column_header_cell(
+        rx.hstack(
+            rx.text(label, white_space="nowrap"),
+            rx.cond(
+                FixtureTickerState.sort_column == sort_key,
+                rx.cond(
+                    FixtureTickerState.sort_direction == "asc",
+                    rx.icon("arrow-up", size=13, color="var(--accent-9)"),
+                    rx.icon("arrow-down", size=13, color="var(--accent-9)"),
+                ),
+                rx.icon("chevrons-up-down", size=12, opacity=0.25),
+            ),
+            align="center",
+            justify="start" if align == "left" else "center",
+            spacing="1",
+            width="100%",
+        ),
+        font_family="'Outfit', sans-serif",
+        font_weight="700",
+        font_size="0.8rem",
+        text_align=align,
+        padding_left=padding_left,
+        color=rx.cond(FixtureTickerState.sort_column == sort_key, "var(--text-main)", "var(--text-sub)"),
+        cursor="pointer",
+        user_select="none",
+        _hover={"color": "var(--text-main)", "background": "rgba(255, 255, 255, 0.04)"},
+        transition="all 0.15s ease",
+        on_click=FixtureTickerState.handle_sort(sort_key),
+    )
+
+
 def fixture_ticker_page() -> rx.Component:
     """Renders the Fixture Ticker page view."""
     return rx.box(
@@ -52,39 +90,9 @@ def fixture_ticker_page() -> rx.Component:
                 ),
                 align="center",
             ),
+            rx.spacer(),
             rx.hstack(
-                guide_popover(
-                    title="Fixture Difficulty Ticker",
-                    subtitle="Upcoming schedule ranked by official FDR and venue difficulty",
-                    items=[
-                        {
-                            "badge": "FDR Sum",
-                            "title": "Cumulative Difficulty Score",
-                            "desc": "Sum of official Premier League FDR scores across the upcoming 5 gameweeks (green = easy run, red = tough test).",
-                        },
-                        {
-                            "badge": "Venue",
-                            "title": "Home & Away Adjustments",
-                            "desc": "(H) vs. (A) tags show home pitch advantage and away fixture handicaps across the 5-match window.",
-                        },
-                        {
-                            "badge": "Swings",
-                            "title": "Fixture Swing Timing",
-                            "desc": "Identify key turning points where clubs swing from tough runs (FDR 15+) into prime attackable schedules (FDR <= 10).",
-                        },
-                        {
-                            "badge": "Squad Clubs",
-                            "title": "My Squad Club Filter",
-                            "desc": "Instantly filter the ticker to isolate the clubs represented in your current 15-player squad.",
-                        },
-                        {
-                            "badge": "Search",
-                            "title": "Club & Player Quick Lookup",
-                            "desc": "Search by player name or 3-letter club abbreviation to immediately locate specific club schedules.",
-                        },
-                    ],
-                    tip="Plan transfers 2 to 3 gameweeks ahead of major green fixture swings to beat transfer price rises and capture maximum haul windows.",
-                ),
+                tour_button("fixture_ticker"),
                 rx.button(
                     rx.hstack(
                         rx.icon("refresh-cw", size=14),
@@ -125,7 +133,7 @@ def fixture_ticker_page() -> rx.Component:
                 rx.switch(
                     checked=FixtureTickerState.only_my_squad,
                     on_change=FixtureTickerState.toggle_only_my_squad,
-                    color_scheme="green",
+                    color_scheme="blue",
                     size="1",
                 ),
                 rx.hstack(
@@ -143,6 +151,8 @@ def fixture_ticker_page() -> rx.Component:
             margin_bottom="1.25rem",
             wrap="wrap",
             gap="1rem",
+            id="tour-ticker-filter",
+            custom_attrs={"data-tour-id": "tour-ticker-filter"},
         ),
 
         # Notice when squad filter active but no Team ID configured
@@ -184,18 +194,18 @@ def fixture_ticker_page() -> rx.Component:
                     rx.table.root(
                         rx.table.header(
                             rx.table.row(
-                                rx.table.column_header_cell("Club", font_weight="700", text_align="left", padding_left="1rem"),
+                                ticker_header_cell("Club", "Club", align="left", padding_left="1rem"),
                                 rx.cond(
                                     FixtureTickerState.only_my_squad,
-                                    rx.table.column_header_cell("Squad Players", font_weight="700", text_align="left"),
+                                    ticker_header_cell("Squad Players", "Squad Players", align="left"),
                                     rx.fragment(),
                                 ),
-                                rx.table.column_header_cell(FixtureTickerState.gw_col_labels[0], font_weight="700", text_align="center"),
-                                rx.table.column_header_cell(FixtureTickerState.gw_col_labels[1], font_weight="700", text_align="center"),
-                                rx.table.column_header_cell(FixtureTickerState.gw_col_labels[2], font_weight="700", text_align="center"),
-                                rx.table.column_header_cell(FixtureTickerState.gw_col_labels[3], font_weight="700", text_align="center"),
-                                rx.table.column_header_cell(FixtureTickerState.gw_col_labels[4], font_weight="700", text_align="center"),
-                                rx.table.column_header_cell("Total FDR (5 GW)", font_weight="700", text_align="center"),
+                                ticker_header_cell(FixtureTickerState.gw_col_labels[0], "gw0", align="center"),
+                                ticker_header_cell(FixtureTickerState.gw_col_labels[1], "gw1", align="center"),
+                                ticker_header_cell(FixtureTickerState.gw_col_labels[2], "gw2", align="center"),
+                                ticker_header_cell(FixtureTickerState.gw_col_labels[3], "gw3", align="center"),
+                                ticker_header_cell(FixtureTickerState.gw_col_labels[4], "gw4", align="center"),
+                                ticker_header_cell("Total FDR (5 GW)", "Total FDR", align="center"),
                             )
                         ),
                         rx.table.body(
@@ -265,6 +275,8 @@ def fixture_ticker_page() -> rx.Component:
             ),
             style=TABLE_CONTAINER_STYLE,
             width="100%",
+            id="tour-ticker-grid",
+            custom_attrs={"data-tour-id": "tour-ticker-grid"},
         ),
         width="100%",
         on_mount=FixtureTickerState.load_data,

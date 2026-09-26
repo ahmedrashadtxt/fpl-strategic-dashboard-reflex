@@ -1,8 +1,0 @@
-streamlit
-pandas
-requests
-plotly
-streamlit-keyup
-rapidfuzz
-scipy
-pulp

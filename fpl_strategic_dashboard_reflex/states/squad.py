@@ -43,6 +43,7 @@ class SquadAnalyzerState(AppState):
     gw_labels: List[str] = []
     gw_map: Dict[str, str] = {}
     selected_eval_label: str = ""
+    gw_direction: int = 1
     used_chips_keys: List[str] = []
 
     market_disagreements: List[Dict[str, Any]] = []
@@ -97,6 +98,17 @@ class SquadAnalyzerState(AppState):
     @rx.var
     def market_weight_display(self) -> str:
         return f"{self.market_weight:.2f}"
+
+    @rx.var
+    def banner_rating_ratio(self) -> float:
+        """Returns squad rating percentage as a 0.0 - 1.0 float for SVG pathLength animation."""
+        if not self.banner_diff_text:
+            return 0.65
+        try:
+            clean = str(self.banner_diff_text).replace("%", "").strip()
+            return round(float(clean) / 100.0, 3)
+        except Exception:
+            return 0.65
 
     @rx.var
     def show_betting_controls(self) -> bool:
@@ -177,9 +189,13 @@ class SquadAnalyzerState(AppState):
         return SquadAnalyzerState.load_squad(False)
 
     def set_eval_label(self, label: str):
+        old_gw = int(self.selected_eval_gw) if self.selected_eval_gw and self.selected_eval_gw.isdigit() else 0
         self.selected_eval_label = label
         if label in self.gw_map:
             self.selected_eval_gw = self.gw_map[label]
+        new_gw = int(self.selected_eval_gw) if self.selected_eval_gw and self.selected_eval_gw.isdigit() else 0
+        if new_gw != old_gw and old_gw > 0:
+            self.gw_direction = 1 if new_gw > old_gw else -1
         if "Finished" in label or "Live" in label:
             self.is_live_or_finished = True
         elif "Upcoming" in label:
@@ -187,7 +203,11 @@ class SquadAnalyzerState(AppState):
         return SquadAnalyzerState.load_squad(False)
 
     def set_eval_gw(self, gw: str):
+        old_gw = int(self.selected_eval_gw) if self.selected_eval_gw and self.selected_eval_gw.isdigit() else 0
         self.selected_eval_gw = str(gw)
+        new_gw = int(gw) if str(gw).isdigit() else 0
+        if new_gw != old_gw and old_gw > 0:
+            self.gw_direction = 1 if new_gw > old_gw else -1
         for lbl, gid in self.gw_map.items():
             if gid == str(gw):
                 self.selected_eval_label = lbl

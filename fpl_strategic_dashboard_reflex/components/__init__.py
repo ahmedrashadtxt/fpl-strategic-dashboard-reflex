@@ -26,7 +26,22 @@ from .filters import search_input, filter_select, filter_bar
 from .data_table import data_table
 from .utils import concat
 from .loading import loading_view
-from .motion import MotionDiv, AnimatePresence, motion_tab_content, motion_card
+from .motion import (
+    MotionConfig,
+    MotionDiv,
+    MotionSpan,
+    MotionLi,
+    MotionCircle,
+    AnimatePresence,
+    motion_tab_content,
+    motion_card,
+    motion_fade_in,
+    motion_slide_up,
+    motion_scale_in,
+    directional_slide,
+    rating_ring,
+)
+from .count_up import CountUp, count_up
 
 __all__ = [
     "header",
@@ -52,9 +67,25 @@ __all__ = [
     "data_table",
     "concat",
     "loading_view",
+    "MotionConfig",
     "MotionDiv",
+    "MotionSpan",
+    "MotionLi",
+    "MotionCircle",
     "AnimatePresence",
     "motion_tab_content",
     "motion_card",
+    "motion_fade_in",
+    "motion_slide_up",
+    "motion_scale_in",
+    "directional_slide",
+    "rating_ring",
+    "CountUp",
+    "count_up",
+    "tour_driver",
+    "tour_button",
+    "TOUR_STEPS_BY_TAB",
 ]
+from .tour import tour_driver, tour_button
+from .tour_config import TOUR_STEPS_BY_TAB
 

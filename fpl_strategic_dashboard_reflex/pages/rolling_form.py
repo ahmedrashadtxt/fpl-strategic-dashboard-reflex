@@ -3,7 +3,7 @@
 import reflex as rx
 from fpl_strategic_dashboard_reflex.states.rolling import RollingFormState
 from fpl_strategic_dashboard_reflex.components import (
-    guide_popover,
+    tour_button,
     player_highlight_card,
     data_table,
     search_input,
@@ -14,24 +14,29 @@ from fpl_strategic_dashboard_reflex.components import (
 
 def rolling_metric_cards() -> rx.Component:
     """Isolated player highlight cards component matching Streamlit layout."""
-    return rx.cond(
-        RollingFormState.has_data,
-        MotionDiv.create(
-            rx.grid(
-                rx.foreach(
-                    RollingFormState.top_cards,
-                    player_highlight_card,
+    return rx.box(
+        rx.cond(
+            RollingFormState.has_data,
+            MotionDiv.create(
+                rx.grid(
+                    rx.foreach(
+                        RollingFormState.top_cards,
+                        player_highlight_card,
+                    ),
+                    columns=rx.breakpoints(initial="1", sm="2", lg="4"),
+                    spacing="3",
+                    width="100%",
                 ),
-                columns=rx.breakpoints(initial="1", sm="2", lg="4"),
-                spacing="3",
+                layout="position",
+                transition={"duration": 0.35, "ease": [0.16, 1, 0.3, 1]},
                 width="100%",
+                margin_bottom="1.25rem",
             ),
-            layout="position",
-            transition={"duration": 0.35, "ease": [0.16, 1, 0.3, 1]},
-            width="100%",
-            margin_bottom="1.25rem",
+            rx.box(),
         ),
-        rx.box(),
+        id="tour-form-kpis",
+        custom_attrs={"data-tour-id": "tour-form-kpis"},
+        width="100%",
     )
 
 
@@ -85,7 +90,7 @@ def rolling_form_controls() -> rx.Component:
                     rx.switch(
                         checked=RollingFormState.only_my_squad,
                         on_change=RollingFormState.set_only_squad,
-                        color_scheme="green",
+                        color_scheme="blue",
                         size="1",
                     ),
                     rx.hstack(
@@ -127,7 +132,8 @@ def rolling_form_controls() -> rx.Component:
                         min=1,
                         max=10,
                         step=1,
-                        value=[RollingFormState.window_size],
+                        value=RollingFormState.window_size_list,
+                        on_change=RollingFormState.set_window_drag,
                         on_value_commit=RollingFormState.set_window,
                         color_scheme="blue",
                         size="1",
@@ -149,7 +155,7 @@ def rolling_form_controls() -> rx.Component:
                     rx.badge(
                         RollingFormState.min_matches,
                         variant="surface",
-                        color_scheme="green",
+                        color_scheme="blue",
                         size="1",
                     ),
                     align="center",
@@ -160,9 +166,10 @@ def rolling_form_controls() -> rx.Component:
                         min=1,
                         max=10,
                         step=1,
-                        value=[RollingFormState.min_matches],
+                        value=RollingFormState.min_matches_list,
+                        on_change=RollingFormState.set_min_matches_drag,
                         on_value_commit=RollingFormState.set_min_matches,
-                        color_scheme="green",
+                        color_scheme="blue",
                         size="1",
                         width="100%",
                     ),
@@ -182,7 +189,7 @@ def rolling_form_controls() -> rx.Component:
                     rx.badge(
                         RollingFormState.min_avg_mins,
                         variant="surface",
-                        color_scheme="green",
+                        color_scheme="blue",
                         size="1",
                     ),
                     align="center",
@@ -193,9 +200,10 @@ def rolling_form_controls() -> rx.Component:
                         min=0,
                         max=90,
                         step=15,
-                        value=[RollingFormState.min_avg_mins],
+                        value=RollingFormState.min_avg_mins_list,
+                        on_change=RollingFormState.set_min_mins_drag,
                         on_value_commit=RollingFormState.set_min_mins,
-                        color_scheme="green",
+                        color_scheme="blue",
                         size="1",
                         width="100%",
                     ),
@@ -215,7 +223,7 @@ def rolling_form_controls() -> rx.Component:
                     rx.badge(
                         rx.concat("£", RollingFormState.max_price),
                         variant="surface",
-                        color_scheme="green",
+                        color_scheme="blue",
                         size="1",
                     ),
                     align="center",
@@ -224,11 +232,12 @@ def rolling_form_controls() -> rx.Component:
                 rx.box(
                     rx.slider(
                         min=4.0,
-                        max=15.5,
+                        max=17.0,
                         step=0.5,
-                        value=[RollingFormState.max_price],
+                        value=RollingFormState.max_price_list,
+                        on_change=RollingFormState.set_price_drag,
                         on_value_commit=RollingFormState.set_price,
-                        color_scheme="green",
+                        color_scheme="blue",
                         size="1",
                         width="100%",
                     ),
@@ -249,11 +258,13 @@ def rolling_form_controls() -> rx.Component:
         width="100%",
         spacing="3",
         padding="1rem",
-        background="var(--gray-2)",
-        border="1px solid var(--border-color)",
+        background="var(--surface-1, rgba(255, 255, 255, 0.035))",
+        border="1px solid var(--border-level-1, rgba(255, 255, 255, 0.05))",
         border_radius="10px",
         margin_bottom="1.25rem",
         overflow="hidden",
+        id="tour-form-filters",
+        custom_attrs={"data-tour-id": "tour-form-filters"},
     )
 
 
@@ -281,39 +292,9 @@ def rolling_form_page() -> rx.Component:
                 ),
                 align="center",
             ),
+            rx.spacer(),
             rx.hstack(
-                guide_popover(
-                    title="Rolling Form & Projected xP Trends",
-                    subtitle="Analyze rolling points output and expected points trajectory vs fixture schedule",
-                    items=[
-                        {
-                            "badge": "Form xP",
-                            "title": "Projected Form xP",
-                            "desc": "Blended expected points per match combining underlying rolling xGI/90, actual match points form, playing security, and upcoming 5-GW difficulty.",
-                        },
-                        {
-                            "badge": "5-GW FDR",
-                            "title": "Fixture Difficulty Run",
-                            "desc": "Cumulative official FDR rating across the upcoming 5 gameweeks (lower score indicates an easy, green schedule).",
-                        },
-                        {
-                            "badge": "Scatter Matrix",
-                            "title": "Quadrant Opportunity Map",
-                            "desc": "Visual scatter plot mapping form against schedule difficulty to spot elite targets in Quadrant I (top-left).",
-                        },
-                        {
-                            "badge": "Price & Match Filters",
-                            "title": "Budget & Sample Security",
-                            "desc": "Filters players by max budget ceiling and minimum appearances to eliminate low-minute noise.",
-                        },
-                        {
-                            "badge": "Rolling xGI",
-                            "title": "Expected Underlying Trajectory",
-                            "desc": "5-match rolling expected goal involvement trajectory to catch upward and downward form trends before market price changes.",
-                        },
-                    ],
-                    tip="Target Quadrant I players (high rolling xGI entering an easy 5-GW green run) for maximum captaincy and price appreciation upside.",
-                ),
+                tour_button("rolling_form"),
                 rx.button(
                     rx.hstack(
                         rx.icon("refresh-cw", size=14),
@@ -350,12 +331,14 @@ def rolling_form_page() -> rx.Component:
                 ),
                 width="100%",
                 min_width="0",
-                background="rgba(15, 23, 42, 0.4)",
-                border="1px solid var(--border-color)",
+                background="var(--surface-1, rgba(255, 255, 255, 0.035))",
+                border="1px solid var(--border-level-1, rgba(255, 255, 255, 0.05))",
                 border_radius="10px",
                 padding="0.5rem",
                 margin_bottom="1.25rem",
                 overflow="hidden",
+                id="tour-form-scatter",
+                custom_attrs={"data-tour-id": "tour-form-scatter"},
             ),
             rx.box(),
         ),
@@ -364,65 +347,73 @@ def rolling_form_page() -> rx.Component:
         rolling_metric_cards(),
 
         # Data Table with Player Avatars and Streamlit Columns
-        data_table(
-            headers=RollingFormState.columns,
-            rows=RollingFormState.table_data,
-            row_render_func=lambda row: rx.table.row(
-                # Player (with avatar)
-                rx.table.cell(
-                    rx.hstack(
-                        rx.avatar(
-                            src=row["img_url"],
-                            fallback=row["Pos"],
-                            size="1",
-                            radius="full",
+        rx.box(
+            data_table(
+                headers=RollingFormState.columns,
+                rows=RollingFormState.table_data,
+                sort_col=RollingFormState.sort_column,
+                sort_dir=RollingFormState.sort_direction,
+                on_sort=RollingFormState.handle_sort,
+                row_render_func=lambda row: rx.table.row(
+                    # Player (with avatar)
+                    rx.table.cell(
+                        rx.hstack(
+                            rx.avatar(
+                                src=row["img_url"],
+                                fallback=row["Pos"],
+                                size="1",
+                                radius="full",
+                            ),
+                            rx.text(row["Player"], font_weight="600"),
+                            align="center",
+                            spacing="2",
                         ),
-                        rx.text(row["Player"], font_weight="600"),
-                        align="center",
-                        spacing="2",
+                        text_align="left",
                     ),
-                    text_align="left",
+                    # Club
+                    rx.table.cell(rx.text(row["Team"], font_size="0.85rem")),
+                    # Pos
+                    rx.table.cell(rx.badge(row["Pos"], variant="outline", color_scheme=row["Pos_Color"], size="1")),
+                    # Price
+                    rx.table.cell(rx.text(rx.concat("£", row["Price_Display"]))),
+                    # GW
+                    rx.table.cell(rx.text(row["Latest_GW"])),
+                    # Proj Form xP
+                    rx.table.cell(
+                        rx.badge(
+                            row["Proj_Form_XP_Display"],
+                            variant="surface",
+                            color_scheme="green",
+                            size="1",
+                            font_weight="700",
+                        )
+                    ),
+                    # Avg Pts
+                    rx.table.cell(rx.text(row["Rolling_Avg_Pts_Display"], font_weight="700")),
+                    # xGI
+                    rx.table.cell(rx.text(row["Rolling_Sum_xGI_Display"])),
+                    # xGI/90
+                    rx.table.cell(rx.text(row["Rolling_xGI_90_Display"])),
+                    # Next 5 FDR
+                    rx.table.cell(
+                        rx.badge(
+                            row["FDR_Display"],
+                            variant="solid",
+                            color_scheme=row["FDR_Color"],
+                            size="1",
+                            font_weight="800",
+                        )
+                    ),
+                    # Mins
+                    rx.table.cell(rx.text(row["Rolling_Avg_Mins_Display"])),
+                    # Apps
+                    rx.table.cell(rx.text(row["Rolling_Matches_Played"])),
                 ),
-                # Club
-                rx.table.cell(rx.text(row["Team"], font_size="0.85rem")),
-                # Pos
-                rx.table.cell(rx.badge(row["Pos"], variant="outline", color_scheme=row["Pos_Color"], size="1")),
-                # Price
-                rx.table.cell(rx.text(rx.concat("£", row["Price_Display"]))),
-                # GW
-                rx.table.cell(rx.text(row["Latest_GW"])),
-                # Proj Form xP
-                rx.table.cell(
-                    rx.badge(
-                        row["Proj_Form_XP_Display"],
-                        variant="surface",
-                        color_scheme="green",
-                        size="1",
-                        font_weight="700",
-                    )
-                ),
-                # Avg Pts
-                rx.table.cell(rx.text(row["Rolling_Avg_Pts_Display"], font_weight="700")),
-                # xGI
-                rx.table.cell(rx.text(row["Rolling_Sum_xGI_Display"])),
-                # xGI/90
-                rx.table.cell(rx.text(row["Rolling_xGI_90_Display"])),
-                # Next 5 FDR
-                rx.table.cell(
-                    rx.badge(
-                        row["FDR_Display"],
-                        variant="solid",
-                        color_scheme=row["FDR_Color"],
-                        size="1",
-                        font_weight="800",
-                    )
-                ),
-                # Mins
-                rx.table.cell(rx.text(row["Rolling_Avg_Mins_Display"])),
-                # Apps
-                rx.table.cell(rx.text(row["Rolling_Matches_Played"])),
+                is_loading=RollingFormState.is_loading,
             ),
-            is_loading=RollingFormState.is_loading,
+            id="tour-form-table",
+            custom_attrs={"data-tour-id": "tour-form-table"},
+            width="100%",
         ),
         width="100%",
         on_mount=RollingFormState.load_data,

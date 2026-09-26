@@ -1,4 +1,6 @@
 
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800;900&family=Inter:wght@400;500;600;700;800&display=swap');
+
 /* ── CSS CUSTOM PROPERTIES ── */
 :root {
     --app-bg: #0a0a0a;
@@ -19,6 +21,34 @@
     --row-alt-bg: rgba(255, 255, 255, 0.015);
     --skeleton-base: #141414;
     --skeleton-shimmer: rgba(255, 255, 255, 0.06);
+
+    /* Apple HIG Semantic Color Tokens */
+    /* Value direction: strictly for positive/negative value deltas, rating quality */
+    --color-positive: #22c55e;
+    --color-positive-subtle: rgba(34, 197, 94, 0.15);
+    --color-negative: #ef4444;
+    --color-negative-subtle: rgba(239, 68, 68, 0.15);
+    /* Interactive: toggles-on, active radio buttons, active tab indicators, view toggles */
+    --color-interactive: #38bdf8;
+    --color-interactive-subtle: rgba(56, 189, 248, 0.15);
+    --color-interactive-hover: #0ea5e9;
+    /* Warning/Special: reserved for callouts like the Super Team star */
+    --color-accent-warning: #f59e0b;
+    --color-accent-warning-subtle: rgba(245, 158, 11, 0.15);
+
+    /* Surface Elevation Hierarchy (Apple HIG clarity & deference) */
+    --surface-0: #0a0a0a;                        /* Level 0: Canvas background */
+    --surface-1: rgba(255, 255, 255, 0.035);     /* Level 1: Grouped informational content fill */
+    --border-level-1: rgba(255, 255, 255, 0.05);  /* Subtle low-opacity (~5-8%) border for Level 1 */
+    --border-actionable: rgba(255, 255, 255, 0.16); /* Visible higher-contrast border for interactive/actionable elements */
+
+    /* Elevated Overlay Tokens (Apple HIG Depth: Popovers, Modals, Dropdowns) */
+    --surface-overlay: rgba(18, 18, 22, 0.90);
+    --border-overlay: rgba(255, 255, 255, 0.12);
+    --shadow-elevated: 0 16px 36px -4px rgba(0, 0, 0, 0.55), 0 6px 12px -2px rgba(0, 0, 0, 0.3);
+    --shadow-modal: 0 24px 48px -8px rgba(0, 0, 0, 0.65), 0 8px 16px -4px rgba(0, 0, 0, 0.4);
+    --shadow-dropdown: 0 14px 30px -4px rgba(0, 0, 0, 0.5), 0 4px 10px -2px rgba(0, 0, 0, 0.25);
+    --shadow-tooltip: 0 10px 24px -2px rgba(0, 0, 0, 0.5), 0 2px 6px rgba(0, 0, 0, 0.3);
 }
 
 /* Light Mode overrides */
@@ -41,9 +71,32 @@
     --row-alt-bg: rgba(0, 0, 0, 0.012);
     --skeleton-base: #e2e8f0;
     --skeleton-shimmer: rgba(0, 0, 0, 0.06);
-}
 
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800;900&family=Inter:wght@400;500;600;700;800&display=swap');
+    /* Apple HIG Semantic Color Tokens (Light Mode) */
+    --color-positive: #16a34a;
+    --color-positive-subtle: rgba(22, 163, 74, 0.12);
+    --color-negative: #dc2626;
+    --color-negative-subtle: rgba(220, 38, 38, 0.12);
+    --color-interactive: #0284c7;
+    --color-interactive-subtle: rgba(2, 132, 199, 0.12);
+    --color-interactive-hover: #0369a1;
+    --color-accent-warning: #d97706;
+    --color-accent-warning-subtle: rgba(217, 119, 6, 0.12);
+
+    /* Surface Elevation Hierarchy (Light Mode) */
+    --surface-0: #f1f5f9;
+    --surface-1: #ffffff;
+    --border-level-1: rgba(0, 0, 0, 0.05);
+    --border-actionable: rgba(0, 0, 0, 0.15);
+
+    /* Elevated Overlay Tokens (Light Mode) */
+    --surface-overlay: rgba(255, 255, 255, 0.94);
+    --border-overlay: rgba(0, 0, 0, 0.10);
+    --shadow-elevated: 0 16px 32px -4px rgba(0, 0, 0, 0.12), 0 6px 12px -2px rgba(0, 0, 0, 0.06);
+    --shadow-modal: 0 24px 44px -8px rgba(0, 0, 0, 0.16), 0 8px 16px -4px rgba(0, 0, 0, 0.08);
+    --shadow-dropdown: 0 14px 28px -4px rgba(0, 0, 0, 0.12), 0 4px 10px -2px rgba(0, 0, 0, 0.06);
+    --shadow-tooltip: 0 10px 24px -2px rgba(0, 0, 0, 0.35), 0 2px 6px rgba(0, 0, 0, 0.2);
+}
 
 html, body {
     font-family: 'Inter', sans-serif;
@@ -56,7 +109,7 @@ html, body {
     color: #ffffff !important;
 }
 
-#MainMenu, footer, header[data-testid="stHeader"] {
+#MainMenu, footer:not(.driver-popover-footer), header[data-testid="stHeader"] {
     display: none !important;
     visibility: hidden;
     height: 0;
@@ -689,6 +742,65 @@ label[for],
     overflow: visible !important;
 }
 
+/* ── ELEVATED OVERLAY SURFACES (Apple HIG Depth: Modals, Popovers, Dropdowns, Tooltips) ── */
+
+/* 1. Dialog Modals */
+.rt-DialogOverlay,
+[data-radix-dialog-overlay] {
+    background: rgba(0, 0, 0, 0.65) !important;
+    backdrop-filter: blur(8px) !important;
+    -webkit-backdrop-filter: blur(8px) !important;
+    z-index: 9998 !important;
+}
+
+.rt-DialogContent,
+[data-radix-dialog-content] {
+    background: var(--surface-overlay, rgba(18, 18, 22, 0.90)) !important;
+    backdrop-filter: blur(16px) !important;
+    -webkit-backdrop-filter: blur(16px) !important;
+    border: 1px solid var(--border-overlay, rgba(255, 255, 255, 0.12)) !important;
+    border-radius: 12px !important;
+    box-shadow: var(--shadow-modal, 0 24px 48px -8px rgba(0, 0, 0, 0.65), 0 8px 16px -4px rgba(0, 0, 0, 0.4)) !important;
+    z-index: 9999 !important;
+}
+
+/* 2. Popovers (Strategy Guide, Player Pickers) */
+.rt-PopoverContent,
+[data-radix-popover-content] {
+    background: var(--surface-overlay, rgba(18, 18, 22, 0.92)) !important;
+    backdrop-filter: blur(16px) !important;
+    -webkit-backdrop-filter: blur(16px) !important;
+    border: 1px solid var(--border-overlay, rgba(255, 255, 255, 0.12)) !important;
+    border-radius: 10px !important;
+    box-shadow: var(--shadow-elevated, 0 16px 36px -4px rgba(0, 0, 0, 0.55), 0 6px 12px -2px rgba(0, 0, 0, 0.3)) !important;
+    z-index: 9999 !important;
+}
+
+/* 3. Select Dropdowns */
+.rt-SelectContent,
+[data-radix-select-content] {
+    background: var(--surface-overlay, rgba(18, 18, 22, 0.94)) !important;
+    backdrop-filter: blur(14px) !important;
+    -webkit-backdrop-filter: blur(14px) !important;
+    border: 1px solid var(--border-overlay, rgba(255, 255, 255, 0.12)) !important;
+    border-radius: 8px !important;
+    box-shadow: var(--shadow-dropdown, 0 14px 30px -4px rgba(0, 0, 0, 0.5), 0 4px 10px -2px rgba(0, 0, 0, 0.25)) !important;
+    z-index: 9999 !important;
+}
+
+/* 4. Tooltips */
+.rt-TooltipContent,
+[data-radix-tooltip-content] {
+    background: rgba(15, 23, 42, 0.94) !important;
+    backdrop-filter: blur(10px) !important;
+    -webkit-backdrop-filter: blur(10px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.14) !important;
+    border-radius: 6px !important;
+    box-shadow: var(--shadow-tooltip, 0 10px 24px -2px rgba(0, 0, 0, 0.5), 0 2px 6px rgba(0, 0, 0, 0.3)) !important;
+    color: #f8fafc !important;
+    z-index: 10000 !important;
+}
+
 /* ── MODERN UNIFIED SEGMENTED TAB BAR (SINGLE-ROW FULL WIDTH) ── */
 .main-nav-tabs-list {
     background: rgba(255, 255, 255, 0.03) !important;
@@ -748,22 +860,51 @@ label[for],
     background: rgba(255, 255, 255, 0.05) !important;
 }
 
-/* Active tab — elevated solid pill */
+/* Active sliding indicator for main tab bar */
+.main-tab-active-indicator {
+    position: absolute !important;
+    inset: 0 !important;
+    border-radius: 7px !important;
+    background: #27272a !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.45), inset 0 0 0 1px rgba(255, 255, 255, 0.1) !important;
+    z-index: 0 !important;
+    pointer-events: none !important;
+}
+
+[data-theme="light"] .main-tab-active-indicator,
+.light .main-tab-active-indicator {
+    background: #ffffff !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), inset 0 0 0 1px rgba(0, 0, 0, 0.06) !important;
+}
+
+/* Tab label text sits cleanly above the sliding indicator */
+.tabs-trigger-custom .tab-trigger-label {
+    position: relative !important;
+    z-index: 1 !important;
+    pointer-events: none !important;
+}
+
+.main-nav-tabs-list .tabs-trigger-custom {
+    position: relative !important;
+    background: transparent !important;
+}
+
+/* Active tab text styling — sliding indicator provides the background */
 .main-nav-tabs-list .tabs-trigger-custom[data-state="active"],
 .main-nav-tabs-list .rt-TabsTrigger[data-state="active"] {
-    background: #27272a !important;
+    background: transparent !important;
     color: #ffffff !important;
     font-weight: 600 !important;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.45), inset 0 0 0 1px rgba(255, 255, 255, 0.1) !important;
+    box-shadow: none !important;
 }
 
 [data-theme="light"] .main-nav-tabs-list .tabs-trigger-custom[data-state="active"],
 [data-theme="light"] .main-nav-tabs-list .rt-TabsTrigger[data-state="active"],
 .light .main-nav-tabs-list .tabs-trigger-custom[data-state="active"],
 .light .main-nav-tabs-list .rt-TabsTrigger[data-state="active"] {
-    background: #ffffff !important;
+    background: transparent !important;
     color: #0f172a !important;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), inset 0 0 0 1px rgba(0, 0, 0, 0.06) !important;
+    box-shadow: none !important;
 }
 
 @media (max-width: 1024px) {
@@ -853,24 +994,25 @@ label[for],
     margin-top: 4px !important;
 }
 
-/* ── HERO GW CARD PERFORMANCE THEMES & CSS TRANSITIONS ── */
+/* ── HERO GW CARD PERFORMANCE THEMES & CSS TRANSITIONS (Level 1 Surface) ── */
 .hero-gw-card {
     border-radius: 14px !important;
     padding: 1.15rem 1.35rem !important;
     width: 100% !important;
     height: 100% !important;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25) !important;
-    border: 1px solid rgba(255, 255, 255, 0.12) !important;
-    background: rgba(28, 28, 33, 0.75) !important;
-    transition: background 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-                border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2) !important;
+    border: 1px solid var(--border-level-1, rgba(255, 255, 255, 0.05)) !important;
+    background: var(--surface-1, rgba(255, 255, 255, 0.035)) !important;
+    transition: background 0.25s ease,
+                border-color 0.25s ease,
                 transform 0.2s ease,
                 box-shadow 0.2s ease !important;
 }
 
 .hero-gw-card:hover {
-    border-color: rgba(255, 255, 255, 0.22) !important;
-    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35) !important;
+    background: rgba(255, 255, 255, 0.05) !important;
+    border-color: var(--border-level-1, rgba(255, 255, 255, 0.08)) !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25) !important;
 }
 
 .hero-gw-card .hero-label {
@@ -899,25 +1041,26 @@ label[for],
     transition: color 0.3s ease !important;
 }
 
-/* ── TOP METRIC CARD (Row 1 Primary Cards) ── */
+/* ── TOP METRIC CARD (Row 1 Primary Cards - Level 1 Surface) ── */
 .top-metric-card {
     border-radius: 14px !important;
     padding: 1.15rem 1.35rem !important;
     width: 100% !important;
     height: 100% !important;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25) !important;
-    border: 1px solid rgba(255, 255, 255, 0.12) !important;
-    background: rgba(28, 28, 33, 0.75) !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2) !important;
+    border: 1px solid var(--border-level-1, rgba(255, 255, 255, 0.05)) !important;
+    background: var(--surface-1, rgba(255, 255, 255, 0.035)) !important;
     backdrop-filter: blur(8px) !important;
-    transition: background 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-                border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    transition: background 0.25s ease,
+                border-color 0.25s ease,
                 transform 0.2s ease,
                 box-shadow 0.2s ease !important;
 }
 
 .top-metric-card:hover {
-    border-color: rgba(255, 255, 255, 0.22) !important;
-    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35) !important;
+    background: rgba(255, 255, 255, 0.05) !important;
+    border-color: var(--border-level-1, rgba(255, 255, 255, 0.08)) !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25) !important;
 }
 
 .top-metric-card .metric-label {
@@ -946,21 +1089,20 @@ label[for],
     transition: color 0.3s ease !important;
 }
 
-/* ── SECONDARY STAT CARD (Row 2 Portfolio Cards) ── */
+/* ── SECONDARY STAT CARD (Row 2 Portfolio Cards - Level 1 Surface) ── */
 .secondary-stat-card {
     border-radius: 10px !important;
     padding: 0.85rem 1.15rem !important;
     width: 100% !important;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15) !important;
-    border: 1px solid rgba(255, 255, 255, 0.08) !important;
-    background: rgba(24, 24, 30, 0.65) !important;
+    box-shadow: none !important;
+    border: 1px solid var(--border-level-1, rgba(255, 255, 255, 0.04)) !important;
+    background: var(--surface-1, rgba(255, 255, 255, 0.03)) !important;
     backdrop-filter: blur(8px) !important;
-    transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease !important;
+    transition: background 0.2s ease, transform 0.2s ease !important;
 }
 
 .secondary-stat-card:hover {
-    border-color: rgba(255, 255, 255, 0.18) !important;
-    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.25) !important;
+    background: rgba(255, 255, 255, 0.045) !important;
 }
 
 .secondary-stat-card .secondary-stat-label {
@@ -988,10 +1130,10 @@ label[for],
     flex-shrink: 0 !important;
 }
 
-/* Green Performance (Beats Average) */
+/* Green Performance (Beats Average - Level 1 Subtle Tint) */
 .hero-card-perf-green {
-    background: rgba(16, 44, 22, 0.75) !important;
-    border-color: rgba(34, 197, 94, 0.3) !important;
+    background: rgba(34, 197, 94, 0.07) !important;
+    border: 1px solid rgba(34, 197, 94, 0.12) !important;
 }
 .hero-card-perf-green .hero-label {
     color: #4ade80 !important;
@@ -1005,10 +1147,10 @@ label[for],
     color: #22c55e !important;
 }
 
-/* Red Performance (Below Average) */
+/* Red Performance (Below Average - Level 1 Subtle Tint) */
 .hero-card-perf-red {
-    background: rgba(45, 18, 18, 0.75) !important;
-    border-color: rgba(239, 68, 68, 0.35) !important;
+    background: rgba(239, 68, 68, 0.07) !important;
+    border: 1px solid rgba(239, 68, 68, 0.12) !important;
 }
 .hero-card-perf-red .hero-label {
     color: #f87171 !important;
@@ -1022,10 +1164,10 @@ label[for],
     color: #ef4444 !important;
 }
 
-/* Gray Performance (Default / Equal) */
+/* Gray Performance (Default / Equal - Level 1 Surface) */
 .hero-card-perf-gray {
-    background: rgba(28, 28, 33, 0.75) !important;
-    border-color: rgba(255, 255, 255, 0.12) !important;
+    background: var(--surface-1, rgba(255, 255, 255, 0.035)) !important;
+    border: 1px solid var(--border-level-1, rgba(255, 255, 255, 0.05)) !important;
 }
 .hero-card-perf-gray .hero-label {
     color: #94a3b8 !important;
@@ -1039,11 +1181,11 @@ label[for],
     color: #94a3b8 !important;
 }
 
-/* ── MATCH CENTER BANNER CSS TRANSITIONS ── */
+/* ── MATCH CENTER BANNER (Level 1 Surface) ── */
 .match-banner-card {
     padding: 1rem 1.25rem !important;
-    background: rgba(255, 255, 255, 0.02) !important;
-    border: 1px solid var(--border-color) !important;
+    background: var(--surface-1, rgba(255, 255, 255, 0.035)) !important;
+    border: 1px solid var(--border-level-1, rgba(255, 255, 255, 0.05)) !important;
     border-radius: 10px !important;
     margin-bottom: 1rem !important;
     width: 100% !important;
@@ -1092,18 +1234,45 @@ label[for],
     color: #ffffff !important;
 }
 
+/* Active sliding indicator for Pitch vs List view toggle (Apple HIG color.interactive) */
+.view-tab-active-indicator {
+    position: absolute !important;
+    inset: 0 !important;
+    border-radius: 6px !important;
+    background: var(--color-interactive, #0284c7) !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3) !important;
+    z-index: 0 !important;
+    pointer-events: none !important;
+}
+
+[data-theme="light"] .view-tab-active-indicator,
+.light .view-tab-active-indicator {
+    background: var(--color-interactive, #0284c7) !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12) !important;
+}
+
+.view-trigger-custom {
+    position: relative !important;
+    background: transparent !important;
+}
+
+.view-trigger-custom .view-tab-label {
+    position: relative !important;
+    z-index: 1 !important;
+}
+
 .segmented-view-tabs .rt-TabsTrigger[data-state="active"] {
-    background: #16a34a !important;
+    background: transparent !important;
     color: #ffffff !important;
     font-weight: 700 !important;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3) !important;
+    box-shadow: none !important;
 }
 
 .segmented-view-tabs-blue .rt-TabsTrigger[data-state="active"] {
-    background: #2563eb !important;
+    background: transparent !important;
     color: #ffffff !important;
     font-weight: 700 !important;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3) !important;
+    box-shadow: none !important;
 }
 
 /* ── SECTION HEADER TYPOGRAPHY ── */
@@ -1249,9 +1418,9 @@ label[for],
 /* ── Hero GW Card ── */
 [data-theme="light"] .hero-gw-card,
 .light .hero-gw-card {
-    background: rgba(255, 255, 255, 0.9) !important;
-    border-color: var(--border-color) !important;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.08) !important;
+    background: var(--surface-1, #ffffff) !important;
+    border: 1px solid var(--border-level-1, rgba(0, 0, 0, 0.05)) !important;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.04) !important;
 }
 
 [data-theme="light"] .hero-gw-card .hero-label,
@@ -1268,28 +1437,28 @@ label[for],
 
 [data-theme="light"] .hero-card-perf-green,
 .light .hero-card-perf-green {
-    background: rgba(220, 252, 231, 0.9) !important;
-    border-color: rgba(34, 197, 94, 0.35) !important;
+    background: rgba(220, 252, 231, 0.65) !important;
+    border: 1px solid rgba(34, 197, 94, 0.2) !important;
 }
 
 [data-theme="light"] .hero-card-perf-red,
 .light .hero-card-perf-red {
-    background: rgba(254, 226, 226, 0.9) !important;
-    border-color: rgba(239, 68, 68, 0.35) !important;
+    background: rgba(254, 226, 226, 0.65) !important;
+    border: 1px solid rgba(239, 68, 68, 0.2) !important;
 }
 
 [data-theme="light"] .hero-card-perf-gray,
 .light .hero-card-perf-gray {
-    background: rgba(248, 250, 252, 0.9) !important;
-    border-color: var(--border-color) !important;
+    background: var(--surface-1, #ffffff) !important;
+    border: 1px solid var(--border-level-1, rgba(0, 0, 0, 0.05)) !important;
 }
 
 /* ── Top Metric Card (Light Mode) ── */
 [data-theme="light"] .top-metric-card,
 .light .top-metric-card {
-    background: rgba(255, 255, 255, 0.9) !important;
-    border-color: var(--border-color) !important;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.08) !important;
+    background: var(--surface-1, #ffffff) !important;
+    border: 1px solid var(--border-level-1, rgba(0, 0, 0, 0.05)) !important;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.04) !important;
 }
 
 [data-theme="light"] .top-metric-card .metric-label,
@@ -1312,9 +1481,9 @@ label[for],
 /* ── Secondary Stat Card (Light Mode) ── */
 [data-theme="light"] .secondary-stat-card,
 .light .secondary-stat-card {
-    background: rgba(255, 255, 255, 0.85) !important;
-    border-color: var(--border-color) !important;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.05) !important;
+    background: var(--surface-1, #ffffff) !important;
+    border: 1px solid var(--border-level-1, rgba(0, 0, 0, 0.04)) !important;
+    box-shadow: none !important;
 }
 
 [data-theme="light"] .secondary-stat-card .secondary-stat-label,
@@ -1398,11 +1567,49 @@ label[for],
     -webkit-text-fill-color: var(--text-main) !important;
 }
 
+/* ── Elevated Overlay Surfaces (Light Mode) ── */
+[data-theme="light"] .rt-DialogOverlay,
+.light .rt-DialogOverlay {
+    background: rgba(0, 0, 0, 0.35) !important;
+    backdrop-filter: blur(8px) !important;
+    -webkit-backdrop-filter: blur(8px) !important;
+}
+
+[data-theme="light"] .rt-DialogContent,
+.light .rt-DialogContent {
+    background: var(--surface-overlay, rgba(255, 255, 255, 0.95)) !important;
+    backdrop-filter: blur(16px) !important;
+    -webkit-backdrop-filter: blur(16px) !important;
+    border: 1px solid var(--border-overlay, rgba(0, 0, 0, 0.10)) !important;
+    box-shadow: var(--shadow-modal, 0 24px 44px -8px rgba(0, 0, 0, 0.16), 0 8px 16px -4px rgba(0, 0, 0, 0.08)) !important;
+}
+
+[data-theme="light"] .rt-PopoverContent,
+.light .rt-PopoverContent {
+    background: var(--surface-overlay, rgba(255, 255, 255, 0.95)) !important;
+    backdrop-filter: blur(16px) !important;
+    -webkit-backdrop-filter: blur(16px) !important;
+    border: 1px solid var(--border-overlay, rgba(0, 0, 0, 0.10)) !important;
+    box-shadow: var(--shadow-elevated, 0 16px 32px -4px rgba(0, 0, 0, 0.12), 0 6px 12px -2px rgba(0, 0, 0, 0.06)) !important;
+}
+
 [data-theme="light"] .rt-SelectContent,
 .light .rt-SelectContent {
-    background: var(--card-bg) !important;
-    border-color: var(--border-color) !important;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.1) !important;
+    background: var(--surface-overlay, rgba(255, 255, 255, 0.96)) !important;
+    backdrop-filter: blur(14px) !important;
+    -webkit-backdrop-filter: blur(14px) !important;
+    border: 1px solid var(--border-overlay, rgba(0, 0, 0, 0.10)) !important;
+    box-shadow: var(--shadow-dropdown, 0 14px 28px -4px rgba(0, 0, 0, 0.12), 0 4px 10px -2px rgba(0, 0, 0, 0.06)) !important;
+}
+
+[data-theme="light"] .rt-TooltipContent,
+.light .rt-TooltipContent {
+    background: rgba(15, 23, 42, 0.92) !important;
+    backdrop-filter: blur(10px) !important;
+    -webkit-backdrop-filter: blur(10px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.14) !important;
+    box-shadow: var(--shadow-tooltip, 0 10px 24px -2px rgba(0, 0, 0, 0.3), 0 2px 6px rgba(0, 0, 0, 0.15)) !important;
+    color: #f8fafc !important;
 }
 
 [data-theme="light"] .rt-SelectItem,
@@ -1520,8 +1727,8 @@ label[for],
 /* ── Match banner in light ── */
 [data-theme="light"] .match-banner-card,
 .light .match-banner-card {
-    background: rgba(0, 0, 0, 0.02) !important;
-    border-color: var(--border-color) !important;
+    background: var(--surface-1, #ffffff) !important;
+    border-color: var(--border-level-1, rgba(0, 0, 0, 0.05)) !important;
 }
 
 /* ── Generic text elements ── */
@@ -1542,4 +1749,254 @@ label[for],
 [data-theme="light"] .rt-Box,
 .light .rt-Box {
     border-color: var(--border-color);
+}
+
+/* ── Pitch & Squad Animations (Phase 3) ── */
+@keyframes pitchRowIn {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes capBadgeSpringIn {
+    0% {
+        opacity: 0;
+        transform: scale(0);
+    }
+    70% {
+        opacity: 1;
+        transform: scale(1.18);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.pitch-formation-row {
+    animation: pitchRowIn 250ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.pitch-formation-row:nth-of-type(1) { animation-delay: 0.00s; }
+.pitch-formation-row:nth-of-type(2) { animation-delay: 0.05s; }
+.pitch-formation-row:nth-of-type(3) { animation-delay: 0.10s; }
+.pitch-formation-row:nth-of-type(4) { animation-delay: 0.15s; }
+
+.tactical-pitch {
+    position: relative;
+    z-index: 1;
+}
+
+.pitch-dugout {
+    position: relative;
+    z-index: 20;
+    animation: pitchRowIn 250ms cubic-bezier(0.16, 1, 0.3, 1) both;
+    animation-delay: 0.20s;
+}
+
+.pitch-dugout:hover,
+.pitch-dugout:focus-within {
+    z-index: 100 !important;
+}
+
+.bench-node:hover {
+    z-index: 150 !important;
+}
+
+.bench-node .player-tooltip-card {
+    z-index: 2000 !important;
+}
+
+.pitch-player-node {
+    transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), filter 0.18s ease;
+}
+
+.pitch-player-node:hover {
+    transform: translateY(-3px);
+    filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.45));
+}
+
+.pitch-player-node:active {
+    transform: scale(0.97);
+}
+
+.pitch-cap-badge {
+    animation: capBadgeSpringIn 300ms cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .pitch-formation-row,
+    .pitch-dugout,
+    .pitch-cap-badge {
+        animation: none !important;
+    }
+    .pitch-player-node {
+        transition: none !important;
+    }
+}
+
+
+
+/* ── Driver.js Guided Tour Theming (Apple HIG Dark System) ── */
+.driver-popover {
+    all: unset;
+    box-sizing: border-box;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    color: var(--text-main);
+    z-index: 1000000000 !important;
+    background: var(--surface-overlay, rgba(18, 18, 22, 0.95)) !important;
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid var(--border-overlay, rgba(255, 255, 255, 0.12)) !important;
+    border-radius: 12px !important;
+    min-width: 280px;
+    max-width: 380px;
+    margin: 0;
+    padding: 16px 18px !important;
+    position: fixed;
+    box-shadow: var(--shadow-modal, 0 24px 48px -8px rgba(0, 0, 0, 0.65)) !important;
+}
+
+.driver-popover-title {
+    font-family: 'Outfit', sans-serif !important;
+    font-size: 1.05rem !important;
+    font-weight: 700 !important;
+    line-height: 1.4 !important;
+    color: var(--color-interactive, #38bdf8) !important;
+    display: block;
+    margin-bottom: 6px !important;
+    padding-right: 24px;
+}
+
+.driver-popover-description {
+    font-family: 'Inter', sans-serif !important;
+    font-size: 0.82rem !important;
+    font-weight: 400 !important;
+    line-height: 1.55 !important;
+    color: var(--text-sub, #94a3b8) !important;
+    margin: 0 !important;
+    text-wrap: pretty;
+}
+
+.driver-popover-close-btn {
+    all: unset;
+    cursor: pointer;
+    color: var(--text-muted, #64748b) !important;
+    font-size: 18px !important;
+    font-weight: 500;
+    width: 28px !important;
+    height: 28px !important;
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    position: absolute;
+    top: 12px !important;
+    right: 12px !important;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.driver-popover-close-btn:hover {
+    color: var(--text-main, #ffffff) !important;
+    background: rgba(255, 255, 255, 0.08) !important;
+}
+
+footer.driver-popover-footer,
+.driver-popover-footer {
+    display: flex !important;
+    visibility: visible !important;
+    height: auto !important;
+    min-height: 36px !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    margin-top: 14px !important;
+    padding-top: 10px !important;
+    border-top: 1px solid var(--border-level-1, rgba(255, 255, 255, 0.08)) !important;
+}
+
+.driver-popover-progress-text {
+    display: inline-block !important;
+    visibility: visible !important;
+    font-size: 0.75rem !important;
+    font-weight: 600 !important;
+    font-variant-numeric: tabular-nums !important;
+    color: var(--text-muted, #94a3b8) !important;
+}
+
+.driver-popover-navigation-btns {
+    display: flex !important;
+    visibility: visible !important;
+    align-items: center !important;
+    gap: 8px !important;
+}
+
+.driver-popover-footer-btn {
+    all: unset;
+    box-sizing: border-box !important;
+    cursor: pointer !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    visibility: visible !important;
+    border-radius: 6px !important;
+    font-size: 0.8rem !important;
+    font-weight: 600 !important;
+    padding: 6px 14px !important;
+    line-height: 1 !important;
+    transition: background 0.15s ease, color 0.15s ease, opacity 0.15s ease, transform 0.1s ease !important;
+}
+
+.driver-popover-prev-btn {
+    background: rgba(255, 255, 255, 0.06) !important;
+    border: 1px solid var(--border-overlay, rgba(255, 255, 255, 0.12)) !important;
+    color: var(--text-sub, #94a3b8) !important;
+}
+
+.driver-popover-prev-btn:hover:not(:disabled):not(.driver-popover-btn-disabled) {
+    background: rgba(255, 255, 255, 0.12) !important;
+    color: var(--text-main, #ffffff) !important;
+}
+
+.driver-popover-next-btn,
+.driver-popover-done-btn {
+    background: var(--color-interactive, #38bdf8) !important;
+    color: #09090b !important;
+    border: 1px solid transparent !important;
+    font-weight: 600 !important;
+}
+
+.driver-popover-next-btn:hover:not(:disabled),
+.driver-popover-done-btn:hover:not(:disabled) {
+    background: var(--color-interactive-hover, #0ea5e9) !important;
+    color: #000000 !important;
+}
+
+.driver-popover-btn-disabled,
+.driver-popover-footer .driver-popover-btn-disabled,
+.driver-popover-footer-btn:disabled {
+    opacity: 0.28 !important;
+    cursor: not-allowed !important;
+    pointer-events: none !important;
+}
+
+.driver-popover-arrow {
+    display: none !important;
+}
+
+.driver-overlay {
+    background: rgba(0, 0, 0, 0.75) !important;
+}
+
+.take-tour-button {
+    transition: transform 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.take-tour-button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(56, 189, 248, 0.15);
 }

@@ -1,11 +1,12 @@
 """Pitch presentation component rendering the soccer pitch and bench dugout."""
 
 import reflex as rx
+from .motion import MotionDiv, MotionSpan
 
 
 def pitch_view(pitch_html: rx.Var | str, title: str = "", header_text: rx.Var | str = "") -> rx.Component:
-    """Renders a responsive soccer pitch board."""
-    return rx.box(
+    """Renders a responsive soccer pitch board with smooth layout spring transitions."""
+    return MotionDiv.create(
         rx.cond(
             header_text != "",
             rx.hstack(
@@ -24,12 +25,14 @@ def pitch_view(pitch_html: rx.Var | str, title: str = "", header_text: rx.Var | 
         display="flex",
         flex_direction="column",
         align_items="center",
+        layout="position",
+        transition={"type": "spring", "stiffness": 380, "damping": 30},
     )
 
 
 def render_player_item(p: dict, is_bench: bool = False) -> rx.Component:
-    """Renders a single player list item card."""
-    return rx.box(
+    """Renders a single player list item card with hover lift, tap scale, and badge pop-in."""
+    return MotionDiv.create(
         rx.hstack(
             rx.avatar(
                 src=p["photo_url"],
@@ -44,7 +47,12 @@ def render_player_item(p: dict, is_bench: bool = False) -> rx.Component:
                     rx.badge(p["Pos"], variant="outline", color_scheme=p["Pos_Color"], size="1"),
                     rx.cond(
                         (p["Cap_Badge"] != "") & (p["Cap_Badge"] != None),
-                        rx.badge(p["Cap_Badge"], color_scheme=p["Cap_Badge_Color"], size="1"),
+                        MotionSpan.create(
+                            rx.badge(p["Cap_Badge"], color_scheme=p["Cap_Badge_Color"], size="1"),
+                            initial={"scale": 0, "opacity": 0},
+                            animate={"scale": 1, "opacity": 1},
+                            transition={"type": "spring", "stiffness": 400, "damping": 22},
+                        ),
                         rx.box(),
                     ),
                     align="center",
@@ -102,33 +110,42 @@ def render_player_item(p: dict, is_bench: bool = False) -> rx.Component:
                 spacing="0",
             ),
             padding="0.6rem 0.85rem",
-            border="1px solid var(--border-color)",
+            border="1px solid var(--border-level-1, rgba(255, 255, 255, 0.05))",
             border_radius="8px",
             background=rx.cond(is_bench, "rgba(15, 23, 42, 0.4)", "rgba(30, 41, 59, 0.5)"),
             width="100%",
             align="center",
         ),
         width="100%",
+        layout="position",
+        while_hover={"y": -3, "boxShadow": "0 8px 24px rgba(0, 0, 0, 0.35)"},
+        while_tap={"scale": 0.97},
+        transition={"type": "spring", "stiffness": 400, "damping": 30},
     )
 
 
 def squad_list_view(starters: rx.Var, bench: rx.Var, header_text: rx.Var | str = "") -> rx.Component:
-    """Renders an accessible alternative list view of starters and bench."""
-    return rx.vstack(
-        rx.cond(
-            header_text != "",
-            rx.hstack(
-                rx.text(header_text, font_family="'Outfit', sans-serif", font_weight="700", font_size="1rem"),
-                width="100%",
-                padding_y="0.5rem",
+    """Renders an accessible alternative list view of starters and bench with position layout glide."""
+    return MotionDiv.create(
+        rx.vstack(
+            rx.cond(
+                header_text != "",
+                rx.hstack(
+                    rx.text(header_text, font_family="'Outfit', sans-serif", font_weight="700", font_size="1rem"),
+                    width="100%",
+                    padding_y="0.5rem",
+                ),
+                rx.box(),
             ),
-            rx.box(),
+            rx.text("Starting XI", font_weight="700", font_size="0.95rem", color="var(--text-main)", margin_bottom="0.25rem"),
+            rx.foreach(starters, lambda p: render_player_item(p, is_bench=False)),
+            rx.text("Bench Dugout", font_weight="700", font_size="0.95rem", color="var(--text-sub)", margin_top="1rem", margin_bottom="0.25rem"),
+            rx.foreach(bench, lambda p: render_player_item(p, is_bench=True)),
+            width="100%",
+            spacing="2",
         ),
-        rx.text("Starting XI", font_weight="700", font_size="0.95rem", color="var(--text-main)", margin_bottom="0.25rem"),
-        rx.foreach(starters, lambda p: render_player_item(p, is_bench=False)),
-        rx.text("Bench Dugout", font_weight="700", font_size="0.95rem", color="var(--text-sub)", margin_top="1rem", margin_bottom="0.25rem"),
-        rx.foreach(bench, lambda p: render_player_item(p, is_bench=True)),
         width="100%",
-        spacing="2",
+        layout="position",
+        transition={"type": "spring", "stiffness": 380, "damping": 30},
     )
 

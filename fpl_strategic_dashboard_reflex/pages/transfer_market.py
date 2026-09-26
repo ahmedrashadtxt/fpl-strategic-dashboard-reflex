@@ -3,7 +3,7 @@
 import reflex as rx
 from fpl_strategic_dashboard_reflex.states.market import TransferMarketState
 from fpl_strategic_dashboard_reflex.components import (
-    guide_popover,
+    tour_button,
     player_highlight_card,
     data_table,
     search_input,
@@ -14,24 +14,29 @@ from fpl_strategic_dashboard_reflex.components import (
 
 def market_metric_cards() -> rx.Component:
     """Isolated player highlight cards component matching Streamlit layout."""
-    return rx.cond(
-        TransferMarketState.has_data,
-        MotionDiv.create(
-            rx.grid(
-                rx.foreach(
-                    TransferMarketState.top_cards,
-                    player_highlight_card,
+    return rx.box(
+        rx.cond(
+            TransferMarketState.has_data,
+            MotionDiv.create(
+                rx.grid(
+                    rx.foreach(
+                        TransferMarketState.top_cards,
+                        player_highlight_card,
+                    ),
+                    columns=rx.breakpoints(initial="1", sm="2", lg="4"),
+                    spacing="3",
+                    width="100%",
                 ),
-                columns=rx.breakpoints(initial="1", sm="2", lg="4"),
-                spacing="3",
+                layout="position",
+                transition={"duration": 0.35, "ease": [0.16, 1, 0.3, 1]},
                 width="100%",
+                margin_bottom="1.25rem",
             ),
-            layout="position",
-            transition={"duration": 0.35, "ease": [0.16, 1, 0.3, 1]},
-            width="100%",
-            margin_bottom="1.25rem",
+            rx.box(),
         ),
-        rx.box(),
+        id="tour-market-kpis",
+        custom_attrs={"data-tour-id": "tour-market-kpis"},
+        width="100%",
     )
 
 
@@ -86,7 +91,7 @@ def market_controls() -> rx.Component:
                     rx.badge(
                         rx.concat("£", TransferMarketState.max_price),
                         variant="surface",
-                        color_scheme="green",
+                        color_scheme="blue",
                         size="1",
                     ),
                     align="center",
@@ -94,11 +99,12 @@ def market_controls() -> rx.Component:
                 ),
                 rx.slider(
                     min=4.0,
-                    max=15.5,
+                    max=17.0,
                     step=0.5,
-                    value=[TransferMarketState.max_price],
+                    value=TransferMarketState.max_price_list,
+                    on_change=TransferMarketState.set_max_price_drag,
                     on_value_commit=TransferMarketState.set_max_price,
-                    color_scheme="green",
+                    color_scheme="blue",
                     size="1",
                     width="260px",
                 ),
@@ -110,7 +116,7 @@ def market_controls() -> rx.Component:
                 rx.switch(
                     checked=TransferMarketState.exclude_my_squad,
                     on_change=TransferMarketState.toggle_exclude,
-                    color_scheme="green",
+                    color_scheme="blue",
                     size="1",
                 ),
                 rx.hstack(
@@ -126,7 +132,7 @@ def market_controls() -> rx.Component:
                 rx.switch(
                     checked=TransferMarketState.enable_betting,
                     on_change=TransferMarketState.toggle_betting,
-                    color_scheme="green",
+                    color_scheme="blue",
                     size="1",
                 ),
                 rx.hstack(
@@ -147,10 +153,12 @@ def market_controls() -> rx.Component:
         width="100%",
         spacing="3",
         padding="1rem",
-        background="var(--gray-2)",
-        border="1px solid var(--border-color)",
+        background="var(--surface-1, rgba(255, 255, 255, 0.035))",
+        border="1px solid var(--border-level-1, rgba(255, 255, 255, 0.05))",
         border_radius="10px",
         margin_bottom="1.25rem",
+        id="tour-market-filters",
+        custom_attrs={"data-tour-id": "tour-market-filters"},
     )
 
 
@@ -178,44 +186,9 @@ def transfer_market_page() -> rx.Component:
                 ),
                 align="center",
             ),
+            rx.spacer(),
             rx.hstack(
-                guide_popover(
-                    title="Transfer Target Finder",
-                    subtitle="Identify high-EV incoming transfer targets ranked by projected points and value efficiency",
-                    items=[
-                        {
-                            "badge": "Hybrid xP",
-                            "title": "Projected Points (Proj xP)",
-                            "desc": "Hybrid projection blending baseline statistical rates, betting market implied goals, and sharp line velocity.",
-                            "color": "#38bdf8",
-                        },
-                        {
-                            "badge": "xP / £M",
-                            "title": "Points Value Efficiency",
-                            "desc": "Expected points generated per million pounds spent. Highlights budget gems that liberate bank budget for premiums.",
-                            "color": "#10b981",
-                        },
-                        {
-                            "badge": "Price Trends",
-                            "title": "Nightly Price Dynamics",
-                            "desc": "Identifies players with rising/falling price predictions driven by official FPL net transfer velocity.",
-                            "color": "#f59e0b",
-                        },
-                        {
-                            "badge": "Budget Cap",
-                            "title": "Max Price Slider",
-                            "desc": "Set your exact bank constraints to display the highest projected replacements within your price range.",
-                            "color": "#818cf8",
-                        },
-                        {
-                            "badge": "Exclude Squad",
-                            "title": "Ownership Filter",
-                            "desc": "Automatically hides players already in your current squad so you only evaluate genuine replacement targets.",
-                            "color": "#f59e0b",
-                        },
-                    ],
-                    tip="Sort by xP / £M within your exact price ceiling to find under-the-radar enablers with favorable upcoming runs.",
-                ),
+                tour_button("transfer_market"),
                 rx.button(
                     rx.hstack(
                         rx.icon("refresh-cw", size=14),
@@ -245,62 +218,70 @@ def transfer_market_page() -> rx.Component:
         market_metric_cards(),
 
         # Data Table with Player Avatars, Price Trends, and Streamlit Columns
-        data_table(
-            headers=TransferMarketState.columns,
-            rows=TransferMarketState.table_data,
-            row_render_func=lambda row: rx.table.row(
-                # Target Player (with Avatar)
-                rx.table.cell(
-                    rx.hstack(
-                        rx.avatar(
-                            src=row["img_url"],
-                            fallback=row["Pos"],
-                            size="1",
-                            radius="full",
+        rx.box(
+            data_table(
+                headers=TransferMarketState.columns,
+                rows=TransferMarketState.table_data,
+                sort_col=TransferMarketState.sort_column,
+                sort_dir=TransferMarketState.sort_direction,
+                on_sort=TransferMarketState.handle_sort,
+                row_render_func=lambda row: rx.table.row(
+                    # Target Player (with Avatar)
+                    rx.table.cell(
+                        rx.hstack(
+                            rx.avatar(
+                                src=row["img_url"],
+                                fallback=row["Pos"],
+                                size="1",
+                                radius="full",
+                            ),
+                            rx.text(row["Player"], font_weight="600"),
+                            align="center",
+                            spacing="2",
                         ),
-                        rx.text(row["Player"], font_weight="600"),
-                        align="center",
-                        spacing="2",
+                        text_align="left",
+                        padding_left="1rem",
                     ),
-                    text_align="left",
-                    padding_left="1rem",
+                    # Club
+                    rx.table.cell(rx.text(row["Team"], font_size="0.85rem")),
+                    # Pos
+                    rx.table.cell(rx.badge(row["Pos"], variant="outline", color_scheme=row["Pos_Color"], size="1")),
+                    # Price
+                    rx.table.cell(rx.text(row["Price_Display"], font_weight="600")),
+                    # Price Trend (increasing/decreasing badge)
+                    rx.table.cell(
+                        rx.badge(
+                            row["Price_Trend_Label"],
+                            variant="surface",
+                            color_scheme=row["Price_Trend_Color"],
+                            size="1",
+                            font_weight="600",
+                        )
+                    ),
+                    # GW Fixture
+                    rx.table.cell(rx.text(row["Fixture"])),
+                    # FDR
+                    rx.table.cell(
+                        rx.badge(row["FDR"], variant="surface", color_scheme=row["FDR_Color"], size="1", font_weight="700")
+                    ),
+                    # Proj xP
+                    rx.table.cell(
+                        rx.badge(row["Proj_xP"], variant="surface", color_scheme="green", size="1", font_weight="700")
+                    ),
+                    # xP / £M
+                    rx.table.cell(rx.text(row["xP_per_Mil"], font_weight="700")),
+                    # Form
+                    rx.table.cell(rx.text(row["Form"])),
+                    # Own %
+                    rx.table.cell(rx.text(row["Own_Pct"])),
+                    # Season Pts
+                    rx.table.cell(rx.text(row["Season_Points"])),
                 ),
-                # Club
-                rx.table.cell(rx.text(row["Team"], font_size="0.85rem")),
-                # Pos
-                rx.table.cell(rx.badge(row["Pos"], variant="outline", color_scheme=row["Pos_Color"], size="1")),
-                # Price
-                rx.table.cell(rx.text(row["Price_Display"], font_weight="600")),
-                # Price Trend (increasing/decreasing badge)
-                rx.table.cell(
-                    rx.badge(
-                        row["Price_Trend_Label"],
-                        variant="surface",
-                        color_scheme=row["Price_Trend_Color"],
-                        size="1",
-                        font_weight="600",
-                    )
-                ),
-                # GW Fixture
-                rx.table.cell(rx.text(row["Fixture"])),
-                # FDR
-                rx.table.cell(
-                    rx.badge(row["FDR"], variant="surface", color_scheme=row["FDR_Color"], size="1", font_weight="700")
-                ),
-                # Proj xP
-                rx.table.cell(
-                    rx.badge(row["Proj_xP"], variant="surface", color_scheme="green", size="1", font_weight="700")
-                ),
-                # xP / £M
-                rx.table.cell(rx.text(row["xP_per_Mil"], font_weight="700")),
-                # Form
-                rx.table.cell(rx.text(row["Form"])),
-                # Own %
-                rx.table.cell(rx.text(row["Own_Pct"])),
-                # Season Pts
-                rx.table.cell(rx.text(row["Season_Points"])),
+                is_loading=TransferMarketState.is_loading,
             ),
-            is_loading=TransferMarketState.is_loading,
+            id="tour-market-table",
+            custom_attrs={"data-tour-id": "tour-market-table"},
+            width="100%",
         ),
         width="100%",
         on_mount=TransferMarketState.load_data,

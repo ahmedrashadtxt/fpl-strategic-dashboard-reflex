@@ -19,15 +19,13 @@ from fpl_strategic_dashboard_reflex.services.cache import ttl_cache
 def get_db_path() -> Path:
     """Finds the path to fpl.db across standard project locations."""
     candidates = [
-        Path(__file__).resolve().parent / "fpl.db",
-        Path(__file__).resolve().parents[2] / "backend" / "fpl.db",
-        Path(__file__).resolve().parents[2] / "reference" / "fpl.db",
         Path(__file__).resolve().parents[2] / "fpl.db",
+        Path(__file__).resolve().parent / "fpl.db",
     ]
     for p in candidates:
         if p.exists() and p.stat().st_size > 0:
             return p
-    return candidates[1]  # default fallback
+    return candidates[0]  # default fallback
 
 
 def get_connection() -> sqlite3.Connection:

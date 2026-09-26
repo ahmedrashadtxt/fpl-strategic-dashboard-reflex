@@ -6,6 +6,7 @@ import reflex as rx
 
 from fpl_strategic_dashboard_reflex.states.base import AppState
 from fpl_strategic_dashboard_reflex.services.fixtures import _build_ticker_rows
+from fpl_strategic_dashboard_reflex.services.table_sort import FIXTURE_TICKER_KEY_MAP, sort_table_rows
 
 _fixtures_cache: Dict[str, List[Dict[str, Any]]] = {}
 
@@ -17,12 +18,31 @@ class FixtureTickerState(AppState):
     only_my_squad: bool = False
     rows: List[Dict[str, Any]] = []
     is_loading: bool = False
+    sort_column: str = "Total FDR"
+    sort_direction: str = "asc"
 
     # Cache tracking fields
     last_loaded_gw: int = 0
     last_loaded_mgr: str = ""
     last_search: str = ""
     last_only_squad: bool = False
+
+    def handle_sort(self, col: str):
+        if self.sort_column == col:
+            self.sort_direction = "asc" if self.sort_direction == "desc" else "desc"
+        else:
+            self.sort_column = col
+            self.sort_direction = "asc"
+        self._apply_sort()
+
+    def _apply_sort(self):
+        if self.sort_column and self.rows:
+            self.rows = sort_table_rows(
+                self.rows,
+                self.sort_column,
+                reverse=(self.sort_direction == "desc"),
+                key_map=FIXTURE_TICKER_KEY_MAP,
+            )
 
     @rx.var
     def has_rows(self) -> bool:
@@ -70,6 +90,7 @@ class FixtureTickerState(AppState):
 
             if not force_refresh and cache_key in _fixtures_cache:
                 self.rows = _fixtures_cache[cache_key]
+                self._apply_sort()
                 self.is_loading = False
                 return
 
@@ -90,6 +111,7 @@ class FixtureTickerState(AppState):
             if data is not None:
                 _fixtures_cache[cache_key] = data
                 self.rows = data
+                self._apply_sort()
             self.last_loaded_gw = current_gw
             self.last_loaded_mgr = manager_id
             self.last_search = search_query

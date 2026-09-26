@@ -6,6 +6,7 @@ import reflex as rx
 
 from fpl_strategic_dashboard_reflex.states.base import AppState
 from fpl_strategic_dashboard_reflex.services.market import run_market_analysis
+from fpl_strategic_dashboard_reflex.services.table_sort import TRANSFER_MARKET_KEY_MAP, sort_table_rows
 
 _market_cache: Dict[str, Dict[str, Any]] = {}
 
@@ -18,7 +19,7 @@ class TransferMarketState(AppState):
     search_query: str = ""
     pos_filter: str = "All"
     sort_by: str = "Projected Points (xP)"
-    max_price: float = 15.5
+    max_price: float = 17.0
     exclude_my_squad: bool = True
     enable_betting: bool = True
 
@@ -34,6 +35,25 @@ class TransferMarketState(AppState):
 
     top_cards: List[Dict[str, Any]] = []
     table_data: List[Dict[str, Any]] = []
+    sort_column: str = "Proj xP"
+    sort_direction: str = "desc"
+
+    def handle_sort(self, col: str):
+        if self.sort_column == col:
+            self.sort_direction = "asc" if self.sort_direction == "desc" else "desc"
+        else:
+            self.sort_column = col
+            self.sort_direction = "asc" if col in ("Target Player", "Player", "Club", "Pos", "GW Fixture") else "desc"
+        self._apply_sort()
+
+    def _apply_sort(self):
+        if self.sort_column and self.table_data:
+            self.table_data = sort_table_rows(
+                self.table_data,
+                self.sort_column,
+                reverse=(self.sort_direction == "desc"),
+                key_map=TRANSFER_MARKET_KEY_MAP,
+            )
 
     @rx.var
     def has_data(self) -> bool:
@@ -56,13 +76,36 @@ class TransferMarketState(AppState):
 
     def set_sort_by(self, value: str):
         self.sort_by = value
+        sort_by_col_map = {
+            "Projected Points (xP)": ("Proj xP", "desc"),
+            "Value Efficiency (xP / £M)": ("xP / £M", "desc"),
+            "Current Form": ("Form", "desc"),
+            "Total Season Points": ("Season Pts", "desc"),
+            "Price (Low to High)": ("Price", "asc"),
+            "Ownership % (Low to High)": ("Own %", "asc"),
+        }
+        col, dir_ = sort_by_col_map.get(value, ("Proj xP", "desc"))
+        self.sort_column = col
+        self.sort_direction = dir_
         return TransferMarketState.load_data(False)
 
+    @rx.var
+    def max_price_list(self) -> list[float]:
+        return [self.max_price]
+
+    def set_max_price_drag(self, value: list[float]):
+        if value:
+            try:
+                self.max_price = round(float(value[0]), 1)
+            except Exception:
+                pass
+
     def set_max_price(self, value: list[float]):
-        try:
-            self.max_price = float(value[0])
-        except Exception:
-            pass
+        if value:
+            try:
+                self.max_price = round(float(value[0]), 1)
+            except Exception:
+                pass
         return TransferMarketState.load_data(False)
 
     def toggle_exclude(self, value: bool):
@@ -96,6 +139,7 @@ class TransferMarketState(AppState):
                 result = _market_cache[cache_key]
                 self.top_cards = result.get("top_cards", result.get("cards", []))
                 self.table_data = result.get("table", [])
+                self._apply_sort()
                 self.is_loading = False
                 return
 
@@ -118,6 +162,7 @@ class TransferMarketState(AppState):
                 _market_cache[cache_key] = result
                 self.top_cards = result.get("top_cards", result.get("cards", []))
                 self.table_data = result.get("table", [])
+                self._apply_sort()
             self.last_loaded_gw = c_gw
             self.last_loaded_mgr = mgr_id
             self.last_sq = sq

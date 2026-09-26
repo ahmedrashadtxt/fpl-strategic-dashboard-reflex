@@ -3,7 +3,7 @@
 import reflex as rx
 from fpl_strategic_dashboard_reflex.states.transfer import TransferAnalyzerState
 from fpl_strategic_dashboard_reflex.components import (
-    guide_popover,
+    tour_button,
     pitch_view,
     squad_list_view,
     loading_view,
@@ -35,22 +35,42 @@ def transfer_lineup_panel() -> rx.Component:
                 # Segmented Pitch View / List View Toggle (Client-Side)
                 rx.tabs.list(
                     rx.tabs.trigger(
+                        rx.cond(
+                            TransferAnalyzerState.pitch_view,
+                            MotionDiv.create(
+                                class_name="view-tab-active-indicator",
+                                layout_id="view-indicator",
+                                transition={"type": "spring", "stiffness": 380, "damping": 30},
+                            ),
+                        ),
                         rx.hstack(
                             rx.icon("layout-grid", size=14),
                             rx.text("Pitch View"),
                             align="center",
                             spacing="1",
+                            class_name="view-tab-label",
                         ),
                         value="pitch",
+                        class_name="view-trigger-custom",
                     ),
                     rx.tabs.trigger(
+                        rx.cond(
+                            ~TransferAnalyzerState.pitch_view,
+                            MotionDiv.create(
+                                class_name="view-tab-active-indicator",
+                                layout_id="view-indicator",
+                                transition={"type": "spring", "stiffness": 380, "damping": 30},
+                            ),
+                        ),
                         rx.hstack(
                             rx.icon("list", size=14),
                             rx.text("List View"),
                             align="center",
                             spacing="1",
+                            class_name="view-tab-label",
                         ),
                         value="list",
+                        class_name="view-trigger-custom",
                     ),
                 ),
                 width="100%",
@@ -87,13 +107,16 @@ def transfer_lineup_panel() -> rx.Component:
                 ),
                 value="list",
             ),
-            default_value="pitch",
+            value=rx.cond(TransferAnalyzerState.pitch_view, "pitch", "list"),
+            on_change=TransferAnalyzerState.set_view_mode,
             class_name="segmented-view-tabs",
             width="100%",
         ),
         layout="position",
         transition={"duration": 0.35, "ease": [0.16, 1, 0.3, 1]},
         width="100%",
+        id="tour-transfer-pitch",
+        custom_attrs={"data-tour-id": "tour-transfer-pitch"},
     )
 
 
@@ -116,8 +139,8 @@ def transfer_solution_panel() -> rx.Component:
                     ),
                     spacing="1",
                     padding="0.75rem 1rem",
-                    background="rgba(255, 255, 255, 0.03)",
-                    border="1px solid var(--border-color)",
+                    background="var(--surface-1, rgba(255, 255, 255, 0.035))",
+                    border="1px solid var(--border-level-1, rgba(255, 255, 255, 0.05))",
                     border_radius="8px",
                     width="100%",
                 ),
@@ -137,8 +160,8 @@ def transfer_solution_panel() -> rx.Component:
                     ),
                     spacing="1",
                     padding="0.75rem 1rem",
-                    background="rgba(255, 255, 255, 0.03)",
-                    border="1px solid var(--border-color)",
+                    background="var(--surface-1, rgba(255, 255, 255, 0.035))",
+                    border="1px solid var(--border-level-1, rgba(255, 255, 255, 0.05))",
                     border_radius="8px",
                     width="100%",
                 ),
@@ -148,8 +171,8 @@ def transfer_solution_panel() -> rx.Component:
                     rx.text(TransferAnalyzerState.metric_bank_after, font_size="1.25rem", font_weight="800", color="var(--text-main)"),
                     spacing="1",
                     padding="0.75rem 1rem",
-                    background="rgba(255, 255, 255, 0.03)",
-                    border="1px solid var(--border-color)",
+                    background="var(--surface-1, rgba(255, 255, 255, 0.035))",
+                    border="1px solid var(--border-level-1, rgba(255, 255, 255, 0.05))",
                     border_radius="8px",
                     width="100%",
                 ),
@@ -159,8 +182,8 @@ def transfer_solution_panel() -> rx.Component:
                     rx.text(TransferAnalyzerState.metric_moves_executed, font_size="1.25rem", font_weight="800", color="var(--text-main)"),
                     spacing="1",
                     padding="0.75rem 1rem",
-                    background="rgba(255, 255, 255, 0.03)",
-                    border="1px solid var(--border-color)",
+                    background="var(--surface-1, rgba(255, 255, 255, 0.035))",
+                    border="1px solid var(--border-level-1, rgba(255, 255, 255, 0.05))",
                     border_radius="8px",
                     width="100%",
                 ),
@@ -329,18 +352,9 @@ def transfer_analyzer_page() -> rx.Component:
                 ),
                 align="center",
             ),
+            rx.spacer(),
             rx.hstack(
-                guide_popover(
-                    title="Transfer Solver Guide",
-                    subtitle="Mixed-integer linear programming (MILP) transfer optimization",
-                    items=[
-                        {"badge": "Modes", "title": "Strategy Mode", "desc": "Choose between Regular Transfers (budget-conserving hits), Wildcard (full 15-man revamp), or Free Hit (1-GW ceiling)."},
-                        {"badge": "Horizon", "title": "Planning Horizon", "desc": "Optimize for immediate GW payoff (1-GW) or smooth transitions across multiple weeks (2, 3, 5, or 8 GWs)."},
-                        {"badge": "Hits", "title": "Max Point Deductions", "desc": "Allow the solver to take intentional -4 hits if the long-term expected points gain justifies it."},
-                        {"badge": "Locks", "title": "Priorities & Blacklist", "desc": "Lock current squad players, force target signings, force sales, or blacklist unwanted market assets."},
-                    ],
-                    tip="Use Priorities & Locks to ensure key captaincy assets remain locked while optimizing secondary positions.",
-                ),
+                tour_button("transfer_solver"),
                 rx.button(
                     rx.hstack(
                         rx.icon("refresh-cw", size=14),
@@ -385,11 +399,13 @@ def transfer_analyzer_page() -> rx.Component:
                         direction="row",
                         spacing="5",
                         size="2",
-                        color_scheme="green",
+                        color_scheme="blue",
                     ),
                     align="start",
                     spacing="2",
                     margin_bottom="0.75rem",
+                    id="tour-transfer-mode",
+                    custom_attrs={"data-tour-id": "tour-transfer-mode"},
                 ),
 
                 # Row 1: Parameters Row (Regular Transfers = 4 cols, Wildcard/Free Hit = 2 cols)
@@ -411,6 +427,8 @@ def transfer_analyzer_page() -> rx.Component:
                             align="start",
                             spacing="1",
                             width="100%",
+                            id="tour-transfer-horizon",
+                            custom_attrs={"data-tour-id": "tour-transfer-horizon"},
                         ),
 
                         # 2. Free Transfers (+/- Stepper)
@@ -493,6 +511,8 @@ def transfer_analyzer_page() -> rx.Component:
                             align="start",
                             spacing="1",
                             width="100%",
+                            id="tour-transfer-hits",
+                            custom_attrs={"data-tour-id": "tour-transfer-hits"},
                         ),
 
                         # 4. Planned Moves Card
@@ -640,11 +660,11 @@ def transfer_analyzer_page() -> rx.Component:
                         rx.switch(
                             checked=TransferAnalyzerState.enable_betting,
                             on_change=TransferAnalyzerState.set_enable_betting,
-                            color_scheme="green",
+                            color_scheme="blue",
                             size="2",
                         ),
                         rx.hstack(
-                            rx.icon("trending-up", size=14, color="#4ade80"),
+                            rx.icon("trending-up", size=14, color="#38bdf8"),
                             rx.text("Betting Market xG", font_size="0.85rem", font_weight="600"),
                             align="center",
                             spacing="1",
@@ -667,7 +687,7 @@ def transfer_analyzer_page() -> rx.Component:
                                     TransferAnalyzerState.market_weight_display,
                                     font_size="0.8rem",
                                     font_weight="700",
-                                    color="#4ade80",
+                                    color="#38bdf8",
                                 ),
                                 align="center",
                                 spacing="1",
@@ -678,7 +698,7 @@ def transfer_analyzer_page() -> rx.Component:
                                 max=100,
                                 step=5,
                                 width="100%",
-                                color_scheme="green",
+                                color_scheme="blue",
                                 size="1",
                                 on_change=TransferAnalyzerState.set_market_weight_drag,
                                 on_value_commit=TransferAnalyzerState.set_market_weight,
@@ -702,19 +722,20 @@ def transfer_analyzer_page() -> rx.Component:
                                 TransferAnalyzerState.min_mins.to_string(),
                                 font_size="0.8rem",
                                 font_weight="700",
-                                color="#4ade80",
+                                color="#38bdf8",
                             ),
                             align="center",
                             spacing="1",
                         ),
                         rx.slider(
-                            value=[TransferAnalyzerState.min_mins],
+                            value=TransferAnalyzerState.min_mins_list,
                             min=0,
                             max=90,
                             step=5,
                             width="100%",
-                            color_scheme="green",
+                            color_scheme="blue",
                             size="1",
+                            on_change=TransferAnalyzerState.set_min_mins_drag,
                             on_value_commit=TransferAnalyzerState.set_min_mins,
                         ),
                         spacing="1",
@@ -983,6 +1004,8 @@ def transfer_analyzer_page() -> rx.Component:
                     spacing="4",
                     width="100%",
                     margin_bottom="1.25rem",
+                    id="tour-transfer-locks",
+                    custom_attrs={"data-tour-id": "tour-transfer-locks"},
                 ),
 
                 # Row 4: Primary Solve Transfers Action
@@ -1006,8 +1029,8 @@ def transfer_analyzer_page() -> rx.Component:
                 spacing="2",
             ),
             padding="1.25rem",
-            background="rgba(255, 255, 255, 0.02)",
-            border="1px solid var(--border-color)",
+            background="var(--surface-1, rgba(255, 255, 255, 0.035))",
+            border="1px solid var(--border-level-1, rgba(255, 255, 255, 0.05))",
             border_radius="10px",
             margin_bottom="1.25rem",
             width="100%",

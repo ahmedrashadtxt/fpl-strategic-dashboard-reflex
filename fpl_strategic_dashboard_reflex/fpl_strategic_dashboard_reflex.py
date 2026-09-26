@@ -18,6 +18,10 @@ from fpl_strategic_dashboard_reflex.components import (
     global_stats_panel,
     id_dialog,
     motion_tab_content,
+    MotionConfig,
+    MotionDiv,
+    AnimatePresence,
+    tour_driver,
 )
 from fpl_strategic_dashboard_reflex.pages import (
     squad_analyzer_page,
@@ -34,47 +38,83 @@ from fpl_strategic_dashboard_reflex.styles.theme import (
 )
 
 
+def _main_tab_trigger(label: str, value: str) -> rx.Component:
+    """Renders a main navigation tab trigger with a single shared sliding indicator."""
+    return rx.tabs.trigger(
+        rx.cond(
+            AppState.selected_tab == value,
+            MotionDiv.create(
+                class_name="main-tab-active-indicator",
+                layout_id="main-tab-indicator",
+                transition={"type": "spring", "stiffness": 380, "damping": 30},
+            ),
+        ),
+        rx.text(label, class_name="tab-trigger-label"),
+        value=value,
+        class_name="tabs-trigger-custom",
+    )
+
+
 def index() -> rx.Component:
     """The main application view rendering the unified shell layout."""
-    return rx.box(
-        rx.container(
-            header(),
-            global_stats_panel(),
-            rx.tabs.root(
-                rx.tabs.list(
-                    rx.tabs.trigger("Squad Analyzer", value="squad_analyzer", class_name="tabs-trigger-custom"),
-                    rx.tabs.trigger("Transfer Solver", value="transfer_solver", class_name="tabs-trigger-custom"),
-                    rx.tabs.trigger("Match Simulator", value="match_simulator", class_name="tabs-trigger-custom"),
-                    rx.tabs.trigger("Expected Stats", value="expected_stats", class_name="tabs-trigger-custom"),
-                    rx.tabs.trigger("Defensive Stats", value="defensive_stats", class_name="tabs-trigger-custom"),
-                    rx.tabs.trigger("Rolling Form", value="rolling_form", class_name="tabs-trigger-custom"),
-                    rx.tabs.trigger("Fixture Ticker", value="fixture_ticker", class_name="tabs-trigger-custom"),
-                    rx.tabs.trigger("Transfer Market", value="transfer_market", class_name="tabs-trigger-custom"),
-                    class_name="main-nav-tabs-list",
+    return MotionConfig.create(
+        rx.box(
+            rx.container(
+                header(),
+                global_stats_panel(),
+                rx.tabs.root(
+                    rx.tabs.list(
+                        _main_tab_trigger("Squad Analyzer", "squad_analyzer"),
+                        _main_tab_trigger("Transfer Solver", "transfer_solver"),
+                        _main_tab_trigger("Match Simulator", "match_simulator"),
+                        _main_tab_trigger("Expected Stats", "expected_stats"),
+                        _main_tab_trigger("Defensive Stats", "defensive_stats"),
+                        _main_tab_trigger("Rolling Form", "rolling_form"),
+                        _main_tab_trigger("Fixture Ticker", "fixture_ticker"),
+                        _main_tab_trigger("Transfer Market", "transfer_market"),
+                        class_name="main-nav-tabs-list",
+                        id="tour-main-tabs",
+                        custom_attrs={"data-tour-id": "tour-main-tabs"},
+                    ),
+                    AnimatePresence.create(
+                        MotionDiv.create(
+                            rx.match(
+                                AppState.selected_tab,
+                                ("squad_analyzer", squad_analyzer_page()),
+                                ("transfer_solver", transfer_analyzer_page()),
+                                ("match_simulator", simulator_page()),
+                                ("expected_stats", expected_stats_page()),
+                                ("defensive_stats", defensive_stats_page()),
+                                ("rolling_form", rolling_form_page()),
+                                ("fixture_ticker", fixture_ticker_page()),
+                                ("transfer_market", transfer_market_page()),
+                                squad_analyzer_page(),
+                            ),
+                            key=AppState.selected_tab,
+                            initial={"opacity": 0, "y": 8},
+                            animate={"opacity": 1, "y": 0},
+                            exit={"opacity": 0, "y": -8},
+                            transition={"duration": 0.18, "ease": [0.16, 1, 0.3, 1]},
+                            width="100%",
+                        ),
+                        mode="wait",
+                    ),
+                    value=AppState.selected_tab,
+                    on_change=AppState.set_tab,
+                    width="100%",
                 ),
-                rx.tabs.content(motion_tab_content(squad_analyzer_page()), value="squad_analyzer"),
-                rx.tabs.content(motion_tab_content(transfer_analyzer_page()), value="transfer_solver"),
-                rx.tabs.content(motion_tab_content(simulator_page()), value="match_simulator"),
-                rx.tabs.content(motion_tab_content(expected_stats_page()), value="expected_stats"),
-                rx.tabs.content(motion_tab_content(defensive_stats_page()), value="defensive_stats"),
-                rx.tabs.content(motion_tab_content(rolling_form_page()), value="rolling_form"),
-                # ── Live Fixture Ticker (migrated) ──────────────────────────
-                rx.tabs.content(motion_tab_content(fixture_ticker_page()), value="fixture_ticker"),
-                # ── Transfer Market ─────────────────────────────────────────
-                rx.tabs.content(motion_tab_content(transfer_market_page()), value="transfer_market"),
-                value=AppState.selected_tab,
-                on_change=AppState.set_tab,
-                width="100%",
+                id_dialog(),
+                tour_driver(),
+                max_width="1600px",
+                padding_x="2rem",
+                padding_top="0.5rem",
+                padding_bottom=PAGE_PADDING_Y,
             ),
-            id_dialog(),
-            max_width="1600px",
-            padding_x="2rem",
-            padding_top="0.5rem",
-            padding_bottom=PAGE_PADDING_Y,
+            min_height="100vh",
+            background="var(--app-bg)",
+            width="100%",
         ),
-        min_height="100vh",
-        background="var(--app-bg)",
-        width="100%",
+        reduced_motion="user",
     )
 
 

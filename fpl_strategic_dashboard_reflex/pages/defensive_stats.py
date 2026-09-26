@@ -3,7 +3,7 @@
 import reflex as rx
 from fpl_strategic_dashboard_reflex.states.defensive import DefensiveStatsState
 from fpl_strategic_dashboard_reflex.components import (
-    guide_popover,
+    tour_button,
     player_highlight_card,
     data_table,
     search_input,
@@ -14,24 +14,29 @@ from fpl_strategic_dashboard_reflex.components import (
 
 def defensive_metric_cards() -> rx.Component:
     """Isolated player highlight cards component matching Streamlit layout."""
-    return rx.cond(
-        DefensiveStatsState.has_data,
-        MotionDiv.create(
-            rx.grid(
-                rx.foreach(
-                    DefensiveStatsState.top_cards,
-                    player_highlight_card,
+    return rx.box(
+        rx.cond(
+            DefensiveStatsState.has_data,
+            MotionDiv.create(
+                rx.grid(
+                    rx.foreach(
+                        DefensiveStatsState.top_cards,
+                        player_highlight_card,
+                    ),
+                    columns=rx.breakpoints(initial="1", sm="2", lg="4"),
+                    spacing="3",
+                    width="100%",
                 ),
-                columns=rx.breakpoints(initial="1", sm="2", lg="4"),
-                spacing="3",
+                layout="position",
+                transition={"duration": 0.35, "ease": [0.16, 1, 0.3, 1]},
                 width="100%",
+                margin_bottom="1.25rem",
             ),
-            layout="position",
-            transition={"duration": 0.35, "ease": [0.16, 1, 0.3, 1]},
-            width="100%",
-            margin_bottom="1.25rem",
+            rx.box(),
         ),
-        rx.box(),
+        id="tour-def-cards",
+        custom_attrs={"data-tour-id": "tour-def-cards"},
+        width="100%",
     )
 
 
@@ -55,7 +60,7 @@ def defensive_stats_controls() -> rx.Component:
                 rx.hstack(
                     rx.icon("clock", size=14, color="var(--text-sub)"),
                     rx.text("Min Avg Mins / GW", font_size="0.8rem", color="var(--text-sub)", font_weight="600"),
-                    rx.badge(DefensiveStatsState.min_avg_mins, variant="surface", color_scheme="green", size="1"),
+                    rx.badge(DefensiveStatsState.min_avg_mins, variant="surface", color_scheme="blue", size="1"),
                     align="center",
                     spacing="2",
                 ),
@@ -63,9 +68,10 @@ def defensive_stats_controls() -> rx.Component:
                     min=0,
                     max=90,
                     step=5,
-                    value=[DefensiveStatsState.min_avg_mins],
+                    value=DefensiveStatsState.min_avg_mins_list,
+                    on_change=DefensiveStatsState.set_min_mins_drag,
                     on_value_commit=DefensiveStatsState.set_min_mins,
-                    color_scheme="green",
+                    color_scheme="blue",
                     size="1",
                     width="100%",
                 ),
@@ -110,7 +116,7 @@ def defensive_stats_controls() -> rx.Component:
                     rx.badge(
                         rx.concat("£", DefensiveStatsState.max_price),
                         variant="surface",
-                        color_scheme="green",
+                        color_scheme="blue",
                         size="1",
                     ),
                     align="center",
@@ -118,11 +124,12 @@ def defensive_stats_controls() -> rx.Component:
                 ),
                 rx.slider(
                     min=3.5,
-                    max=15.5,
+                    max=17.0,
                     step=0.5,
-                    value=[DefensiveStatsState.max_price],
+                    value=DefensiveStatsState.max_price_list,
+                    on_change=DefensiveStatsState.set_price_drag,
                     on_value_commit=DefensiveStatsState.set_price,
-                    color_scheme="green",
+                    color_scheme="blue",
                     size="1",
                     width="260px",
                 ),
@@ -134,7 +141,7 @@ def defensive_stats_controls() -> rx.Component:
                 rx.switch(
                     checked=DefensiveStatsState.only_my_squad,
                     on_change=DefensiveStatsState.set_only_squad,
-                    color_scheme="green",
+                    color_scheme="blue",
                     size="1",
                 ),
                 rx.hstack(
@@ -150,7 +157,7 @@ def defensive_stats_controls() -> rx.Component:
                 rx.switch(
                     checked=DefensiveStatsState.show_career_baseline,
                     on_change=DefensiveStatsState.set_career,
-                    color_scheme="green",
+                    color_scheme="blue",
                     size="1",
                 ),
                 rx.hstack(
@@ -168,12 +175,14 @@ def defensive_stats_controls() -> rx.Component:
             gap="1.5rem",
         ),
         padding="1rem 1.25rem",
-        background="rgba(255, 255, 255, 0.02)",
-        border="1px solid var(--border-color)",
+        background="var(--surface-1, rgba(255, 255, 255, 0.035))",
+        border="1px solid var(--border-level-1, rgba(255, 255, 255, 0.05))",
         border_radius="10px",
         width="100%",
         spacing="3",
         margin_bottom="1.25rem",
+        id="tour-def-controls",
+        custom_attrs={"data-tour-id": "tour-def-controls"},
     )
 
 
@@ -198,17 +207,9 @@ def defensive_stats_page() -> rx.Component:
                 ),
                 align="center",
             ),
+            rx.spacer(),
             rx.hstack(
-                guide_popover(
-                    title="Defensive Analysis Guide",
-                    subtitle="Metrics for defenders and goalkeepers",
-                    items=[
-                        {"badge": "CS Prob", "title": "Clean Sheet Probability", "desc": "Market-implied probability of keeping a clean sheet."},
-                        {"badge": "CBI", "title": "Defensive Involvements", "desc": "Clearances, blocks, interceptions that contribute to BPS and bonus floor."},
-                        {"badge": "Saves", "title": "Save Points Potential", "desc": "High-volume save keepers (1pt per 3 saves) from mid-table clubs."},
-                    ],
-                    tip="Target defenders with high CBI baseline who play for teams with high CS probability.",
-                ),
+                tour_button("defensive_stats"),
                 rx.button(
                     rx.hstack(
                         rx.icon("refresh-cw", size=14),
@@ -238,9 +239,13 @@ def defensive_stats_page() -> rx.Component:
         defensive_metric_cards(),
 
         # Data Table with Player Avatars and Streamlit Columns
-        data_table(
-            headers=DefensiveStatsState.columns,
+        rx.box(
+            data_table(
+                headers=DefensiveStatsState.columns,
             rows=DefensiveStatsState.table_data,
+            sort_col=DefensiveStatsState.sort_column,
+            sort_dir=DefensiveStatsState.sort_direction,
+            on_sort=DefensiveStatsState.handle_sort,
             row_render_func=lambda row: rx.table.row(
                 # Player (with avatar)
                 rx.table.cell(
@@ -313,6 +318,10 @@ def defensive_stats_page() -> rx.Component:
             ),
             is_loading=DefensiveStatsState.is_loading,
         ),
+        id="tour-def-table",
+        custom_attrs={"data-tour-id": "tour-def-table"},
+        width="100%",
+    ),
         width="100%",
         on_mount=DefensiveStatsState.load_data,
     )

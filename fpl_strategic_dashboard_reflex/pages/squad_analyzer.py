@@ -3,12 +3,16 @@
 import reflex as rx
 from fpl_strategic_dashboard_reflex.states.squad import SquadAnalyzerState
 from fpl_strategic_dashboard_reflex.components import (
-    guide_popover,
+    tour_button,
     metric_card,
     pitch_view,
     squad_list_view,
     loading_view,
     MotionDiv,
+    AnimatePresence,
+    directional_slide,
+    count_up,
+    rating_ring,
 )
 
 
@@ -77,10 +81,12 @@ def model_vs_market_table() -> rx.Component:
             ),
         ),
         padding="1rem",
-        background="rgba(15, 23, 42, 0.4)",
-        border="1px solid var(--border-color)",
+        background="var(--surface-1, rgba(255, 255, 255, 0.035))",
+        border="1px solid var(--border-level-1, rgba(255, 255, 255, 0.05))",
         border_radius="10px",
         width="100%",
+        id="tour-model-market-table",
+        custom_attrs={"data-tour-id": "tour-model-market-table"},
     )
 
 
@@ -149,8 +155,8 @@ def line_movement_table() -> rx.Component:
             ),
         ),
         padding="1rem",
-        background="rgba(15, 23, 42, 0.4)",
-        border="1px solid var(--border-color)",
+        background="var(--surface-1, rgba(255, 255, 255, 0.035))",
+        border="1px solid var(--border-level-1, rgba(255, 255, 255, 0.05))",
         border_radius="10px",
         width="100%",
     )
@@ -158,6 +164,11 @@ def line_movement_table() -> rx.Component:
 
 def match_center_banner() -> rx.Component:
     """Renders the Live Match Center / Performance Review / Squad Rating header banner."""
+    rating_color = rx.cond(
+        SquadAnalyzerState.banner_diff_color == "green",
+        "var(--color-positive, #22c55e)",
+        rx.cond(SquadAnalyzerState.banner_diff_color == "red", "var(--color-negative, #ef4444)", "var(--color-interactive, #38bdf8)"),
+    )
     return rx.cond(
         SquadAnalyzerState.show_banner,
         rx.box(
@@ -171,17 +182,13 @@ def match_center_banner() -> rx.Component:
                                 "gauge",
                             ),
                             size=20,
-                            color=rx.cond(
-                                SquadAnalyzerState.banner_diff_color == "green",
-                                "#22c55e",
-                                rx.cond(SquadAnalyzerState.banner_diff_color == "red", "#ef4444", "#38bdf8"),
-                            ),
+                            color=rating_color,
                         ),
                         padding="0.5rem",
                         background=rx.cond(
                             SquadAnalyzerState.banner_diff_color == "green",
-                            "rgba(34, 197, 94, 0.12)",
-                            rx.cond(SquadAnalyzerState.banner_diff_color == "red", "rgba(239, 68, 68, 0.12)", "rgba(56, 189, 248, 0.12)"),
+                            "var(--color-positive-subtle, rgba(34, 197, 94, 0.12))",
+                            rx.cond(SquadAnalyzerState.banner_diff_color == "red", "var(--color-negative-subtle, rgba(239, 68, 68, 0.12))", "var(--color-interactive-subtle, rgba(56, 189, 248, 0.12))"),
                         ),
                         border_radius="8px",
                     ),
@@ -197,43 +204,82 @@ def match_center_banner() -> rx.Component:
                 rx.spacer(),
                 rx.cond(
                     SquadAnalyzerState.banner_diff_text != "",
-                    rx.box(
-                        rx.text(
-                            SquadAnalyzerState.banner_diff_text,
-                            font_size="1.4rem",
-                            font_weight="800",
-                            color=rx.cond(
-                                SquadAnalyzerState.banner_diff_color == "green",
-                                "#22c55e",
-                                rx.cond(SquadAnalyzerState.banner_diff_color == "red", "#ef4444", "var(--text-main)"),
+                    rx.hstack(
+                        # Circular Rating Ring for GW6 Squad Rating (pathLength animated via whileInView)
+                        rx.cond(
+                            ~SquadAnalyzerState.is_live_or_finished,
+                            rating_ring(
+                                value=SquadAnalyzerState.banner_rating_ratio,
+                                color=rating_color,
+                                size=44,
                             ),
-                            font_family="'Outfit', sans-serif",
+                            rx.box(),
                         ),
-                        padding="0.3rem 0.85rem",
-                        background=rx.cond(
-                            SquadAnalyzerState.banner_diff_color == "green",
-                            "rgba(34, 197, 94, 0.12)",
-                            rx.cond(SquadAnalyzerState.banner_diff_color == "red", "rgba(239, 68, 68, 0.12)", "rgba(255, 255, 255, 0.05)"),
+                        rx.box(
+                            count_up(
+                                value=SquadAnalyzerState.banner_diff_text,
+                                duration=0.8,
+                                decimals=1,
+                                style={
+                                    "fontSize": "1.4rem",
+                                    "fontWeight": "800",
+                                    "color": rating_color,
+                                    "fontFamily": "'Outfit', sans-serif",
+                                },
+                            ),
+                            padding="0.3rem 0.85rem",
+                            background=rx.cond(
+                                SquadAnalyzerState.banner_diff_color == "green",
+                                "rgba(34, 197, 94, 0.12)",
+                                rx.cond(SquadAnalyzerState.banner_diff_color == "red", "rgba(239, 68, 68, 0.12)", "rgba(255, 255, 255, 0.05)"),
+                            ),
+                            border="1px solid",
+                            border_color=rx.cond(
+                                SquadAnalyzerState.banner_diff_color == "green",
+                                "rgba(34, 197, 94, 0.3)",
+                                rx.cond(SquadAnalyzerState.banner_diff_color == "red", "rgba(239, 68, 68, 0.3)", "rgba(255, 255, 255, 0.1)"),
+                            ),
+                            border_radius="8px",
                         ),
-                        border="1px solid",
-                        border_color=rx.cond(
-                            SquadAnalyzerState.banner_diff_color == "green",
-                            "rgba(34, 197, 94, 0.3)",
-                            rx.cond(SquadAnalyzerState.banner_diff_color == "red", "rgba(239, 68, 68, 0.3)", "rgba(255, 255, 255, 0.1)"),
-                        ),
-                        border_radius="8px",
+                        align="center",
+                        spacing="3",
                     ),
                     rx.box(),
                 ),
                 align="center",
                 width="100%",
             ),
+            # Animate the Squad Rating progress bar via width using whileInView (once: true)
+            rx.cond(
+                ~SquadAnalyzerState.is_live_or_finished & (SquadAnalyzerState.banner_diff_text != ""),
+                rx.box(
+                    MotionDiv.create(
+                        initial={"width": "0%"},
+                        while_in_view={"width": SquadAnalyzerState.banner_diff_text},
+                        viewport={"once": True},
+                        transition={"duration": 0.85, "ease": "easeOut"},
+                        height="4px",
+                        border_radius="2px",
+                        background=rating_color,
+                    ),
+                    width="100%",
+                    height="4px",
+                    background="rgba(255, 255, 255, 0.08)",
+                    border_radius="2px",
+                    overflow="hidden",
+                    margin_top="0.75rem",
+                ),
+                rx.box(),
+            ),
+            class_name="match-banner-card",
             padding="1rem 1.25rem",
-            background="rgba(255, 255, 255, 0.02)",
-            border="1px solid var(--border-color)",
+            background="var(--surface-1, rgba(255, 255, 255, 0.035))",
+            border="1px solid var(--border-level-1, rgba(255, 255, 255, 0.05))",
             border_radius="10px",
             margin_bottom="1rem",
             width="100%",
+            id="tour-squad-rating",
+            custom_attrs={"data-tour-id": "tour-squad-rating"},
         ),
         rx.box(),
     )
@@ -278,42 +324,57 @@ def match_center_kpi_cards() -> rx.Component:
 
 
 def squad_lineup_tabs_content() -> rx.Component:
-    """Renders pitch and list views as client-side tabs content with zero round-trip latency and smooth layout gliding."""
-    return MotionDiv.create(
-        rx.box(
-            rx.tabs.content(
-                rx.cond(
-                    SquadAnalyzerState.enable_comparison,
-                    rx.grid(
-                        pitch_view(SquadAnalyzerState.base_pitch_html, header_text=SquadAnalyzerState.squad_header_text),
-                        pitch_view(SquadAnalyzerState.comp_pitch_html, header_text=SquadAnalyzerState.comp_header_text),
-                        columns=rx.breakpoints(initial="1", md="2"),
-                        spacing="4",
-                        width="100%",
-                    ),
-                    pitch_view(SquadAnalyzerState.base_pitch_html, header_text=SquadAnalyzerState.squad_header_text),
-                ),
-                value="pitch",
-            ),
-            rx.tabs.content(
-                rx.cond(
-                    SquadAnalyzerState.enable_comparison,
-                    rx.grid(
-                        squad_list_view(SquadAnalyzerState.starters, SquadAnalyzerState.bench, header_text=SquadAnalyzerState.squad_header_text),
-                        squad_list_view(SquadAnalyzerState.compare_starters, SquadAnalyzerState.compare_bench, header_text=SquadAnalyzerState.comp_header_text),
-                        columns=rx.breakpoints(initial="1", md="2"),
-                        spacing="4",
-                        width="100%",
-                    ),
-                    squad_list_view(SquadAnalyzerState.starters, SquadAnalyzerState.bench, header_text=SquadAnalyzerState.squad_header_text),
-                ),
-                value="list",
-            ),
+    """Renders pitch and list views with directional slide on Gameweek change (GW5->GW6 enters from right, reverse from left)."""
+    pitch_content = rx.cond(
+        SquadAnalyzerState.enable_comparison,
+        rx.grid(
+            pitch_view(SquadAnalyzerState.base_pitch_html, header_text=SquadAnalyzerState.squad_header_text),
+            pitch_view(SquadAnalyzerState.comp_pitch_html, header_text=SquadAnalyzerState.comp_header_text),
+            columns=rx.breakpoints(initial="1", md="2"),
+            spacing="4",
             width="100%",
         ),
-        layout="position",
-        transition={"duration": 0.35, "ease": [0.16, 1, 0.3, 1]},
+        pitch_view(SquadAnalyzerState.base_pitch_html, header_text=SquadAnalyzerState.squad_header_text),
+    )
+
+    list_content = rx.cond(
+        SquadAnalyzerState.enable_comparison,
+        rx.grid(
+            squad_list_view(SquadAnalyzerState.starters, SquadAnalyzerState.bench, header_text=SquadAnalyzerState.squad_header_text),
+            squad_list_view(SquadAnalyzerState.compare_starters, SquadAnalyzerState.compare_bench, header_text=SquadAnalyzerState.comp_header_text),
+            columns=rx.breakpoints(initial="1", md="2"),
+            spacing="4",
+            width="100%",
+        ),
+        squad_list_view(SquadAnalyzerState.starters, SquadAnalyzerState.bench, header_text=SquadAnalyzerState.squad_header_text),
+    )
+
+    return rx.box(
+        rx.tabs.content(
+            AnimatePresence.create(
+                directional_slide(
+                    pitch_content,
+                    direction=SquadAnalyzerState.gw_direction,
+                    key=SquadAnalyzerState.selected_eval_label,
+                ),
+                mode="wait",
+            ),
+            value="pitch",
+        ),
+        rx.tabs.content(
+            AnimatePresence.create(
+                directional_slide(
+                    list_content,
+                    direction=SquadAnalyzerState.gw_direction,
+                    key=SquadAnalyzerState.selected_eval_label,
+                ),
+                mode="wait",
+            ),
+            value="list",
+        ),
         width="100%",
+        id="tour-pitch-formation",
+        custom_attrs={"data-tour-id": "tour-pitch-formation"},
     )
 
 
@@ -361,11 +422,13 @@ def squad_controls_bar() -> rx.Component:
                         value=SquadAnalyzerState.selected_eval_label,
                         on_change=SquadAnalyzerState.set_eval_label,
                         direction="row",
-                        color_scheme="green",
+                        color_scheme="blue",
                         size="2",
                     ),
                     align="start",
                     spacing="2",
+                    id="tour-select-gw",
+                    custom_attrs={"data-tour-id": "tour-select-gw"},
                 ),
                 rx.spacer(),
                 rx.button(
@@ -392,30 +455,52 @@ def squad_controls_bar() -> rx.Component:
                 # Segmented Client-Side Pitch vs List View Toggle
                 rx.tabs.list(
                     rx.tabs.trigger(
+                        rx.cond(
+                            SquadAnalyzerState.pitch_view,
+                            MotionDiv.create(
+                                class_name="view-tab-active-indicator",
+                                layout_id="view-indicator",
+                                transition={"type": "spring", "stiffness": 380, "damping": 30},
+                            ),
+                        ),
                         rx.hstack(
                             rx.icon("layout-grid", size=14),
                             rx.text("Pitch View"),
                             align="center",
                             spacing="1",
+                            class_name="view-tab-label",
                         ),
                         value="pitch",
+                        class_name="view-trigger-custom",
                     ),
                     rx.tabs.trigger(
+                        rx.cond(
+                            ~SquadAnalyzerState.pitch_view,
+                            MotionDiv.create(
+                                class_name="view-tab-active-indicator",
+                                layout_id="view-indicator",
+                                transition={"type": "spring", "stiffness": 380, "damping": 30},
+                            ),
+                        ),
                         rx.hstack(
                             rx.icon("list", size=14),
                             rx.text("List View"),
                             align="center",
                             spacing="1",
+                            class_name="view-tab-label",
                         ),
                         value="list",
+                        class_name="view-trigger-custom",
                     ),
+                    id="tour-view-toggle",
+                    custom_attrs={"data-tour-id": "tour-view-toggle"},
                 ),
                 # Comparison Switch
                 rx.hstack(
                     rx.switch(
                         checked=SquadAnalyzerState.enable_comparison,
                         on_change=SquadAnalyzerState.set_enable_comparison,
-                        color_scheme="cyan",
+                        color_scheme="blue",
                         size="2",
                     ),
                     rx.hstack(
@@ -426,6 +511,8 @@ def squad_controls_bar() -> rx.Component:
                     ),
                     align="center",
                     spacing="2",
+                    id="tour-comparison-toggle",
+                    custom_attrs={"data-tour-id": "tour-comparison-toggle"},
                 ),
                 # Super Team Switch (Visible when Comparison is enabled)
                 rx.cond(
@@ -451,6 +538,8 @@ def squad_controls_bar() -> rx.Component:
                         initial={"opacity": 0, "scale": 0.95},
                         animate={"opacity": 1, "scale": 1},
                         transition={"duration": 0.2},
+                        id="tour-super-team-toggle",
+                        custom_attrs={"data-tour-id": "tour-super-team-toggle"},
                     ),
                     rx.box(),
                 ),
@@ -462,11 +551,11 @@ def squad_controls_bar() -> rx.Component:
                             rx.switch(
                                 checked=SquadAnalyzerState.enable_betting,
                                 on_change=SquadAnalyzerState.set_enable_betting,
-                                color_scheme="green",
+                                color_scheme="blue",
                                 size="2",
                             ),
                             rx.hstack(
-                                rx.icon("trending-up", size=14, color="#4ade80"),
+                                rx.icon("trending-up", size=14, color="#38bdf8"),
                                 rx.text("Betting Market", font_size="0.85rem", font_weight="600"),
                                 align="center",
                                 spacing="1",
@@ -485,7 +574,7 @@ def squad_controls_bar() -> rx.Component:
                                             rx.icon("circle-help", size=12, color="var(--text-muted)"),
                                             content="0.0 = 100% Statistical Model | 1.0 = 100% Bookmaker Odds",
                                         ),
-                                        rx.text(SquadAnalyzerState.market_weight_display, font_size="0.8rem", font_weight="700", color="#4ade80"),
+                                        rx.text(SquadAnalyzerState.market_weight_display, font_size="0.8rem", font_weight="700", color="#38bdf8"),
                                         align="center",
                                         spacing="1",
                                     ),
@@ -495,7 +584,7 @@ def squad_controls_bar() -> rx.Component:
                                         max=100,
                                         step=5,
                                         width="110px",
-                                        color_scheme="green",
+                                        color_scheme="blue",
                                         size="1",
                                         on_change=SquadAnalyzerState.set_market_weight_drag,
                                         on_value_commit=SquadAnalyzerState.set_market_weight,
@@ -512,12 +601,12 @@ def squad_controls_bar() -> rx.Component:
                         rx.cond(
                             SquadAnalyzerState.enable_betting,
                             rx.hstack(
-                                rx.icon("zap", size=14, color="#eab308"),
+                                rx.icon("zap", size=14, color="#38bdf8"),
                                 rx.checkbox(
                                     "Line Movement",
                                     checked=SquadAnalyzerState.factor_movement,
                                     on_change=SquadAnalyzerState.set_factor_movement,
-                                    color_scheme="green",
+                                    color_scheme="blue",
                                     size="2",
                                 ),
                                 align="center",
@@ -527,6 +616,8 @@ def squad_controls_bar() -> rx.Component:
                         ),
                         align="center",
                         spacing="4",
+                        id="tour-betting-controls",
+                        custom_attrs={"data-tour-id": "tour-betting-controls"},
                     ),
                     rx.box(),
                 ),
@@ -539,8 +630,8 @@ def squad_controls_bar() -> rx.Component:
             spacing="3",
         ),
         padding="1rem 1.25rem",
-        background="rgba(255, 255, 255, 0.02)",
-        border="1px solid var(--border-color)",
+        background="var(--surface-1, rgba(255, 255, 255, 0.035))",
+        border="1px solid var(--border-level-1, rgba(255, 255, 255, 0.05))",
         border_radius="10px",
         margin_bottom="1.5rem",
         width="100%",
@@ -603,16 +694,7 @@ def squad_analyzer_page() -> rx.Component:
                 align="center",
             ),
             rx.spacer(),
-            guide_popover(
-                title="Squad Analyzer Guide",
-                subtitle="Tactical lineup and formation optimization",
-                items=[
-                    {"badge": "Pitch View", "title": "Tactical Formation", "desc": "Interactive 2D pitch showing player roles, fixture FDR ratings, and projected xP."},
-                    {"badge": "Comparison", "title": "Dream 15 Benchmark", "desc": "Compare your starting XI against the mathematically optimal budget Dream 15."},
-                    {"badge": "Betting Market", "title": "Market Overlay", "desc": "Blend statistical models with bookmaker odds and real-time line movement."},
-                ],
-                tip="Click on any player shirt on the pitch to view detailed underlying metric popups.",
-            ),
+            tour_button("squad_analyzer"),
             width="100%",
             align="center",
             margin_bottom="1.25rem",
@@ -621,7 +703,8 @@ def squad_analyzer_page() -> rx.Component:
         ),
         squad_controls_bar(),
         squad_content_section(),
-        default_value="pitch",
+        value=rx.cond(SquadAnalyzerState.pitch_view, "pitch", "list"),
+        on_change=SquadAnalyzerState.set_view_mode,
         class_name="segmented-view-tabs",
         width="100%",
         on_mount=SquadAnalyzerState.load_squad,
