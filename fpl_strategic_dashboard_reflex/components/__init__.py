@@ -18,7 +18,6 @@ from .tab_placeholders import (
     rolling_form_tab,
     fixture_ticker_tab,
     transfer_market_tab,
-    audit_journal_tab,
 )
 from .pitch import pitch_view, squad_list_view
 from .guide_popover import guide_popover
@@ -57,7 +56,6 @@ __all__ = [
     "rolling_form_tab",
     "fixture_ticker_tab",
     "transfer_market_tab",
-    "audit_journal_tab",
     "pitch_view",
     "squad_list_view",
     "guide_popover",

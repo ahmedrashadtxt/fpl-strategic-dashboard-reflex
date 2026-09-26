@@ -23,7 +23,6 @@ from fpl_strategic_dashboard_reflex.services.squad import (
     get_cached_league_eval_df,
     get_cached_league_dream_15,
 )
-from fpl_strategic_dashboard_reflex.services.audit import get_snapshot
 
 
 def build_odds_map(conn: sqlite3.Connection, target_gw: int, fixtures_df: pd.DataFrame, fdr_map: dict) -> dict:
@@ -373,17 +372,8 @@ def load_active_squad(conn: sqlite3.Connection, manager_id: str, target_gw: int)
 def load_post_transfer_squad(
     conn: sqlite3.Connection, manager_id: str, target_gw: int, state_trans_squad: list = None
 ) -> pd.DataFrame:
-    """Loads post-transfer plan from state if present, else from saved audit snapshot."""
-    raw_list = []
-    if state_trans_squad and len(state_trans_squad) > 0:
-        raw_list = state_trans_squad
-    else:
-        snap = get_snapshot(conn, target_gw)
-        if snap and "squad" in snap:
-            snap_squad = snap["squad"]
-            if isinstance(snap_squad, list) and len(snap_squad) > 0:
-                raw_list = snap_squad
-
+    """Loads post-transfer plan from state if present."""
+    raw_list = state_trans_squad or []
     if not raw_list:
         return pd.DataFrame()
 

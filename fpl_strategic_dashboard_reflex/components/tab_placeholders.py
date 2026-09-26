@@ -179,24 +179,3 @@ def transfer_market_tab() -> rx.Component:
         width="100%",
         spacing="4",
     )
-
-
-def audit_journal_tab() -> rx.Component:
-    return rx.vstack(
-        section_header(
-            "🤖 Journey, Audit Journal & Community",
-            "Journey, Audit Journal & Community",
-            "Track historical model predictions vs actual match outcomes and review your gameweek decisions.",
-        ),
-        placeholder_card(
-            "🤖",
-            "clipboard-list",
-            "Audit Journal & Social",
-            "Log pre-gameweek snapshots, compare actual points against xP predictions, and calculate model variance.",
-            "audit_journal",
-        ),
-        width="100%",
-        spacing="4",
-    )
-
-"""Deprecated placeholder module - all tabs are now fully migrated into pages/."""
