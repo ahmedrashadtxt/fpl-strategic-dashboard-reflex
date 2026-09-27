@@ -1094,6 +1094,10 @@ label[for],
     border-radius: 10px !important;
     padding: 0.85rem 1.15rem !important;
     width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    overflow: hidden !important;
+    box-sizing: border-box !important;
     box-shadow: none !important;
     border: 1px solid var(--border-level-1, rgba(255, 255, 255, 0.04)) !important;
     background: var(--surface-1, rgba(255, 255, 255, 0.03)) !important;
@@ -1105,12 +1109,23 @@ label[for],
     background: rgba(255, 255, 255, 0.045) !important;
 }
 
+.secondary-stat-card > div,
+.secondary-stat-card .rt-Flex {
+    min-width: 0 !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    overflow: hidden !important;
+}
+
 .secondary-stat-card .secondary-stat-label {
     font-size: 0.76rem !important;
     font-weight: 600 !important;
     letter-spacing: 0.02em !important;
     color: #94a3b8 !important;
     -webkit-text-fill-color: #94a3b8 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
 }
 
 .secondary-stat-card .secondary-stat-value {
@@ -1123,6 +1138,17 @@ label[for],
     white-space: nowrap !important;
     overflow: hidden !important;
     text-overflow: ellipsis !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    display: block !important;
+    box-sizing: border-box !important;
+}
+
+.secondary-stat-card .secondary-stat-manager-value {
+    font-size: clamp(1.05rem, 1.25vw, 1.25rem) !important;
+    font-weight: 700 !important;
+    letter-spacing: -0.01em !important;
 }
 
 .secondary-stat-card .secondary-stat-icon {

@@ -232,13 +232,25 @@ def _secondary_stat(
     label: str,
     value: rx.Component | rx.Var | str,
     delay: float = 0.0,
+    is_manager: bool = False,
 ) -> rx.Component:
     """Styled secondary portfolio metric card with icon, label, and clean value typography.
     Staggered fade/rise: y: 8 → 0, opacity: 0 → 1.
     """
+    val_class = "secondary-stat-value secondary-stat-manager-value" if is_manager else "secondary-stat-value"
     val_component = (
         value if isinstance(value, rx.Component)
-        else rx.text(value, class_name="secondary-stat-value")
+        else rx.text(
+            value,
+            class_name=val_class,
+            title=value if is_manager else None,
+            width="100%",
+            max_width="100%",
+            overflow="hidden",
+            text_overflow="ellipsis",
+            white_space="nowrap",
+            display="block",
+        )
     )
     return MotionDiv.create(
         rx.vstack(
@@ -247,22 +259,32 @@ def _secondary_stat(
                     icon_name,
                     size=15,
                     class_name="secondary-stat-icon",
+                    flex_shrink="0",
                 ),
                 rx.text(
                     label,
                     class_name="secondary-stat-label",
+                    white_space="nowrap",
                 ),
                 align="center",
                 spacing="2",
+                width="100%",
+                min_width="0",
             ),
             val_component,
             align="start",
             spacing="1",
             justify="center",
             width="100%",
+            min_width="0",
+            max_width="100%",
+            overflow="hidden",
         ),
         class_name="secondary-stat-card",
         width="100%",
+        min_width="0",
+        max_width="100%",
+        overflow="hidden",
         initial={"opacity": 0, "y": 8},
         animate={"opacity": 1, "y": 0},
         transition={
@@ -298,7 +320,7 @@ def global_stats_panel() -> rx.Component:
                 ),
                 # Row 2: Secondary portfolio stats (stagger delays: 0.15s, 0.20s, 0.25s, 0.30s)
                 rx.grid(
-                    _secondary_stat("user", "Manager", AppState.display_title, delay=0.15),
+                    _secondary_stat("user", "Manager", AppState.display_title, delay=0.15, is_manager=True),
                     _secondary_stat(
                         "award",
                         "Total points",
