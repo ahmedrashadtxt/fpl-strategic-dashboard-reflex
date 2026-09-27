@@ -6,6 +6,7 @@ import pandas as pd
 from rapidfuzz import fuzz, process
 
 from fpl_strategic_dashboard_reflex.services.cache import ttl_cache
+from fpl_strategic_dashboard_reflex.services.config import get_odds_api_key
 from fpl_strategic_dashboard_reflex.services.betting import fetch_upcoming_betting_odds, get_fixture_market_xg_and_movement
 from fpl_strategic_dashboard_reflex.services.squad import get_player_img_url, fmt_num, SILHOUETTE_BASE64
 from fpl_strategic_dashboard_reflex.services.db import (
@@ -270,7 +271,7 @@ def run_market_analysis(*args, **kwargs) -> dict:
             max_price = args[5] if len(args) > 5 else 15.5
             exclude_my_squad = args[6] if len(args) > 6 else True
             enable_betting = args[7] if len(args) > 7 else True
-            odds_api_key = args[8] if len(args) > 8 else os.getenv("ODDS_API_KEY", "")
+            odds_api_key = args[8] if len(args) > 8 else get_odds_api_key()
         else:
             current_gw = kwargs.get("current_gw", args[0] if len(args) > 0 else 1)
             manager_id = kwargs.get("manager_id", args[1] if len(args) > 1 else "")
@@ -280,7 +281,7 @@ def run_market_analysis(*args, **kwargs) -> dict:
             max_price = kwargs.get("max_price", args[5] if len(args) > 5 else 15.5)
             exclude_my_squad = kwargs.get("exclude_my_squad", args[6] if len(args) > 6 else True)
             enable_betting = kwargs.get("enable_betting", args[7] if len(args) > 7 else True)
-            odds_api_key = kwargs.get("odds_api_key", args[8] if len(args) > 8 else os.getenv("ODDS_API_KEY", ""))
+            odds_api_key = kwargs.get("odds_api_key", args[8] if len(args) > 8 else get_odds_api_key())
 
         try:
             max_price = float(max_price)

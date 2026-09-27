@@ -3,6 +3,7 @@ Decoupled domain logic, database operations, API integration, and mathematical e
 Zero dependencies on Streamlit or Reflex UI types.
 """
 
+from .config import load_config, get_odds_api_key
 from .cache import ttl_cache
 from .db import (
     get_connection,
@@ -68,6 +69,8 @@ from .market import (
 )
 
 __all__ = [
+    "load_config",
+    "get_odds_api_key",
     "ttl_cache",
     "get_connection",
     "ensure_database_ready",

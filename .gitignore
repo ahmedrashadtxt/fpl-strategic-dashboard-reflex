@@ -7,6 +7,10 @@ fpl_data.db
 assets/external/
 
 # Secrets, API keys, and environment credentials
+config.json
+config.*.json
+!config.example.json
+!config.template.json
 **/.streamlit/secrets.toml
 .streamlit/secrets.toml
 secrets.toml
