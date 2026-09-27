@@ -52,3 +52,4 @@ def get_odds_api_key() -> str:
         return key.strip()
 
     return ""
+
