@@ -33,9 +33,11 @@ class FixtureTickerState(AppState):
         else:
             self.sort_column = col
             self.sort_direction = "asc"
-        self._apply_sort()
+        self._apply_sort(force=True)
 
-    def _apply_sort(self):
+    def _apply_sort(self, force: bool = False):
+        if not force and self.search_query and self.search_query.strip() and self.sort_column == "Total FDR":
+            return
         if self.sort_column and self.rows:
             self.rows = sort_table_rows(
                 self.rows,
@@ -98,6 +100,8 @@ class FixtureTickerState(AppState):
 
         if force_refresh:
             _fixtures_cache.clear()
+            if hasattr(_build_ticker_rows, "clear"):
+                _build_ticker_rows.clear()
 
         data = await asyncio.to_thread(
             _build_ticker_rows,
