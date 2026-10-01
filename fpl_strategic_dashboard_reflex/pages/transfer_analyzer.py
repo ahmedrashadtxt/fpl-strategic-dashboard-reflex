@@ -17,7 +17,7 @@ def transfer_lineup_panel() -> rx.Component:
         rx.tabs.root(
             rx.hstack(
                 rx.hstack(
-                    rx.icon("users", size=18, color="#60a5fa"),
+                    rx.icon("users", size=18, color="var(--chip-xp-color, #60a5fa)"),
                     rx.text(
                         rx.cond(
                             TransferAnalyzerState.has_solved,
@@ -148,7 +148,7 @@ def transfer_solution_panel() -> rx.Component:
                 rx.vstack(
                     rx.text("Net Projected Gain", font_size="0.75rem", color="var(--text-sub)"),
                     rx.hstack(
-                        rx.text(TransferAnalyzerState.metric_net_gain, font_size="1.25rem", font_weight="800", color="#38bdf8"),
+                        rx.text(TransferAnalyzerState.metric_net_gain, font_size="1.25rem", font_weight="800", color="var(--color-interactive, #38bdf8)"),
                         rx.badge(
                             TransferAnalyzerState.metric_net_delta,
                             variant="surface",
@@ -195,7 +195,7 @@ def transfer_solution_panel() -> rx.Component:
             # Strategy Header & Swaps
             rx.vstack(
                 rx.hstack(
-                    rx.icon("route", size=18, color="#38bdf8"),
+                    rx.icon("route", size=18, color="var(--color-interactive, #38bdf8)"),
                     rx.heading(TransferAnalyzerState.solved_route_title, size="4", weight="bold"),
                     align="center",
                     spacing="2",
@@ -271,7 +271,7 @@ def transfer_solution_panel() -> rx.Component:
                                 rx.box(
                                     rx.vstack(
                                         rx.text("Expected Gain:", font_size="0.72rem", color="var(--text-sub)"),
-                                        rx.text("+", s["gain"], " xP", font_size="1.1rem", font_weight="800", color="#38bdf8"),
+                                        rx.text("+", s["gain"], " xP", font_size="1.1rem", font_weight="800", color="var(--color-interactive, #38bdf8)"),
                                         rx.text("Cost: £", s["cost_diff"], "m", font_size="0.72rem", color="var(--text-muted)"),
                                         spacing="1",
                                         align="center",
@@ -296,11 +296,11 @@ def transfer_solution_panel() -> rx.Component:
                     ),
                     rx.box(
                         rx.hstack(
-                            rx.icon("circle-check", size=18, color="#4ade80"),
+                            rx.icon("circle-check", size=18, color="var(--color-positive, #4ade80)"),
                             rx.text(
                                 "Your current squad is optimal for this horizon. No transfer yields higher starting points within your budget.",
                                 font_size="0.85rem",
-                                color="#4ade80",
+                                color="var(--color-positive, #4ade80)",
                                 font_weight="500",
                             ),
                             align="center",
@@ -382,7 +382,7 @@ def transfer_analyzer_page() -> rx.Component:
             rx.vstack(
                 # Card Title
                 rx.hstack(
-                    rx.icon("settings", size=18, color="#38bdf8"),
+                    rx.icon("settings", size=18, color="var(--color-interactive, #38bdf8)"),
                     rx.text("Parameters & Horizon", font_size="1.1rem", font_weight="700", color="var(--text-main)"),
                     align="center",
                     spacing="2",
@@ -582,7 +582,7 @@ def transfer_analyzer_page() -> rx.Component:
                                     TransferAnalyzerState.team_val_display,
                                     font_size="0.95rem",
                                     font_weight="700",
-                                    color="#4ade80",
+                                    color="var(--color-positive, #4ade80)",
                                 ),
                                 align="center",
                                 padding="0.35rem 0.75rem",
@@ -610,11 +610,11 @@ def transfer_analyzer_page() -> rx.Component:
                     TransferAnalyzerState.is_wildcard,
                     rx.box(
                         rx.hstack(
-                            rx.icon("sparkles", size=16, color="#38bdf8"),
+                            rx.icon("sparkles", size=16, color="var(--color-interactive, #38bdf8)"),
                             rx.text(
                                 "Wildcard Active: Optimizing a permanent 15-man squad over the selected horizon with 0 point deductions.",
                                 font_size="0.85rem",
-                                color="#38bdf8",
+                                color="var(--color-interactive, #38bdf8)",
                                 font_weight="500",
                             ),
                             align="center",
@@ -664,7 +664,7 @@ def transfer_analyzer_page() -> rx.Component:
                             size="2",
                         ),
                         rx.hstack(
-                            rx.icon("trending-up", size=14, color="#38bdf8"),
+                            rx.icon("trending-up", size=14, color="var(--color-interactive, #38bdf8)"),
                             rx.text("Betting Market xG", font_size="0.85rem", font_weight="600"),
                             align="center",
                             spacing="1",
@@ -687,7 +687,7 @@ def transfer_analyzer_page() -> rx.Component:
                                     TransferAnalyzerState.market_weight_display,
                                     font_size="0.8rem",
                                     font_weight="700",
-                                    color="#38bdf8",
+                                    color="var(--color-interactive, #38bdf8)",
                                 ),
                                 align="center",
                                 spacing="1",
@@ -722,7 +722,7 @@ def transfer_analyzer_page() -> rx.Component:
                                 TransferAnalyzerState.min_mins.to_string(),
                                 font_size="0.8rem",
                                 font_weight="700",
-                                color="#38bdf8",
+                                color="var(--color-interactive, #38bdf8)",
                             ),
                             align="center",
                             spacing="1",
@@ -1044,7 +1044,7 @@ def transfer_analyzer_page() -> rx.Component:
             ~TransferAnalyzerState.has_solved,
             rx.box(
                 rx.hstack(
-                    rx.icon("info", size=16, color="#60a5fa"),
+                    rx.icon("info", size=16, color="var(--chip-xp-color, #60a5fa)"),
                     rx.text(
                         "Adjust settings above and click 'Solve Transfers' to begin optimization.",
                         font_size="0.85rem",

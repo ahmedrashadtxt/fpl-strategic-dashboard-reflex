@@ -160,8 +160,8 @@ def fixture_ticker_page() -> rx.Component:
             FixtureTickerState.needs_manager_id,
             rx.box(
                 rx.hstack(
-                    rx.icon("info", size=16, color="#38bdf8"),
-                    rx.text("Enter your FPL Team ID in the top bar to filter by your squad.", font_size="0.85rem", color="#38bdf8", font_weight="500"),
+                    rx.icon("info", size=16, color="var(--color-interactive, #38bdf8)"),
+                    rx.text("Enter your FPL Team ID in the top bar to filter by your squad.", font_size="0.85rem", color="var(--color-interactive, #38bdf8)", font_weight="500"),
                     align="center",
                     spacing="2",
                 ),
@@ -237,7 +237,7 @@ def fixture_ticker_page() -> rx.Component:
                                                 row["my_players"],
                                                 font_weight="600",
                                                 font_size="0.85rem",
-                                                color="#60a5fa",
+                                                color="var(--chip-xp-color, #60a5fa)",
                                             ),
                                             text_align="left",
                                         ),

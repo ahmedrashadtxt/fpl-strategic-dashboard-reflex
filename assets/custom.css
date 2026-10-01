@@ -49,6 +49,34 @@
     --shadow-modal: 0 24px 48px -8px rgba(0, 0, 0, 0.65), 0 8px 16px -4px rgba(0, 0, 0, 0.4);
     --shadow-dropdown: 0 14px 30px -4px rgba(0, 0, 0, 0.5), 0 4px 10px -2px rgba(0, 0, 0, 0.25);
     --shadow-tooltip: 0 10px 24px -2px rgba(0, 0, 0, 0.5), 0 2px 6px rgba(0, 0, 0, 0.3);
+
+    /* Pitch tokens (dark defaults) */
+    --pitch-bg: radial-gradient(circle at 50% 50%, #154323 0%, #0c2714 100%);
+    --pitch-border: rgba(255, 255, 255, 0.2);
+    --pitch-line: rgba(255, 255, 255, 0.12);
+    /* Chip tokens (dark defaults) */
+    --chip-bg: #0f172a;
+    --chip-border: rgba(255, 255, 255, 0.12);
+    --chip-text: #f8fafc;
+    --chip-xp-color: #60a5fa;
+    --chip-sub-color: #94a3b8;
+    /* Dugout tokens (dark defaults) */
+    --dugout-bg: rgba(15, 23, 42, 0.75);
+    --dugout-border: rgba(255, 255, 255, 0.1);
+    --dugout-text: #94a3b8;
+    /* Badge tokens (dark defaults) */
+    --badge-negative-bg: rgba(239, 68, 68, 0.16);
+    --badge-negative-text: #f87171;
+    --badge-negative-border: rgba(239, 68, 68, 0.35);
+    --badge-positive-bg: rgba(34, 197, 94, 0.16);
+    --badge-positive-text: #4ade80;
+    --badge-positive-border: rgba(34, 197, 94, 0.35);
+    --badge-warning-bg: rgba(245, 158, 11, 0.16);
+    --badge-warning-text: #fbbf24;
+    --badge-warning-border: rgba(245, 158, 11, 0.35);
+    /* Card shadow (dark defaults) */
+    --card-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+    --card-shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.35);
 }
 
 /* Light Mode overrides */
@@ -96,6 +124,34 @@
     --shadow-modal: 0 24px 44px -8px rgba(0, 0, 0, 0.16), 0 8px 16px -4px rgba(0, 0, 0, 0.08);
     --shadow-dropdown: 0 14px 28px -4px rgba(0, 0, 0, 0.12), 0 4px 10px -2px rgba(0, 0, 0, 0.06);
     --shadow-tooltip: 0 10px 24px -2px rgba(0, 0, 0, 0.35), 0 2px 6px rgba(0, 0, 0, 0.2);
+
+    /* Pitch tokens */
+    --pitch-bg: linear-gradient(160deg, #4a9e4f 0%, #3d8b42 40%, #357a3a 100%);
+    --pitch-border: rgba(0, 0, 0, 0.18);
+    --pitch-line: rgba(255, 255, 255, 0.55);
+    /* Chip tokens */
+    --chip-bg: #ffffff;
+    --chip-border: rgba(0, 0, 0, 0.12);
+    --chip-text: #0f172a;
+    --chip-xp-color: #1d4ed8;
+    --chip-sub-color: #475569;
+    /* Dugout tokens */
+    --dugout-bg: #f1f5f9;
+    --dugout-border: rgba(0, 0, 0, 0.1);
+    --dugout-text: #475569;
+    /* Badge tokens */
+    --badge-negative-bg: #fee2e2;
+    --badge-negative-text: #b91c1c;
+    --badge-negative-border: #fca5a5;
+    --badge-positive-bg: #dcfce7;
+    --badge-positive-text: #15803d;
+    --badge-positive-border: #86efac;
+    --badge-warning-bg: #fef3c7;
+    --badge-warning-text: #b45309;
+    --badge-warning-border: #fcd34d;
+    /* Card shadow */
+    --card-shadow: 0 1px 2px rgba(0,0,0,0.05), 0 4px 12px rgba(0,0,0,0.04);
+    --card-shadow-hover: 0 2px 4px rgba(0,0,0,0.08), 0 6px 16px rgba(0,0,0,0.06);
 }
 
 html, body {
@@ -314,8 +370,8 @@ div[data-testid="column"] div[data-testid="stButton"] button:hover {
     position: sticky !important;
     top: 0px !important;
     z-index: 990 !important;
-    background-color: #0a0a0a !important;
-    border-bottom: 1px solid #222222 !important;
+    background-color: var(--app-bg) !important;
+    border-bottom: 1px solid var(--border-color) !important;
     padding-top: 0.35rem !important;
     padding-bottom: 0.35rem !important;
     margin-bottom: 1rem !important;
@@ -2025,4 +2081,976 @@ footer.driver-popover-footer,
 .take-tour-button:hover {
     transform: translateY(-1px);
     box-shadow: 0 4px 12px rgba(56, 189, 248, 0.15);
+}
+
+/* ══════════════════════════════════════════════════
+   LIGHT THEME — Comprehensive Phase 2 Fixes
+   Covering: cards, surfaces, semantic badges, tabs,
+   controls, tables, pitch, chips, dugout, buttons
+   ══════════════════════════════════════════════════ */
+
+/* ── Page Background & Card Separation ── */
+[data-theme="light"] .rt-Box,
+.light .rt-Box {
+    --card-bg-computed: var(--card-bg);
+}
+
+/* Cards: white background, border, shadow */
+[data-theme="light"] .hero-gw-card,
+[data-theme="light"] .top-metric-card,
+[data-theme="light"] .secondary-stat-card,
+[data-theme="light"] .match-banner-card,
+.light .hero-gw-card,
+.light .top-metric-card,
+.light .secondary-stat-card,
+.light .match-banner-card {
+    box-shadow: var(--card-shadow, 0 1px 2px rgba(0,0,0,0.05), 0 4px 12px rgba(0,0,0,0.04)) !important;
+    border: 1px solid var(--border-color, #e2e8f0) !important;
+}
+
+[data-theme="light"] .hero-gw-card:hover,
+[data-theme="light"] .top-metric-card:hover,
+[data-theme="light"] .secondary-stat-card:hover,
+.light .hero-gw-card:hover,
+.light .top-metric-card:hover,
+.light .secondary-stat-card:hover {
+    box-shadow: var(--card-shadow-hover, 0 2px 4px rgba(0,0,0,0.08), 0 6px 16px rgba(0,0,0,0.06)) !important;
+}
+
+/* ── Hero card: GW5 Pts red tint - subtler border, not a flat block ── */
+[data-theme="light"] .hero-card-perf-red,
+.light .hero-card-perf-red {
+    background: rgba(254, 226, 226, 0.45) !important;
+    border: 1px solid #fca5a5 !important;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 4px 10px rgba(239,68,68,0.06) !important;
+}
+
+[data-theme="light"] .hero-card-perf-red .hero-label,
+.light .hero-card-perf-red .hero-label {
+    color: #b91c1c !important;
+    -webkit-text-fill-color: #b91c1c !important;
+}
+
+[data-theme="light"] .hero-card-perf-red .hero-pts,
+.light .hero-card-perf-red .hero-pts {
+    color: #991b1b !important;
+    -webkit-text-fill-color: #991b1b !important;
+}
+
+[data-theme="light"] .hero-card-perf-red .hero-icon,
+.light .hero-card-perf-red .hero-icon {
+    color: #dc2626 !important;
+}
+
+[data-theme="light"] .hero-card-perf-green,
+.light .hero-card-perf-green {
+    background: rgba(220, 252, 231, 0.5) !important;
+    border: 1px solid #86efac !important;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 4px 10px rgba(34,197,94,0.07) !important;
+}
+
+[data-theme="light"] .hero-card-perf-green .hero-label,
+.light .hero-card-perf-green .hero-label {
+    color: #15803d !important;
+    -webkit-text-fill-color: #15803d !important;
+}
+
+[data-theme="light"] .hero-card-perf-green .hero-pts,
+.light .hero-card-perf-green .hero-pts {
+    color: #166534 !important;
+    -webkit-text-fill-color: #166534 !important;
+}
+
+/* ── Rank Delta Badges: proper semantic colors ── */
+[data-theme="light"] .rank-delta-badge-red,
+.light .rank-delta-badge-red {
+    background: var(--badge-negative-bg, #fee2e2) !important;
+    color: var(--badge-negative-text, #b91c1c) !important;
+    -webkit-text-fill-color: var(--badge-negative-text, #b91c1c) !important;
+    border: 1px solid var(--badge-negative-border, #fca5a5) !important;
+}
+
+[data-theme="light"] .rank-delta-badge-green,
+.light .rank-delta-badge-green {
+    background: var(--badge-positive-bg, #dcfce7) !important;
+    color: var(--badge-positive-text, #15803d) !important;
+    -webkit-text-fill-color: var(--badge-positive-text, #15803d) !important;
+    border: 1px solid var(--badge-positive-border, #86efac) !important;
+}
+
+[data-theme="light"] .rank-delta-badge-gray,
+.light .rank-delta-badge-gray {
+    background: rgba(0, 0, 0, 0.04) !important;
+    color: var(--text-sub, #475569) !important;
+    -webkit-text-fill-color: var(--text-sub, #475569) !important;
+    border: 1px solid var(--border-color, #e2e8f0) !important;
+}
+
+/* ── Tag semantic colors (light mode) ── */
+[data-theme="light"] .tag-green,
+.light .tag-green {
+    background: rgba(22, 163, 74, 0.1) !important;
+    color: #15803d !important;
+    border: 1px solid rgba(22, 163, 74, 0.25) !important;
+}
+
+[data-theme="light"] .tag-red,
+.light .tag-red {
+    background: rgba(220, 38, 38, 0.08) !important;
+    color: #b91c1c !important;
+    border: 1px solid rgba(220, 38, 38, 0.2) !important;
+}
+
+[data-theme="light"] .tag-yellow,
+.light .tag-yellow {
+    background: rgba(217, 119, 6, 0.1) !important;
+    color: #92400e !important;
+    border: 1px solid rgba(217, 119, 6, 0.25) !important;
+}
+
+[data-theme="light"] .tag-blue,
+.light .tag-blue {
+    background: rgba(2, 132, 199, 0.1) !important;
+    color: #0369a1 !important;
+    border: 1px solid rgba(2, 132, 199, 0.25) !important;
+}
+
+[data-theme="light"] .tag-gray,
+.light .tag-gray {
+    background: rgba(0, 0, 0, 0.04) !important;
+    color: var(--text-sub) !important;
+    border: 1px solid var(--border-color) !important;
+}
+
+/* ── GW Badge ── */
+[data-theme="light"] .gw-badge.live,
+.light .gw-badge.live {
+    background: rgba(22, 163, 74, 0.1) !important;
+    color: #15803d !important;
+    border: 1px solid rgba(22, 163, 74, 0.3) !important;
+}
+
+/* ── Tab Navigation (main nav bar) ── */
+[data-theme="light"] .main-nav-tabs-list,
+.light .main-nav-tabs-list {
+    background: #ffffff !important;
+    border: 1px solid var(--border-color, #e2e8f0) !important;
+    border-radius: 10px !important;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06) !important;
+}
+
+[data-theme="light"] .main-nav-tabs-list .tabs-trigger-custom:hover:not([data-state="active"]),
+[data-theme="light"] .main-nav-tabs-list .rt-TabsTrigger:hover:not([data-state="active"]),
+.light .main-nav-tabs-list .tabs-trigger-custom:hover:not([data-state="active"]),
+.light .main-nav-tabs-list .rt-TabsTrigger:hover:not([data-state="active"]) {
+    background: rgba(0, 0, 0, 0.04) !important;
+    color: var(--text-main) !important;
+}
+
+/* ── Non-main tab list (with underline indicator style) ── */
+[data-theme="light"] .rt-TabsList:not(.main-nav-tabs-list),
+.light .rt-TabsList:not(.main-nav-tabs-list) {
+    background: transparent !important;
+    border-bottom: 2px solid var(--border-color, #e2e8f0) !important;
+    box-shadow: none !important;
+}
+
+[data-theme="light"] .rt-TabsTrigger[data-state="active"],
+.light .rt-TabsTrigger[data-state="active"],
+[data-theme="light"] .tabs-trigger-custom[data-state="active"],
+.light .tabs-trigger-custom[data-state="active"] {
+    color: var(--color-interactive, #0284c7) !important;
+    -webkit-text-fill-color: var(--color-interactive, #0284c7) !important;
+    font-weight: 700 !important;
+    box-shadow: none !important;
+}
+
+/* Active tab underline (inside non-main tab lists) */
+[data-theme="light"] .rt-TabsListIndicator,
+.light .rt-TabsListIndicator {
+    display: block !important;
+    background-color: var(--color-interactive, #0284c7) !important;
+    height: 2px !important;
+    border-radius: 2px 2px 0 0 !important;
+}
+
+/* ── Segmented View Toggle (Pitch / List buttons) ── */
+[data-theme="light"] .segmented-view-tabs .rt-TabsList,
+.light .segmented-view-tabs .rt-TabsList {
+    background: rgba(0,0,0,0.03) !important;
+    border: 1px solid var(--border-color, #e2e8f0) !important;
+    border-bottom: 1px solid var(--border-color, #e2e8f0) !important;
+    border-radius: 8px !important;
+    box-shadow: none !important;
+}
+
+[data-theme="light"] .segmented-view-tabs .rt-TabsTrigger[data-state="active"],
+.light .segmented-view-tabs .rt-TabsTrigger[data-state="active"] {
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+}
+
+/* ── Controls Panel ── */
+/* Divider inside controls bar */
+[data-theme="light"] .rt-SeparatorRoot,
+[data-theme="light"] .rt-Separator,
+.light .rt-SeparatorRoot,
+.light .rt-Separator {
+    background: var(--border-color, #e2e8f0) !important;
+}
+
+/* Switch off-state track */
+[data-theme="light"] .rt-SwitchRoot:not([data-state="checked"]) .rt-SwitchThumb,
+.light .rt-SwitchRoot:not([data-state="checked"]) .rt-SwitchThumb {
+    background: #ffffff !important;
+}
+
+[data-theme="light"] .rt-SwitchRoot:not([data-state="checked"]),
+.light .rt-SwitchRoot:not([data-state="checked"]) {
+    background: #cbd5e1 !important;
+    border: 1px solid #94a3b8 !important;
+}
+
+/* Radio buttons */
+[data-theme="light"] .rt-RadioGroupItem,
+.light .rt-RadioGroupItem {
+    border-color: var(--border-subtle, #cbd5e1) !important;
+}
+
+/* Checkbox */
+[data-theme="light"] .rt-CheckboxRoot:not([data-state="checked"]),
+.light .rt-CheckboxRoot:not([data-state="checked"]) {
+    border: 1.5px solid var(--border-subtle, #cbd5e1) !important;
+    background: #ffffff !important;
+}
+
+/* Buttons: Refresh, Take a Tour, manager badge */
+[data-theme="light"] .rt-Button[data-variant="surface"],
+.light .rt-Button[data-variant="surface"] {
+    border: 1px solid var(--border-subtle, #cbd5e1) !important;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04) !important;
+}
+
+[data-theme="light"] .rt-Button[data-variant="surface"]:hover,
+.light .rt-Button[data-variant="surface"]:hover {
+    border-color: var(--color-interactive, #0284c7) !important;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08) !important;
+}
+
+/* ── Table Improvements ── */
+[data-theme="light"] .rt-TableRoot,
+.light .rt-TableRoot {
+    background: #ffffff !important;
+    border-radius: 8px !important;
+    overflow: hidden !important;
+    border: 1px solid var(--border-color, #e2e8f0) !important;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04) !important;
+}
+
+[data-theme="light"] .rt-TableHeader,
+[data-theme="light"] thead,
+.light .rt-TableHeader,
+.light thead {
+    background: #f8fafc !important;
+    border-bottom: 1px solid var(--border-color, #e2e8f0) !important;
+}
+
+[data-theme="light"] .rt-TableColumnHeaderCell,
+[data-theme="light"] th,
+.light .rt-TableColumnHeaderCell,
+.light th {
+    background: #f8fafc !important;
+    color: var(--text-sub, #475569) !important;
+    -webkit-text-fill-color: var(--text-sub, #475569) !important;
+    font-weight: 600 !important;
+    border-bottom: 1px solid var(--border-color, #e2e8f0) !important;
+}
+
+[data-theme="light"] .rt-TableRow:nth-child(even),
+.light .rt-TableRow:nth-child(even),
+[data-theme="light"] tr:nth-child(even),
+.light tr:nth-child(even) {
+    background: #f8fafc !important;
+}
+
+[data-theme="light"] .rt-TableRow:hover .rt-TableCell,
+.light .rt-TableRow:hover .rt-TableCell,
+[data-theme="light"] tr:hover td,
+.light tr:hover td {
+    background: #f1f5f9 !important;
+}
+
+/* Club code badges in tables (ARS, AVL etc) */
+[data-theme="light"] .rt-TableCell .rt-Badge[data-accent-color="gray"].rt-variant-solid,
+[data-theme="light"] .rt-TableCell .rt-Badge[data-color="gray"][data-variant="solid"],
+.light .rt-TableCell .rt-Badge[data-accent-color="gray"].rt-variant-solid,
+.light .rt-TableCell .rt-Badge[data-color="gray"][data-variant="solid"],
+[data-theme="light"] td .rt-Badge[data-accent-color="gray"].rt-variant-solid,
+.light td .rt-Badge[data-accent-color="gray"].rt-variant-solid {
+    background: #e2e8f0 !important;
+    color: #0f172a !important;
+    -webkit-text-fill-color: #0f172a !important;
+    border: 1px solid #cbd5e1 !important;
+    font-weight: 700 !important;
+}
+
+/* Table overflow fix for Verdict/Signal columns */
+[data-theme="light"] .rt-TableRoot,
+.light .rt-TableRoot {
+    overflow-x: auto !important;
+    min-width: 0 !important;
+}
+
+/* ── List card fixes ── */
+[data-theme="light"] .card-avatar,
+.light .card-avatar {
+    border-color: var(--border-color, #e2e8f0) !important;
+    background-color: var(--card-bg-alt, #f8fafc) !important;
+}
+
+/* ── Section card ── */
+[data-theme="light"] .section-card,
+.light .section-card {
+    border-left-color: var(--color-interactive, #0284c7) !important;
+}
+
+/* ── Progress bar track ── */
+[data-theme="light"] .progress-bar-wrap,
+.light .progress-bar-wrap {
+    background: rgba(0, 0, 0, 0.08) !important;
+}
+
+/* ── Squad controls bar ── */
+[data-theme="light"] .squad-controls-bar,
+.light .squad-controls-bar,
+[data-theme="light"] [id="tour-select-gw"] .rt-Box,
+.light [id="tour-select-gw"] .rt-Box {
+    color: var(--text-main) !important;
+}
+
+/* Slider value text */
+[data-theme="light"] .rt-SliderRange,
+.light .rt-SliderRange {
+    background: var(--color-interactive, #0284c7) !important;
+}
+
+[data-theme="light"] .rt-SliderThumb,
+.light .rt-SliderThumb {
+    background: #ffffff !important;
+    border: 2px solid var(--color-interactive, #0284c7) !important;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.12) !important;
+}
+
+/* Market Weight value text */
+[data-theme="light"] [style*="color: #38bdf8"],
+.light [style*="color: #38bdf8"] {
+    color: var(--color-interactive, #0284c7) !important;
+    -webkit-text-fill-color: var(--color-interactive, #0284c7) !important;
+}
+
+/* ── Take a Tour button ── */
+[data-theme="light"] .take-tour-button,
+.light .take-tour-button {
+    border-color: var(--border-subtle, #cbd5e1) !important;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04) !important;
+}
+
+[data-theme="light"] .take-tour-button:hover,
+.light .take-tour-button:hover {
+    border-color: var(--color-interactive, #0284c7) !important;
+    box-shadow: 0 2px 8px rgba(2, 132, 199, 0.15) !important;
+}
+
+/* ── Match banner progress bar track ── */
+[data-theme="light"] [style*="rgba(255, 255, 255, 0.08)"],
+.light [style*="rgba(255, 255, 255, 0.08)"] {
+    background: rgba(0, 0, 0, 0.07) !important;
+}
+
+/* Banner diff badge border in light mode */
+[data-theme="light"] [style*="rgba(255, 255, 255, 0.1)"],
+.light [style*="rgba(255, 255, 255, 0.1)"] {
+    border-color: var(--border-color, #e2e8f0) !important;
+}
+
+/* ── Tooltip theming ── */
+[data-theme="light"] .player-tooltip-card,
+.light .player-tooltip-card {
+    background: rgba(15, 23, 42, 0.94) !important;
+    border-color: rgba(255,255,255,0.14) !important;
+    color: #f1f5f9 !important;
+}
+
+/* ── Loading card ── */
+[data-theme="light"] .optimizer-loader,
+.light .optimizer-loader {
+    border-left-color: var(--color-interactive, #0284c7) !important;
+}
+
+/* ── Generic text overrides for inline Reflex styles ── */
+[data-theme="light"] [style*="color: #94a3b8"],
+.light [style*="color: #94a3b8"] {
+    color: var(--text-sub, #475569) !important;
+    -webkit-text-fill-color: var(--text-sub, #475569) !important;
+}
+
+[data-theme="light"] [style*="color: #64748b"],
+.light [style*="color: #64748b"] {
+    color: var(--text-muted, #64748b) !important;
+}
+
+[data-theme="light"] [style*="color: var(--text-main)"],
+.light [style*="color: var(--text-main)"] {
+    color: var(--text-main) !important;
+    -webkit-text-fill-color: var(--text-main) !important;
+}
+
+/* ── Pitch board wrapper: inherit page background ── */
+[data-theme="light"] .pitch-board-wrap,
+.light .pitch-board-wrap {
+    background: transparent;
+}
+
+/* Tactical pitch light overrides applied via CSS custom props cascade */
+[data-theme="light"] .tactical-pitch,
+.light .tactical-pitch {
+    background: var(--pitch-bg) !important;
+    border-color: var(--pitch-border) !important;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15) !important;
+}
+
+/* Mowed stripe effect on the pitch in light mode */
+[data-theme="light"] .tactical-pitch::before,
+.light .tactical-pitch::before {
+    content: "" !important;
+    position: absolute !important;
+    inset: 0 !important;
+    border-radius: 10px !important;
+    background: repeating-linear-gradient(
+        180deg,
+        rgba(0,0,0,0.04) 0px,
+        rgba(0,0,0,0.04) 40px,
+        transparent 40px,
+        transparent 80px
+    ) !important;
+    pointer-events: none !important;
+    z-index: 0 !important;
+}
+
+/* Pitch lines: lighter on light pitch */
+[data-theme="light"] .pitch-line,
+.light .pitch-line {
+    border-color: var(--pitch-line, rgba(255, 255, 255, 0.6)) !important;
+}
+
+[data-theme="light"] .center-line,
+.light .center-line {
+    background: var(--pitch-line, rgba(255, 255, 255, 0.6)) !important;
+}
+
+/* Pitch name pill (player name chip) */
+[data-theme="light"] .pitch-name-pill,
+.light .pitch-name-pill {
+    background: var(--chip-bg, #ffffff) !important;
+    color: var(--chip-text, #0f172a) !important;
+    border: 1px solid var(--chip-border, rgba(0, 0, 0, 0.12)) !important;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 2px 6px rgba(0,0,0,0.06) !important;
+}
+
+/* Pitch stat pill (xP/price chip) */
+[data-theme="light"] .pitch-stat-pill,
+.light .pitch-stat-pill {
+    background: rgba(255, 255, 255, 0.9) !important;
+    border: 1px solid rgba(0, 0, 0, 0.1) !important;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08) !important;
+}
+
+/* xP value text inside stat pill - use darker blue for contrast */
+[data-theme="light"] .pitch-stat-pill [style*="color: #60a5fa"],
+.light .pitch-stat-pill [style*="color: #60a5fa"],
+[data-theme="light"] .pitch-stat-pill span[style*="#60a5fa"],
+.light .pitch-stat-pill span[style*="#60a5fa"] {
+    color: var(--chip-xp-color, #1d4ed8) !important;
+    -webkit-text-fill-color: var(--chip-xp-color, #1d4ed8) !important;
+}
+
+/* Price sub-text in stat pill */
+[data-theme="light"] .pitch-stat-pill span[style*="#94a3b8"],
+.light .pitch-stat-pill span[style*="#94a3b8"] {
+    color: var(--chip-sub-color, #475569) !important;
+    -webkit-text-fill-color: var(--chip-sub-color, #475569) !important;
+}
+
+/* Bench dugout */
+[data-theme="light"] .pitch-dugout,
+.light .pitch-dugout {
+    background: var(--dugout-bg, #f1f5f9) !important;
+    border: 1px solid var(--dugout-border, rgba(0, 0, 0, 0.1)) !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06) !important;
+}
+
+[data-theme="light"] .dugout-title,
+.light .dugout-title {
+    color: var(--dugout-text, #475569) !important;
+}
+
+[data-theme="light"] .bench-order-tag,
+.light .bench-order-tag {
+    color: var(--text-sub, #475569) !important;
+}
+
+/* Bench avatar ring */
+[data-theme="light"] .bench-avatar,
+.light .bench-avatar {
+    border-color: #94a3b8 !important;
+    opacity: 1 !important;
+}
+
+/* ── Match banner (Squad Rating) ── */
+[data-theme="light"] .match-banner-card,
+.light .match-banner-card {
+    background: #ffffff !important;
+    border: 1px solid var(--border-color, #e2e8f0) !important;
+}
+
+/* ── Squad Rating, Fixtures, and Status Badges (Light Mode High Contrast) ── */
+
+/* Green Badges (FDR 1-2, Squad Rating, Proj xP, Positive deltas) */
+[data-theme="light"] .rt-Badge[data-accent-color="green"].rt-variant-surface,
+[data-theme="light"] .rt-Badge[data-accent-color="green"].rt-variant-soft,
+.light .rt-Badge[data-accent-color="green"].rt-variant-surface,
+.light .rt-Badge[data-accent-color="green"].rt-variant-soft {
+    background: #dcfce7 !important;
+    color: #14532d !important;
+    -webkit-text-fill-color: #14532d !important;
+    border: 1.5px solid #86efac !important;
+    font-weight: 700 !important;
+}
+
+/* Gray Badges (FDR 3, League Average, Team codes, Neutral info) */
+[data-theme="light"] .rt-Badge[data-accent-color="gray"].rt-variant-surface,
+.light .rt-Badge[data-accent-color="gray"].rt-variant-surface {
+    background: #f1f5f9 !important;
+    color: #1e293b !important;
+    -webkit-text-fill-color: #1e293b !important;
+    border: 1.5px solid #cbd5e1 !important;
+    font-weight: 700 !important;
+}
+
+[data-theme="light"] .rt-Badge[data-accent-color="gray"].rt-variant-soft,
+.light .rt-Badge[data-accent-color="gray"].rt-variant-soft {
+    background: #e2e8f0 !important;
+    color: #0f172a !important;
+    -webkit-text-fill-color: #0f172a !important;
+    border: 1px solid #cbd5e1 !important;
+    font-weight: 600 !important;
+}
+
+/* Orange Badges (FDR 4, Moderate difficulty, Warnings) */
+[data-theme="light"] .rt-Badge[data-accent-color="orange"].rt-variant-surface,
+[data-theme="light"] .rt-Badge[data-accent-color="orange"].rt-variant-soft,
+.light .rt-Badge[data-accent-color="orange"].rt-variant-surface,
+.light .rt-Badge[data-accent-color="orange"].rt-variant-soft {
+    background: #ffedd5 !important;
+    color: #9a3412 !important;
+    -webkit-text-fill-color: #9a3412 !important;
+    border: 1.5px solid #fdba74 !important;
+    font-weight: 700 !important;
+}
+
+/* Amber / Yellow Badges (Warning, Moderate, Vice-Captain) */
+[data-theme="light"] .rt-Badge[data-accent-color="amber"].rt-variant-surface,
+[data-theme="light"] .rt-Badge[data-accent-color="amber"].rt-variant-soft,
+[data-theme="light"] .rt-Badge[data-accent-color="yellow"].rt-variant-surface,
+[data-theme="light"] .rt-Badge[data-accent-color="yellow"].rt-variant-soft,
+.light .rt-Badge[data-accent-color="amber"].rt-variant-surface,
+.light .rt-Badge[data-accent-color="amber"].rt-variant-soft,
+.light .rt-Badge[data-accent-color="yellow"].rt-variant-surface,
+.light .rt-Badge[data-accent-color="yellow"].rt-variant-soft {
+    background: #fef3c7 !important;
+    color: #92400e !important;
+    -webkit-text-fill-color: #92400e !important;
+    border: 1.5px solid #fcd34d !important;
+    font-weight: 700 !important;
+}
+
+/* Red / Crimson Badges (FDR 5, Flagged, Negative deltas, Difficult fixtures) */
+[data-theme="light"] .rt-Badge[data-accent-color="red"].rt-variant-soft,
+[data-theme="light"] .rt-Badge[data-accent-color="red"].rt-variant-surface,
+[data-theme="light"] .rt-Badge[data-accent-color="ruby"].rt-variant-surface,
+[data-theme="light"] .rt-Badge[data-accent-color="crimson"].rt-variant-surface,
+.light .rt-Badge[data-accent-color="red"].rt-variant-soft,
+.light .rt-Badge[data-accent-color="red"].rt-variant-surface,
+.light .rt-Badge[data-accent-color="ruby"].rt-variant-surface,
+.light .rt-Badge[data-accent-color="crimson"].rt-variant-surface {
+    background: #fee2e2 !important;
+    color: #991b1b !important;
+    -webkit-text-fill-color: #991b1b !important;
+    border: 1.5px solid #f87171 !important;
+    font-weight: 800 !important;
+}
+
+/* Blue / Sky Badges (Interactive, Projected points, Form) */
+[data-theme="light"] .rt-Badge[data-accent-color="blue"].rt-variant-surface,
+[data-theme="light"] .rt-Badge[data-accent-color="blue"].rt-variant-soft,
+[data-theme="light"] .rt-Badge[data-accent-color="sky"].rt-variant-surface,
+[data-theme="light"] .rt-Badge[data-accent-color="sky"].rt-variant-soft,
+.light .rt-Badge[data-accent-color="blue"].rt-variant-surface,
+.light .rt-Badge[data-accent-color="blue"].rt-variant-soft,
+.light .rt-Badge[data-accent-color="sky"].rt-variant-surface,
+.light .rt-Badge[data-accent-color="sky"].rt-variant-soft {
+    background: #e0f2fe !important;
+    color: #0369a1 !important;
+    -webkit-text-fill-color: #0369a1 !important;
+    border: 1.5px solid #7dd3fc !important;
+    font-weight: 700 !important;
+}
+
+/* Cyan / Teal Badges (Rolling form Proj xP, stats) */
+[data-theme="light"] .rt-Badge[data-accent-color="cyan"],
+[data-theme="light"] .rt-Badge[data-accent-color="teal"],
+.light .rt-Badge[data-accent-color="cyan"],
+.light .rt-Badge[data-accent-color="teal"] {
+    background: #cffafe !important;
+    color: #0e7490 !important;
+    -webkit-text-fill-color: #0e7490 !important;
+    border: 1.5px solid #67e8f9 !important;
+    font-weight: 700 !important;
+}
+
+/* Solid Badges (Verdicts, Solid markers) */
+[data-theme="light"] .rt-Badge[data-accent-color="green"].rt-variant-solid,
+.light .rt-Badge[data-accent-color="green"].rt-variant-solid {
+    background: #16a34a !important;
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+    font-weight: 700 !important;
+}
+
+[data-theme="light"] .rt-Badge[data-accent-color="red"].rt-variant-solid,
+.light .rt-Badge[data-accent-color="red"].rt-variant-solid {
+    background: #dc2626 !important;
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+    font-weight: 700 !important;
+}
+
+/* Position Outline Badges (GKP, DEF, MID, FWD) */
+[data-theme="light"] .rt-Badge.rt-variant-outline,
+.light .rt-Badge.rt-variant-outline {
+    background: #ffffff !important;
+    font-weight: 700 !important;
+}
+[data-theme="light"] .rt-Badge.rt-variant-outline[data-accent-color="green"],
+.light .rt-Badge.rt-variant-outline[data-accent-color="green"] {
+    color: #15803d !important;
+    -webkit-text-fill-color: #15803d !important;
+    border: 1.5px solid #22c55e !important;
+}
+[data-theme="light"] .rt-Badge.rt-variant-outline[data-accent-color="blue"],
+.light .rt-Badge.rt-variant-outline[data-accent-color="blue"] {
+    color: #0369a1 !important;
+    -webkit-text-fill-color: #0369a1 !important;
+    border: 1.5px solid #0284c7 !important;
+}
+[data-theme="light"] .rt-Badge.rt-variant-outline[data-accent-color="orange"],
+.light .rt-Badge.rt-variant-outline[data-accent-color="orange"] {
+    color: #c2410c !important;
+    -webkit-text-fill-color: #c2410c !important;
+    border: 1.5px solid #ea580c !important;
+}
+[data-theme="light"] .rt-Badge.rt-variant-outline[data-accent-color="yellow"],
+[data-theme="light"] .rt-Badge.rt-variant-outline[data-accent-color="amber"],
+.light .rt-Badge.rt-variant-outline[data-accent-color="yellow"],
+.light .rt-Badge.rt-variant-outline[data-accent-color="amber"] {
+    color: #b45309 !important;
+    -webkit-text-fill-color: #b45309 !important;
+    border: 1.5px solid #d97706 !important;
+}
+[data-theme="light"] .rt-Badge.rt-variant-outline[data-accent-color="red"],
+.light .rt-Badge.rt-variant-outline[data-accent-color="red"] {
+    color: #b91c1c !important;
+    -webkit-text-fill-color: #b91c1c !important;
+    border: 1.5px solid #dc2626 !important;
+}
+[data-theme="light"] .rt-Badge.rt-variant-outline[data-accent-color="gray"],
+.light .rt-Badge.rt-variant-outline[data-accent-color="gray"] {
+    color: #334155 !important;
+    -webkit-text-fill-color: #334155 !important;
+    border: 1.5px solid #94a3b8 !important;
+}
+
+/* ── List view player item cards (background) ── */
+[data-theme="light"] .rt-HStack[style*="rgba(15, 23, 42"],
+[data-theme="light"] .rt-HStack[style*="rgba(30, 41, 59"],
+.light .rt-HStack[style*="rgba(15, 23, 42"],
+.light .rt-HStack[style*="rgba(30, 41, 59"] {
+    background: var(--surface-1, #ffffff) !important;
+    border-color: var(--border-color, #e2e8f0) !important;
+}
+
+/* ── xP text in list view items ── */
+[data-theme="light"] [style*="color: #60a5fa"],
+.light [style*="color: #60a5fa"] {
+    color: var(--chip-xp-color, #1d4ed8) !important;
+    -webkit-text-fill-color: var(--chip-xp-color, #1d4ed8) !important;
+}
+
+/* Diff color text in tables (inline style #4ade80 / #f87171) */
+[data-theme="light"] [style*="color: #4ade80"],
+.light [style*="color: #4ade80"] {
+    color: var(--color-positive, #16a34a) !important;
+    -webkit-text-fill-color: var(--color-positive, #16a34a) !important;
+}
+
+[data-theme="light"] [style*="color: #f87171"],
+.light [style*="color: #f87171"] {
+    color: var(--color-negative, #dc2626) !important;
+    -webkit-text-fill-color: var(--color-negative, #dc2626) !important;
+}
+
+/* ── Theme toggle button ── */
+[data-theme="light"] .rt-reset.rt-BaseButton[data-variant="surface"],
+.light .rt-reset.rt-BaseButton[data-variant="surface"] {
+    border: 1px solid var(--border-subtle, #cbd5e1) !important;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.06) !important;
+}
+
+/* ── Tooltip (player card tooltip stays dark always for readability) ── */
+[data-theme="light"] .player-tooltip-card .tt-name,
+.light .player-tooltip-card .tt-name {
+    color: #ffffff !important;
+}
+
+[data-theme="light"] .player-tooltip-card .tt-badge,
+.light .player-tooltip-card .tt-badge {
+    color: #94a3b8 !important;
+}
+
+[data-theme="light"] .player-tooltip-card .tt-val,
+.light .player-tooltip-card .tt-val {
+    color: #f1f5f9 !important;
+}
+
+
+/* ══════════════════════════════════════════════════════════
+   LIGHT THEME — FDR Badge High-Contrast Overrides
+   These invert the dark-mode solid badge backgrounds to
+   light, clearly readable versions in light mode.
+   ══════════════════════════════════════════════════════════ */
+
+/* FDR 1 & 2 — Easy fixtures: dark green bg → light green bg, dark green text */
+[data-theme="light"] .fdr-badge-1,
+[data-theme="light"] .fdr-badge-2,
+.light .fdr-badge-1,
+.light .fdr-badge-2 {
+    background: #dcfce7 !important;                     /* green-100 */
+    color: #14532d !important;                           /* green-900 — 7.5:1 contrast */
+    -webkit-text-fill-color: #14532d !important;
+    border: 1px solid #86efac !important;               /* green-300 */
+}
+
+/* FDR 3 — Medium fixtures: dark slate bg → light slate bg, dark slate text */
+[data-theme="light"] .fdr-badge-3,
+.light .fdr-badge-3 {
+    background: #e2e8f0 !important;                     /* slate-200 */
+    color: #334155 !important;                           /* slate-700 — 7.2:1 contrast */
+    -webkit-text-fill-color: #334155 !important;
+    border: 1px solid #94a3b8 !important;               /* slate-400 */
+}
+
+/* FDR 4 — Hard fixtures: dark burnt-orange bg → amber/orange bg, dark text */
+[data-theme="light"] .fdr-badge-4,
+.light .fdr-badge-4 {
+    background: #ffedd5 !important;                     /* orange-100 */
+    color: #7c2d12 !important;                           /* orange-900 — 8.1:1 contrast */
+    -webkit-text-fill-color: #7c2d12 !important;
+    border: 1px solid #fdba74 !important;               /* orange-300 */
+    font-weight: 700 !important;
+}
+
+/* FDR 5 — Very hard fixtures: dark crimson bg → red bg, dark red text */
+[data-theme="light"] .fdr-badge-5,
+.light .fdr-badge-5 {
+    background: #fee2e2 !important;                     /* red-100 */
+    color: #7f1d1d !important;                           /* red-900 — 9.0:1 contrast */
+    -webkit-text-fill-color: #7f1d1d !important;
+    border: 1px solid #fca5a5 !important;               /* red-300 */
+    font-weight: 800 !important;
+}
+
+/* FDR blank (GW with no fixture) */
+[data-theme="light"] .fdr-badge-blank,
+.light .fdr-badge-blank {
+    background: #f1f5f9 !important;                     /* slate-100 */
+    color: #94a3b8 !important;                           /* slate-400 */
+    -webkit-text-fill-color: #94a3b8 !important;
+    border: 1px solid #e2e8f0 !important;
+}
+
+
+
+/* ══════════════════════════════════════════════════════════
+   FIXTURE TICKER FDR PILLS & STAT DELTA BADGES
+   Guarantees vivid, high-contrast pills in both themes.
+   ══════════════════════════════════════════════════════════ */
+
+/* Base Ticker Pill Layout */
+.ticker-fdr-pill {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border-radius: 6px !important;
+    padding: 3px 8px !important;
+    font-size: 0.78rem !important;
+    min-width: 76px !important;
+    letter-spacing: -0.01em !important;
+    transition: all 0.15s ease !important;
+}
+
+/* Dark Theme Default Ticker Pills */
+.ticker-fdr-pill.fdr-easy {
+    background: rgba(34, 197, 94, 0.18) !important;
+    color: #4ade80 !important;
+    border: 1px solid rgba(34, 197, 94, 0.35) !important;
+    font-weight: 700 !important;
+}
+.ticker-fdr-pill.fdr-med {
+    background: rgba(100, 116, 139, 0.22) !important;
+    color: #cbd5e1 !important;
+    border: 1px solid rgba(148, 163, 184, 0.25) !important;
+    font-weight: 700 !important;
+}
+.ticker-fdr-pill.fdr-hard {
+    background: rgba(249, 115, 22, 0.22) !important;
+    color: #fb923c !important;
+    border: 1px solid rgba(249, 115, 22, 0.35) !important;
+    font-weight: 700 !important;
+}
+.ticker-fdr-pill.fdr-vhard {
+    background: rgba(239, 68, 68, 0.22) !important;
+    color: #f87171 !important;
+    border: 1px solid rgba(239, 68, 68, 0.35) !important;
+    font-weight: 800 !important;
+}
+.ticker-fdr-pill.fdr-blank {
+    background: rgba(15, 23, 42, 0.5) !important;
+    color: #64748b !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Light Theme High-Contrast Ticker Pills */
+[data-theme="light"] .ticker-fdr-pill.fdr-easy,
+.light .ticker-fdr-pill.fdr-easy {
+    background: #dcfce7 !important;
+    color: #14532d !important;
+    -webkit-text-fill-color: #14532d !important;
+    border: 1.5px solid #86efac !important;
+    font-weight: 700 !important;
+    box-shadow: 0 1px 2px rgba(22, 163, 74, 0.08) !important;
+}
+[data-theme="light"] .ticker-fdr-pill.fdr-med,
+.light .ticker-fdr-pill.fdr-med {
+    background: #f1f5f9 !important;
+    color: #0f172a !important;
+    -webkit-text-fill-color: #0f172a !important;
+    border: 1.5px solid #cbd5e1 !important;
+    font-weight: 700 !important;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05) !important;
+}
+[data-theme="light"] .ticker-fdr-pill.fdr-hard,
+.light .ticker-fdr-pill.fdr-hard {
+    background: #ffedd5 !important;
+    color: #9a3412 !important;
+    -webkit-text-fill-color: #9a3412 !important;
+    border: 1.5px solid #fdba74 !important;
+    font-weight: 700 !important;
+    box-shadow: 0 1px 2px rgba(194, 65, 12, 0.08) !important;
+}
+[data-theme="light"] .ticker-fdr-pill.fdr-vhard,
+.light .ticker-fdr-pill.fdr-vhard {
+    background: #fee2e2 !important;
+    color: #991b1b !important;
+    -webkit-text-fill-color: #991b1b !important;
+    border: 1.5px solid #f87171 !important;
+    font-weight: 800 !important;
+    box-shadow: 0 1px 2px rgba(220, 38, 38, 0.08) !important;
+}
+[data-theme="light"] .ticker-fdr-pill.fdr-blank,
+.light .ticker-fdr-pill.fdr-blank {
+    background: #f8fafc !important;
+    color: #64748b !important;
+    -webkit-text-fill-color: #64748b !important;
+    border: 1.5px solid #e2e8f0 !important;
+    font-weight: 600 !important;
+}
+
+/* Light Theme High-Contrast Delta Badges (Stat Cards) */
+[data-theme="light"] .rank-delta-badge-red,
+.light .rank-delta-badge-red {
+    background: #fee2e2 !important;
+    color: #991b1b !important;
+    -webkit-text-fill-color: #991b1b !important;
+    border: 1.5px solid #f87171 !important;
+    font-weight: 700 !important;
+    box-shadow: 0 1px 3px rgba(220, 38, 38, 0.10) !important;
+}
+[data-theme="light"] .rank-delta-badge-green,
+.light .rank-delta-badge-green {
+    background: #dcfce7 !important;
+    color: #14532d !important;
+    -webkit-text-fill-color: #14532d !important;
+    border: 1.5px solid #4ade80 !important;
+    font-weight: 700 !important;
+    box-shadow: 0 1px 3px rgba(22, 163, 74, 0.10) !important;
+}
+[data-theme="light"] .rank-delta-badge-gray,
+.light .rank-delta-badge-gray {
+    background: #f1f5f9 !important;
+    color: #1e293b !important;
+    -webkit-text-fill-color: #1e293b !important;
+    border: 1.5px solid #cbd5e1 !important;
+    font-weight: 700 !important;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05) !important;
+}
+
+/* Light Theme Hero Performance Cards */
+[data-theme="light"] .hero-card-perf-red,
+.light .hero-card-perf-red {
+    background: rgba(254, 226, 226, 0.50) !important;
+    border: 1.5px solid #fca5a5 !important;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(239,68,68,0.08) !important;
+}
+[data-theme="light"] .hero-card-perf-red .hero-label,
+.light .hero-card-perf-red .hero-label {
+    color: #991b1b !important;
+    -webkit-text-fill-color: #991b1b !important;
+    font-weight: 700 !important;
+}
+[data-theme="light"] .hero-card-perf-red .hero-pts,
+.light .hero-card-perf-red .hero-pts {
+    color: #7f1d1d !important;
+    -webkit-text-fill-color: #7f1d1d !important;
+}
+[data-theme="light"] .hero-card-perf-red .hero-icon,
+.light .hero-card-perf-red .hero-icon {
+    color: #dc2626 !important;
+}
+
+[data-theme="light"] .hero-card-perf-green,
+.light .hero-card-perf-green {
+    background: rgba(220, 252, 231, 0.55) !important;
+    border: 1.5px solid #86efac !important;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(34,197,94,0.08) !important;
+}
+[data-theme="light"] .hero-card-perf-green .hero-label,
+.light .hero-card-perf-green .hero-label {
+    color: #14532d !important;
+    -webkit-text-fill-color: #14532d !important;
+    font-weight: 700 !important;
+}
+[data-theme="light"] .hero-card-perf-green .hero-pts,
+.light .hero-card-perf-green .hero-pts {
+    color: #14532d !important;
+    -webkit-text-fill-color: #14532d !important;
 }

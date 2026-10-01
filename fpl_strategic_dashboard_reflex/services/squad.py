@@ -993,8 +993,8 @@ def build_pitch_html(
                 cost_str = f"£{fmt_num(cost, '.1f')}m" if cost else ""
                 mult_txt = f" ({mult}x)" if mult > 1 else ""
                 stat_pill_content = (
-                    f'<span style="color: #60a5fa; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block;">{fmt_num(proj, ".1f")} xP{mult_txt}</span>'
-                    f'<span style="color: #94a3b8; font-size: 0.62rem; display: block; line-height: 1.1; margin-top: 1px;">{cost_str}</span>'
+                    f'<span class="pitch-xp-text" style="font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block;">{fmt_num(proj, ".1f")} xP{mult_txt}</span>'
+                    f'<span class="pitch-price-text" style="font-size: 0.62rem; display: block; line-height: 1.1; margin-top: 1px;">{cost_str}</span>'
                 )
 
             clean_url = html.escape(str(img_url))
@@ -1032,8 +1032,8 @@ def build_pitch_html(
                 b_cost_str = f"£{fmt_num(b_cost, '.1f')}m" if b_cost else ""
                 active_bb_badge = " (1x)" if mult == 1 and not is_live else ""
                 b_stat_content = (
-                    f'<span style="color: #60a5fa; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block;">{fmt_num(proj, ".1f")} xP{active_bb_badge}</span>'
-                    f'<span style="color: #94a3b8; font-size: 0.62rem; display: block; line-height: 1.1; margin-top: 1px;">{b_cost_str}</span>'
+                    f'<span class="pitch-xp-text" style="font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block;">{fmt_num(proj, ".1f")} xP{active_bb_badge}</span>'
+                    f'<span class="pitch-price-text" style="font-size: 0.62rem; display: block; line-height: 1.1; margin-top: 1px;">{b_cost_str}</span>'
                 )
 
             sub_label = "Sub GKP" if pos == "GKP" else f"Sub {idx}"
@@ -1063,8 +1063,8 @@ def build_pitch_html(
         f'<style>'
         f'.pitch-board-wrap {{ width: 100%; max-width: 100%; margin: 0 auto 1rem auto; position: relative; overflow: visible; }}'
         f'.tactical-pitch {{'
-        f'  background: radial-gradient(circle at 50% 50%, #154323 0%, #0c2714 100%);'
-        f'  border: 2px solid rgba(255, 255, 255, 0.2);'
+        f'  background: var(--pitch-bg, radial-gradient(circle at 50% 50%, #154323 0%, #0c2714 100%));'
+        f'  border: 2px solid var(--pitch-border, rgba(255, 255, 255, 0.2));'
         f'  border-radius: 12px;'
         f'  position: relative;'
         f'  z-index: 1;'
@@ -1080,12 +1080,12 @@ def build_pitch_html(
         f'  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);'
         f'}}'
         f'.pitch-line {{ position: absolute; pointer-events: none; }}'
-        f'.center-line {{ top: 50%; left: 0; right: 0; height: 1.5px; background: rgba(255, 255, 255, 0.12); }}'
-        f'.center-circle {{ top: 50%; left: 50%; transform: translate(-50%, -50%); width: 90px; height: 90px; border-radius: 50%; border: 1.5px solid rgba(255, 255, 255, 0.12); }}'
-        f'.penalty-box-top {{ top: 0; left: 50%; transform: translateX(-50%); width: 170px; height: 55px; border: 1.5px solid rgba(255, 255, 255, 0.12); border-top: none; }}'
-        f'.penalty-arc-top {{ top: 55px; left: 50%; transform: translateX(-50%); width: 60px; height: 25px; border-bottom-left-radius: 30px; border-bottom-right-radius: 30px; border: 1.5px solid rgba(255, 255, 255, 0.12); border-top: none; }}'
-        f'.penalty-box-bottom {{ bottom: 0; left: 50%; transform: translateX(-50%); width: 170px; height: 55px; border: 1.5px solid rgba(255, 255, 255, 0.12); border-bottom: none; }}'
-        f'.penalty-arc-bottom {{ bottom: 55px; left: 50%; transform: translateX(-50%); width: 60px; height: 25px; border-top-left-radius: 30px; border-top-right-radius: 30px; border: 1.5px solid rgba(255, 255, 255, 0.12); border-bottom: none; }}'
+        f'.center-line {{ top: 50%; left: 0; right: 0; height: 1.5px; background: var(--pitch-line, rgba(255, 255, 255, 0.12)); }}'
+        f'.center-circle {{ top: 50%; left: 50%; transform: translate(-50%, -50%); width: 90px; height: 90px; border-radius: 50%; border: 1.5px solid var(--pitch-line, rgba(255, 255, 255, 0.12)); }}'
+        f'.penalty-box-top {{ top: 0; left: 50%; transform: translateX(-50%); width: 170px; height: 55px; border: 1.5px solid var(--pitch-line, rgba(255, 255, 255, 0.12)); border-top: none; }}'
+        f'.penalty-arc-top {{ top: 55px; left: 50%; transform: translateX(-50%); width: 60px; height: 25px; border-bottom-left-radius: 30px; border-bottom-right-radius: 30px; border: 1.5px solid var(--pitch-line, rgba(255, 255, 255, 0.12)); border-top: none; }}'
+        f'.penalty-box-bottom {{ bottom: 0; left: 50%; transform: translateX(-50%); width: 170px; height: 55px; border: 1.5px solid var(--pitch-line, rgba(255, 255, 255, 0.12)); border-bottom: none; }}'
+        f'.penalty-arc-bottom {{ bottom: 55px; left: 50%; transform: translateX(-50%); width: 60px; height: 25px; border-top-left-radius: 30px; border-top-right-radius: 30px; border: 1.5px solid var(--pitch-line, rgba(255, 255, 255, 0.12)); border-bottom: none; }}'
         f'@keyframes pitchRowIn {{ from {{ opacity: 0; transform: translateY(8px); }} to {{ opacity: 1; transform: translateY(0); }} }}'
         f'@keyframes capBadgeSpringIn {{ 0% {{ opacity: 0; transform: scale(0); }} 70% {{ opacity: 1; transform: scale(1.18); }} 100% {{ opacity: 1; transform: scale(1); }} }}'
         f'.pitch-formation-row {{ display: flex; justify-content: space-around; align-items: center; z-index: 2; width: 100%; margin: 2px 0; position: relative; animation: pitchRowIn 250ms cubic-bezier(0.16, 1, 0.3, 1) both; }}'
@@ -1107,7 +1107,7 @@ def build_pitch_html(
         f'  background-position: top center, center !important;'
         f'  background-repeat: no-repeat, no-repeat !important;'
         f'  border: 2px solid #ffffff !important;'
-        f'  background-color: #1e293b !important;'
+        f'  background-color: var(--chip-bg, #1e293b) !important;'
         f'  box-shadow: 0 2px 6px rgba(0,0,0,0.35) !important;'
         f'}}'
         f'.bench-avatar {{ border-color: #94a3b8 !important; opacity: 0.9; }}'
@@ -1115,16 +1115,18 @@ def build_pitch_html(
         f'.pitch-cap-badge.c {{ background: #22c55e; color: #ffffff; }}'
         f'.pitch-cap-badge.tc {{ background: #eab308; color: #000000; }}'
         f'.pitch-cap-badge.vc {{ background: #3b82f6; color: #ffffff; }}'
-        f'.pitch-name-pill {{ background: #0f172a; color: #f8fafc; font-size: 0.70rem; font-weight: 700; padding: 2px 4px; border-radius: 4px; width: 94%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border: 1px solid rgba(255, 255, 255, 0.12); box-shadow: 0 1px 3px rgba(0,0,0,0.25); }}'
-        f'.pitch-stat-pill {{ background: rgba(15, 23, 42, 0.85); font-size: 0.66rem; font-weight: 700; padding: 1px 4px; border-radius: 3px; margin-top: 2px; border: 1px solid rgba(255, 255, 255, 0.08); width: 94%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-sizing: border-box; }}'
-        f'.pitch-dugout {{ background: rgba(15, 23, 42, 0.75); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 10px; margin-top: 8px; padding: 8px 6px 14px 6px; position: relative; z-index: 20; overflow: visible; min-height: 128px !important; height: auto !important; box-sizing: border-box !important; animation: pitchRowIn 250ms cubic-bezier(0.16, 1, 0.3, 1) both; animation-delay: 0.20s; }}'
+        f'.pitch-name-pill {{ background: var(--chip-bg, #0f172a); color: var(--chip-text, #f8fafc); font-size: 0.70rem; font-weight: 700; padding: 2px 4px; border-radius: 4px; width: 94%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border: 1px solid var(--chip-border, rgba(255, 255, 255, 0.12)); box-shadow: 0 1px 3px rgba(0,0,0,0.25); }}'
+        f'.pitch-stat-pill {{ background: var(--chip-bg, rgba(15, 23, 42, 0.85)); font-size: 0.66rem; font-weight: 700; padding: 1px 4px; border-radius: 3px; margin-top: 2px; border: 1px solid var(--chip-border, rgba(255, 255, 255, 0.08)); width: 94%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-sizing: border-box; }}'
+        f'.pitch-dugout {{ background: var(--dugout-bg, rgba(15, 23, 42, 0.75)); border: 1px solid var(--dugout-border, rgba(255, 255, 255, 0.1)); border-radius: 10px; margin-top: 8px; padding: 8px 6px 14px 6px; position: relative; z-index: 20; overflow: visible; min-height: 128px !important; height: auto !important; box-sizing: border-box !important; animation: pitchRowIn 250ms cubic-bezier(0.16, 1, 0.3, 1) both; animation-delay: 0.20s; }}'
         f'.pitch-dugout:hover, .pitch-dugout:focus-within {{ z-index: 100 !important; }}'
         f'.bench-node:hover {{ z-index: 150 !important; }}'
         f'.bench-node .player-tooltip-card {{ z-index: 2000 !important; }}'
-        f'.dugout-title {{ font-size: 0.7rem; font-weight: 800; color: #94a3b8; letter-spacing: 0.05em; text-align: center; margin-bottom: 6px; }}'
+        f'.dugout-title {{ font-size: 0.7rem; font-weight: 800; color: var(--dugout-text, #94a3b8); letter-spacing: 0.05em; text-align: center; margin-bottom: 6px; }}'
         f'.dugout-row {{ display: flex; justify-content: space-around; align-items: center; }}'
         f'.bench-node {{ flex: 1; max-width: 64px; }}'
-        f'.bench-order-tag {{ font-size: 0.65rem; color: #94a3b8; font-weight: 600; margin-bottom: 2px; }}'
+        f'.bench-order-tag {{ font-size: 0.65rem; color: var(--dugout-text, #94a3b8); font-weight: 600; margin-bottom: 2px; }}'
+        f'.pitch-xp-text {{ color: var(--chip-xp-color, #60a5fa); }}'
+        f'.pitch-price-text {{ color: var(--chip-sub-color, #94a3b8); }}'
         f'@media (prefers-reduced-motion: reduce) {{ .pitch-formation-row, .pitch-dugout, .pitch-cap-badge {{ animation: none !important; }} .pitch-player-node {{ transition: none !important; }} }}'
         f'.player-tooltip-card {{'
         f'  visibility: hidden;'

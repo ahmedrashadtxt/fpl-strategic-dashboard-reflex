@@ -306,7 +306,7 @@ def simulator_page() -> rx.Component:
             SimulatorState.is_transfer_plan_mode & (~SimulatorState.has_transfer_plan),
             rx.box(
                 rx.hstack(
-                    rx.icon("info", size=20, color="#38bdf8"),
+                    rx.icon("info", size=20, color="var(--color-interactive, #38bdf8)"),
                     rx.vstack(
                         rx.text("No active transfer plan found in session state.", font_weight="700", font_size="0.9rem", color="var(--text-main)"),
                         rx.text("Please visit the Transfer Solver to solve transfers first, then return here to simulate.", font_size="0.8rem", color="var(--text-sub)"),
@@ -343,7 +343,7 @@ def simulator_page() -> rx.Component:
                     rx.hstack(
                         rx.vstack(
                             rx.hstack(
-                                rx.icon("wrench", size=18, color="#f59e0b"),
+                                rx.icon("wrench", size=18, color="var(--color-accent-warning, #f59e0b)"),
                                 rx.text("Custom 15-Player Sandbox Builder", font_weight="700", font_size="1rem", color="var(--text-main)"),
                                 align="center",
                                 spacing="2",
@@ -470,7 +470,7 @@ def simulator_page() -> rx.Component:
                                             rx.table.cell(rx.text(p["Team"])),
                                             rx.table.cell(_position_badge(p["Pos"])),
                                             rx.table.cell(rx.text(rx.concat("£", p["Cost"].to_string(), "m"))),
-                                            rx.table.cell(rx.text(p["Proj_Pts"].to_string(), font_weight="700", color="#60a5fa")),
+                                            rx.table.cell(rx.text(p["Proj_Pts"].to_string(), font_weight="700", color="var(--chip-xp-color, #60a5fa)")),
                                             rx.table.cell(rx.text(p["Opponent"], font_size="0.8rem")),
                                             rx.table.cell(_fdr_badge(p["FDR"]), style={"textAlign": "center"}),
                                         ),
@@ -617,7 +617,7 @@ def simulator_page() -> rx.Component:
                                     rx.box(
                                         rx.vstack(
                                             rx.text("Safe Floor (p10)", font_size="0.75rem", color="var(--text-sub)", font_weight="600"),
-                                            rx.text(SimulatorState.floor_label, font_size="1.3rem", font_weight="700", color="#38bdf8"),
+                                            rx.text(SimulatorState.floor_label, font_size="1.3rem", font_weight="700", color="var(--color-interactive, #38bdf8)"),
                                             align="start",
                                             spacing="1",
                                         ),
@@ -669,9 +669,9 @@ def simulator_page() -> rx.Component:
                                             align="center",
                                         ),
                                         rx.recharts.bar_chart(
-                                            rx.recharts.cartesian_grid(stroke_dasharray="3 3", stroke="#27272a"),
-                                            rx.recharts.x_axis(data_key="points", stroke="#71717a", font_size="11px"),
-                                            rx.recharts.y_axis(stroke="#71717a", font_size="11px"),
+                                            rx.recharts.cartesian_grid(stroke_dasharray="3 3", stroke="var(--border-color, #27272a)"),
+                                            rx.recharts.x_axis(data_key="points", stroke="var(--text-muted, #71717a)", font_size="11px"),
+                                            rx.recharts.y_axis(stroke="var(--text-muted, #71717a)", font_size="11px"),
                                             rx.recharts.bar(data_key="simulations", fill="#3b82f6", radius=[2, 2, 0, 0]),
                                             rx.recharts.reference_line(x=SimulatorState.sim_p10_str, stroke="#ef4444", stroke_dasharray="4 4"),
                                             rx.recharts.reference_line(x=SimulatorState.sim_median_str, stroke="#22c55e", stroke_dasharray="4 4"),
